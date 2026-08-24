@@ -3,7 +3,8 @@
 MVP for a solo Canadian trades contractor: clients, jobs, quotes, invoices, GST/HST PDFs.
 
 **Live:** [trades-planner-bay.vercel.app](https://trades-planner-bay.vercel.app)  
-**Repo:** [github.com/lucasrea/trades-planner](https://github.com/lucasrea/trades-planner)
+**Repo:** [github.com/lucasrea/trades-planner](https://github.com/lucasrea/trades-planner)  
+**Planning:** [docs/planning/trades-planner-scope.md](./docs/planning/trades-planner-scope.md)
 
 Next.js app — marketing site and logged-in app in one repo. Local dev uses SQLite; production on Vercel uses [Turso](https://turso.tech) (hosted libSQL).
 
