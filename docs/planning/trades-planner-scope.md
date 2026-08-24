@@ -19,8 +19,8 @@ Phased scope for a small-scale SaaS PM platform for solo Canadian tradespeople. 
 
 ### Engineering
 - [x] **Production:** Deploy app on Vercel ([trades-planner-bay.vercel.app](https://trades-planner-bay.vercel.app))
-- [ ] **Production:** Turso database + env vars on Vercel (app login/CRUD)
-- [ ] **Production:** Google OAuth prod redirect + `AUTH_*` env vars
+- [ ] **Production:** Supabase Postgres + `DATABASE_URL` on Vercel (app login/CRUD)
+- [ ] **Production:** Google OAuth prod redirect + `AUTH_*` env vars on Vercel
 - [ ] **Production:** Stripe live mode — Checkout, webhooks, Customer Portal, plan gating
 - [ ] **Production:** Custom domain (optional)
 
@@ -234,9 +234,7 @@ How we build, host, and operate the product — stack, data model, and productio
 
 **Repo:** one Next.js app (`trades-planner`). Marketing routes (`/`, `/#pricing`) and app routes (`/app/...`) in the same project.
 
-**Local dev:** Next.js on `localhost:3000`, SQLite at `data/sitebook.db`, Google sign-in, every account forced Pro.
-
-**Production (Aug 2026):** Vercel at [trades-planner-bay.vercel.app](https://trades-planner-bay.vercel.app). Marketing site live. App CRUD requires **Turso** (`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`) plus Google OAuth env vars on Vercel. Stripe and client email still stubbed.
+**Local dev + production:** Next.js + Drizzle → **Supabase Postgres** via `DATABASE_URL`. Google sign-in via NextAuth (not Supabase Auth).
 
 ---
 

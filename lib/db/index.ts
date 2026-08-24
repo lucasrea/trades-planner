@@ -1,167 +1,34 @@
-import { createClient, type Client } from "@libsql/client";
-import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
-import { mkdirSync } from "fs";
-import path from "path";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import * as schema from "./schema";
 
-type Db = LibSQLDatabase<typeof schema>;
+type Db = PostgresJsDatabase<typeof schema>;
 
-let client: Client | null = null;
+let sql: ReturnType<typeof postgres> | null = null;
 let db: Db | null = null;
-let migrated = false;
 
-function getClient(): Client {
-  if (client) return client;
+function getSql() {
+  if (sql) return sql;
 
-  const tursoUrl = process.env.TURSO_DATABASE_URL;
-  if (tursoUrl) {
-    client = createClient({
-      url: tursoUrl,
-      authToken: process.env.TURSO_AUTH_TOKEN,
-    });
-    return client;
-  }
-
-  if (process.env.VERCEL) {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
     throw new Error(
-      "TURSO_DATABASE_URL is required on Vercel. Add Turso credentials under Project Settings → Environment Variables, then redeploy.",
+      "DATABASE_URL is required. Add your Supabase Postgres connection string to .env.local (local) and Vercel env vars (production).",
     );
   }
 
-  const dataDir = path.join(process.cwd(), "data");
-  mkdirSync(dataDir, { recursive: true });
-  client = createClient({
-    url: `file:${path.join(dataDir, "sitebook.db")}`,
+  sql = postgres(databaseUrl, {
+    prepare: false,
+    ssl: databaseUrl.includes("localhost") ? false : "require",
   });
-  return client;
+  return sql;
 }
 
 function getDb(): Db {
-  if (!db) db = drizzle(getClient(), { schema });
+  if (!db) db = drizzle(getSql(), { schema });
   return db;
 }
 
 export async function ensureDb() {
-  if (migrated) return getDb();
-  const activeClient = getClient();
-  await activeClient.executeMultiple(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      email TEXT NOT NULL UNIQUE,
-      name TEXT NOT NULL DEFAULT '',
-      image TEXT NOT NULL DEFAULT '',
-      google_id TEXT,
-      password_hash TEXT NOT NULL DEFAULT '',
-      created_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS contractors (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      business_name TEXT NOT NULL DEFAULT '',
-      business_address TEXT NOT NULL DEFAULT '',
-      phone TEXT NOT NULL DEFAULT '',
-      email TEXT NOT NULL DEFAULT '',
-      gst_hst_number TEXT NOT NULL DEFAULT '',
-      labour_rate_hourly REAL NOT NULL DEFAULT 85,
-      default_markup_pct REAL NOT NULL DEFAULT 20,
-      tax_rate REAL NOT NULL DEFAULT 0.13,
-      tax_label TEXT NOT NULL DEFAULT 'HST',
-      etransfer_email TEXT NOT NULL DEFAULT '',
-      etransfer_note TEXT NOT NULL DEFAULT '',
-      plan TEXT NOT NULL DEFAULT 'pro',
-      stripe_customer_id TEXT,
-      stripe_subscription_id TEXT,
-      onboarding_completed_at INTEGER,
-      next_quote_number INTEGER NOT NULL DEFAULT 1,
-      next_invoice_number INTEGER NOT NULL DEFAULT 1
-    );
-    CREATE TABLE IF NOT EXISTS clients (
-      id TEXT PRIMARY KEY,
-      contractor_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL DEFAULT '',
-      phone TEXT NOT NULL DEFAULT '',
-      billing_address TEXT NOT NULL DEFAULT '',
-      created_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS jobs (
-      id TEXT PRIMARY KEY,
-      contractor_id TEXT NOT NULL,
-      client_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'quoted',
-      site_address TEXT NOT NULL DEFAULT '',
-      notes TEXT NOT NULL DEFAULT '',
-      target_date TEXT,
-      created_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS quotes (
-      id TEXT PRIMARY KEY,
-      contractor_id TEXT NOT NULL,
-      client_id TEXT NOT NULL,
-      job_id TEXT,
-      quote_number TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'draft',
-      notes TEXT NOT NULL DEFAULT '',
-      valid_until TEXT,
-      subtotal REAL NOT NULL DEFAULT 0,
-      tax REAL NOT NULL DEFAULT 0,
-      total REAL NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS quote_line_items (
-      id TEXT PRIMARY KEY,
-      quote_id TEXT NOT NULL,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      kind TEXT NOT NULL DEFAULT 'material',
-      description TEXT NOT NULL DEFAULT '',
-      quantity REAL NOT NULL DEFAULT 1,
-      unit TEXT NOT NULL DEFAULT 'ea',
-      unit_price REAL NOT NULL DEFAULT 0,
-      line_total REAL NOT NULL DEFAULT 0
-    );
-    CREATE TABLE IF NOT EXISTS invoices (
-      id TEXT PRIMARY KEY,
-      contractor_id TEXT NOT NULL,
-      client_id TEXT NOT NULL,
-      job_id TEXT,
-      quote_id TEXT,
-      invoice_number TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'draft',
-      notes TEXT NOT NULL DEFAULT '',
-      due_date TEXT,
-      subtotal REAL NOT NULL DEFAULT 0,
-      tax REAL NOT NULL DEFAULT 0,
-      total REAL NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS invoice_line_items (
-      id TEXT PRIMARY KEY,
-      invoice_id TEXT NOT NULL,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      kind TEXT NOT NULL DEFAULT 'material',
-      description TEXT NOT NULL DEFAULT '',
-      quantity REAL NOT NULL DEFAULT 1,
-      unit TEXT NOT NULL DEFAULT 'ea',
-      unit_price REAL NOT NULL DEFAULT 0,
-      line_total REAL NOT NULL DEFAULT 0
-    );
-  `);
-
-  const columns = await activeClient.execute("PRAGMA table_info(users)");
-  const names = new Set(columns.rows.map((row) => String(row.name)));
-  if (!names.has("name")) {
-    await activeClient.execute("ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''");
-  }
-  if (!names.has("image")) {
-    await activeClient.execute("ALTER TABLE users ADD COLUMN image TEXT NOT NULL DEFAULT ''");
-  }
-  if (!names.has("google_id")) {
-    await activeClient.execute("ALTER TABLE users ADD COLUMN google_id TEXT");
-  }
-
-  migrated = true;
   return getDb();
 }

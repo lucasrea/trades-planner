@@ -1,6 +1,11 @@
-import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  doublePrecision,
+  integer,
+  pgTable,
+  text,
+} from "drizzle-orm/pg-core";
 
-export const users = sqliteTable("users", {
+export const users = pgTable("users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
   name: text("name").notNull().default(""),
@@ -10,7 +15,7 @@ export const users = sqliteTable("users", {
   createdAt: integer("created_at").notNull(),
 });
 
-export const contractors = sqliteTable("contractors", {
+export const contractors = pgTable("contractors", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull(),
   businessName: text("business_name").notNull().default(""),
@@ -18,9 +23,9 @@ export const contractors = sqliteTable("contractors", {
   phone: text("phone").notNull().default(""),
   email: text("email").notNull().default(""),
   gstHstNumber: text("gst_hst_number").notNull().default(""),
-  labourRateHourly: real("labour_rate_hourly").notNull().default(85),
-  defaultMarkupPct: real("default_markup_pct").notNull().default(20),
-  taxRate: real("tax_rate").notNull().default(0.13),
+  labourRateHourly: doublePrecision("labour_rate_hourly").notNull().default(85),
+  defaultMarkupPct: doublePrecision("default_markup_pct").notNull().default(20),
+  taxRate: doublePrecision("tax_rate").notNull().default(0.13),
   taxLabel: text("tax_label").notNull().default("HST"),
   etransferEmail: text("etransfer_email").notNull().default(""),
   etransferNote: text("etransfer_note").notNull().default(""),
@@ -32,7 +37,7 @@ export const contractors = sqliteTable("contractors", {
   nextInvoiceNumber: integer("next_invoice_number").notNull().default(1),
 });
 
-export const clients = sqliteTable("clients", {
+export const clients = pgTable("clients", {
   id: text("id").primaryKey(),
   contractorId: text("contractor_id").notNull(),
   name: text("name").notNull(),
@@ -42,7 +47,7 @@ export const clients = sqliteTable("clients", {
   createdAt: integer("created_at").notNull(),
 });
 
-export const jobs = sqliteTable("jobs", {
+export const jobs = pgTable("jobs", {
   id: text("id").primaryKey(),
   contractorId: text("contractor_id").notNull(),
   clientId: text("client_id").notNull(),
@@ -54,7 +59,7 @@ export const jobs = sqliteTable("jobs", {
   createdAt: integer("created_at").notNull(),
 });
 
-export const quotes = sqliteTable("quotes", {
+export const quotes = pgTable("quotes", {
   id: text("id").primaryKey(),
   contractorId: text("contractor_id").notNull(),
   clientId: text("client_id").notNull(),
@@ -63,26 +68,26 @@ export const quotes = sqliteTable("quotes", {
   status: text("status").notNull().default("draft"),
   notes: text("notes").notNull().default(""),
   validUntil: text("valid_until"),
-  subtotal: real("subtotal").notNull().default(0),
-  tax: real("tax").notNull().default(0),
-  total: real("total").notNull().default(0),
+  subtotal: doublePrecision("subtotal").notNull().default(0),
+  tax: doublePrecision("tax").notNull().default(0),
+  total: doublePrecision("total").notNull().default(0),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
 
-export const quoteLineItems = sqliteTable("quote_line_items", {
+export const quoteLineItems = pgTable("quote_line_items", {
   id: text("id").primaryKey(),
   quoteId: text("quote_id").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
   kind: text("kind").notNull().default("material"),
   description: text("description").notNull().default(""),
-  quantity: real("quantity").notNull().default(1),
+  quantity: doublePrecision("quantity").notNull().default(1),
   unit: text("unit").notNull().default("ea"),
-  unitPrice: real("unit_price").notNull().default(0),
-  lineTotal: real("line_total").notNull().default(0),
+  unitPrice: doublePrecision("unit_price").notNull().default(0),
+  lineTotal: doublePrecision("line_total").notNull().default(0),
 });
 
-export const invoices = sqliteTable("invoices", {
+export const invoices = pgTable("invoices", {
   id: text("id").primaryKey(),
   contractorId: text("contractor_id").notNull(),
   clientId: text("client_id").notNull(),
@@ -92,21 +97,21 @@ export const invoices = sqliteTable("invoices", {
   status: text("status").notNull().default("draft"),
   notes: text("notes").notNull().default(""),
   dueDate: text("due_date"),
-  subtotal: real("subtotal").notNull().default(0),
-  tax: real("tax").notNull().default(0),
-  total: real("total").notNull().default(0),
+  subtotal: doublePrecision("subtotal").notNull().default(0),
+  tax: doublePrecision("tax").notNull().default(0),
+  total: doublePrecision("total").notNull().default(0),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
 
-export const invoiceLineItems = sqliteTable("invoice_line_items", {
+export const invoiceLineItems = pgTable("invoice_line_items", {
   id: text("id").primaryKey(),
   invoiceId: text("invoice_id").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
   kind: text("kind").notNull().default("material"),
   description: text("description").notNull().default(""),
-  quantity: real("quantity").notNull().default(1),
+  quantity: doublePrecision("quantity").notNull().default(1),
   unit: text("unit").notNull().default("ea"),
-  unitPrice: real("unit_price").notNull().default(0),
-  lineTotal: real("line_total").notNull().default(0),
+  unitPrice: doublePrecision("unit_price").notNull().default(0),
+  lineTotal: doublePrecision("line_total").notNull().default(0),
 });

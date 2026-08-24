@@ -6,7 +6,7 @@ MVP for a solo Canadian trades contractor: clients, jobs, quotes, invoices, GST/
 **Repo:** [github.com/lucasrea/trades-planner](https://github.com/lucasrea/trades-planner)  
 **Planning:** [docs/planning/trades-planner-scope.md](./docs/planning/trades-planner-scope.md)
 
-Next.js app — marketing site and logged-in app in one repo. Local dev uses SQLite; production on Vercel uses [Turso](https://turso.tech) (hosted libSQL).
+Next.js app — marketing site and logged-in app in one repo. **Supabase Postgres** for local and production (via Drizzle).
 
 ## Run locally
 
@@ -17,22 +17,64 @@ git clone https://github.com/lucasrea/trades-planner.git
 cd trades-planner
 npm install
 cp .env.example .env.local
+# Fill in .env.local (see Supabase setup below)
 npm run dev
 ```
 
 Set in `.env.local`:
 
-- `AUTH_SECRET` — long random string
-- `AUTH_URL` — `http://localhost:3000`
-- `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` — Google OAuth Web client
+| Variable | Description |
+|----------|-------------|
+| `AUTH_SECRET` | Long random string |
+| `AUTH_URL` | `http://localhost:3000` |
+| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google OAuth Web client |
+| `DATABASE_URL` | Supabase Postgres connection string |
 
-In Google Cloud, add redirect URI:
+Google OAuth redirect URI (local):
 
 `http://localhost:3000/api/auth/callback/google`
 
 Open [http://localhost:3000](http://localhost:3000), sign in with Google, finish onboarding, then add a client → quote → print PDF → invoice.
 
-Data is stored in `data/sitebook.db` (gitignored). Delete that file to reset.
+## Supabase setup
+
+### 1. Create project
+
+1. [supabase.com/dashboard](https://supabase.com/dashboard) → **New project** (e.g. `trades-planner`)
+2. Save the database password
+
+### 2. Connection strings
+
+**Project Settings → Database → Connection string → URI**
+
+| Use | Pooler | Port | Notes |
+|-----|--------|------|--------|
+| App (local + Vercel) | Transaction | **6543** | Add `?pgbouncer=true` — use for `DATABASE_URL` |
+| Migrations (`db:push`) | Direct | **5432** | Use temporarily in `.env.local` for `./scripts/db-push.sh` |
+
+### 3. Apply schema
+
+**Option A — SQL editor:** paste and run `supabase/migrations/20250824200000_initial.sql`
+
+**Option B — Drizzle:**
+
+```bash
+# DATABASE_URL = direct connection (port 5432) in .env.local
+./scripts/db-push.sh
+```
+
+Then switch `DATABASE_URL` back to the **transaction pooler** URL (port 6543) for `npm run dev`.
+
+### 4. Sync env vars to Vercel
+
+Auth vars are likely already on Vercel. After `DATABASE_URL` is in `.env.local`:
+
+```bash
+./scripts/sync-vercel-env.sh
+npx vercel --prod
+```
+
+This pushes `AUTH_*` + `DATABASE_URL` to production and preview, and removes legacy Turso vars.
 
 ## Production (Vercel)
 
@@ -40,48 +82,28 @@ Data is stored in `data/sitebook.db` (gitignored). Delete that file to reset.
 |---|---|
 | **URL** | https://trades-planner-bay.vercel.app |
 | **Host** | [Vercel](https://vercel.com) (auto-deploys from `master`) |
-| **Database** | [Turso](https://turso.tech) — required; Vercel cannot use local SQLite |
+| **Database** | [Supabase](https://supabase.com) Postgres |
 
-### Environment variables
+### Environment variables (Production + Preview)
 
-Set these in **Vercel → Project → Settings → Environment Variables** (Production + Preview):
-
-| Variable | Description |
-|----------|-------------|
-| `AUTH_SECRET` | Same long random string as local |
+| Variable | Production value |
+|----------|------------------|
+| `AUTH_SECRET` | Same as local |
 | `AUTH_URL` | `https://trades-planner-bay.vercel.app` |
 | `AUTH_GOOGLE_ID` | Google OAuth client ID |
 | `AUTH_GOOGLE_SECRET` | Google OAuth client secret |
-| `TURSO_DATABASE_URL` | Turso database URL (`libsql://…`) |
-| `TURSO_AUTH_TOKEN` | Turso auth token |
-
-### Turso setup
-
-```bash
-# Install CLI: https://docs.turso.tech/cli
-turso auth login
-turso db create trades-planner
-turso db show trades-planner --url
-turso db tokens create trades-planner
-```
-
-Paste the URL and token into Vercel env vars, then **Redeploy**.
-
-Schema tables are created automatically on first DB request (`ensureDb`).
+| `DATABASE_URL` | Supabase **transaction pooler** URI (port 6543) |
 
 ### Google OAuth (production)
 
-Add this authorized redirect URI in Google Cloud Console:
+Add authorized redirect URI:
 
 `https://trades-planner-bay.vercel.app/api/auth/callback/google`
 
-### Deploy from Git
+### CD loop
 
-Pushes to `master` trigger a Vercel production deploy. To link the CLI locally:
-
-```bash
-npx vercel link
-npx vercel env pull .env.vercel.local   # optional — inspect prod env locally
+```
+git push origin master  →  Vercel auto-deploys  →  app uses Supabase via DATABASE_URL
 ```
 
 ### Architecture
@@ -90,7 +112,7 @@ npx vercel env pull .env.vercel.local   # optional — inspect prod env locally
 Browser → Vercel (Next.js)
               ├── Server Components + Server Actions (CRUD)
               ├── NextAuth (Google) → /api/auth/[...nextauth]
-              └── Drizzle ORM → Turso (prod) or data/sitebook.db (local)
+              └── Drizzle ORM → Supabase Postgres
 ```
 
 No separate backend service — all API logic lives in this repo under `lib/` and `app/api/`.
