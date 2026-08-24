@@ -1,0 +1,51 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { PageHeader } from "@/components/app-shell";
+import { DocumentForm } from "@/components/document-form";
+import { invoiceFromQuoteAction } from "@/lib/actions/data";
+import { getContractor } from "@/lib/auth";
+import { getClients, getJobs, getQuote } from "@/lib/queries";
+
+export default async function QuoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const quote = await getQuote(id);
+  if (!quote) notFound();
+  const [contractor, clients, jobs] = await Promise.all([getContractor(), getClients(), getJobs()]);
+
+  return (
+    <div>
+      <PageHeader
+        title={quote.quoteNumber}
+        subtitle={quote.client?.name}
+        action={
+          <div className="flex gap-2">
+            <Link href={`/app/quotes/${quote.id}/print`} className="btn btn-ghost">
+              Print / PDF
+            </Link>
+            <form action={invoiceFromQuoteAction}>
+              <input type="hidden" name="quoteId" value={quote.id} />
+              <button className="btn btn-navy">Create invoice</button>
+            </form>
+          </div>
+        }
+      />
+      <DocumentForm
+        kind="quote"
+        taxRate={contractor.taxRate}
+        taxLabel={contractor.taxLabel}
+        labourRate={contractor.labourRateHourly}
+        clients={clients.map((c) => ({ id: c.id, label: c.name }))}
+        jobs={jobs.map((j) => ({ id: j.id, label: `${j.title} · ${j.client?.name || ""}` }))}
+        initial={{
+          id: quote.id,
+          clientId: quote.clientId,
+          jobId: quote.jobId,
+          status: quote.status,
+          notes: quote.notes,
+          date: quote.validUntil,
+          lines: quote.lines,
+        }}
+      />
+    </div>
+  );
+}

@@ -1,0 +1,56 @@
+import Link from "next/link";
+import { EmptyState, PageHeader } from "@/components/app-shell";
+import { getInvoices } from "@/lib/queries";
+import { cad } from "@/lib/money";
+
+export default async function InvoicesPage() {
+  const rows = await getInvoices();
+  return (
+    <div>
+      <PageHeader
+        title="Invoices"
+        subtitle="Create from scratch or from a quote. Mark paid when the e-transfer lands."
+        action={
+          <Link href="/app/invoices/new" className="btn btn-primary">
+            New invoice
+          </Link>
+        }
+      />
+      {rows.length === 0 ? (
+        <EmptyState
+          title="No invoices yet"
+          body="Open a quote and hit Create invoice, or start a blank one."
+          href="/app/invoices/new"
+          cta="New invoice"
+        />
+      ) : (
+        <div className="card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-paper text-left text-muted">
+              <tr>
+                <th className="px-4 py-3 font-medium">Number</th>
+                <th className="px-4 py-3 font-medium">Client</th>
+                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((inv) => (
+                <tr key={inv.id} className="border-t border-line">
+                  <td className="px-4 py-3">
+                    <Link href={`/app/invoices/${inv.id}`} className="font-medium hover:underline">
+                      {inv.invoiceNumber}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-muted">{inv.client?.name || "—"}</td>
+                  <td className="px-4 py-3 capitalize">{inv.status}</td>
+                  <td className="px-4 py-3">{cad(inv.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
