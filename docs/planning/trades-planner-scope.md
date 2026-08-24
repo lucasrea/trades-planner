@@ -19,8 +19,8 @@ Phased scope for a small-scale SaaS PM platform for solo Canadian tradespeople. 
 
 ### Engineering
 - [x] **Production:** Deploy app on Vercel ([trades-planner-bay.vercel.app](https://trades-planner-bay.vercel.app))
-- [ ] **Production:** Supabase Postgres + `DATABASE_URL` on Vercel (app login/CRUD)
-- [ ] **Production:** Google OAuth prod redirect + `AUTH_*` env vars on Vercel
+- [x] **Production:** Supabase Postgres + `DATABASE_URL` on Vercel (app login/CRUD)
+- [x] **Production:** Google OAuth prod redirect + `AUTH_*` env vars on Vercel
 - [ ] **Production:** Stripe live mode — Checkout, webhooks, Customer Portal, plan gating
 - [ ] **Production:** Custom domain (optional)
 
@@ -224,8 +224,10 @@ How we build, host, and operate the product — stack, data model, and productio
 | Layer | Recommendation | Why |
 |-------|----------------|-----|
 | App | **Next.js (App Router) + React + Tailwind** | Marketing site + app in one repo |
-| API | **Next.js Route Handlers** | One deployable |
-| Database + Auth | **Supabase (PostgreSQL + RLS + Auth)** or **Turso (libsql)** | Multi-tenant; Turso closest to current local SQLite |
+| Data access | **Server Actions + Server Components** (not a public REST API yet) | Same deployable; auth + tenant scoping built in |
+| HTTP API (when needed) | **Next.js Route Handlers** | Stripe webhooks, public quote links, mobile, integrations |
+| Database | **Supabase Postgres** via Drizzle + `DATABASE_URL` | Hosted Postgres; schema applied |
+| Auth | **NextAuth + Google OAuth** (not Supabase Auth) | Session cookies; contractor row on sign-in |
 | PDF | **@react-pdf/renderer** or print CSS | Quote/invoice PDFs |
 | Billing | **Stripe Checkout + Customer Portal + webhooks** | Live in Phase 1 |
 | Email (Phase 2) | **Resend** | Quote/invoice links to *clients* |
@@ -235,6 +237,40 @@ How we build, host, and operate the product — stack, data model, and productio
 **Repo:** one Next.js app (`trades-planner`). Marketing routes (`/`, `/#pricing`) and app routes (`/app/...`) in the same project.
 
 **Local dev + production:** Next.js + Drizzle → **Supabase Postgres** via `DATABASE_URL`. Google sign-in via NextAuth (not Supabase Auth).
+
+---
+
+### Data access architecture (current)
+
+**Status:** Read/write works today for logged-in users. No separate REST API for CRUD — and that is intentional for Phase 1.
+
+```
+Browser → Server Actions / Server Components → Drizzle → Supabase Postgres
+                ↑
+           NextAuth session (contractor_id scoping)
+```
+
+| Operation | Where | Notes |
+|-----------|--------|--------|
+| **Read** | `lib/queries.ts` | Server Components call Drizzle; scoped by `getContractor()` |
+| **Write** | `lib/actions/data.ts`, `lib/actions/auth.ts` | Form posts via Server Actions |
+| **Auth** | `app/api/auth/[...nextauth]/route.ts` | Only public HTTP API route today |
+
+**Supported now:** clients, jobs, quotes, invoices (create/update), onboarding, settings, invoice-from-quote, PDF print views, dashboard lists. All tenant-scoped by `contractor_id`.
+
+**Do not add a full REST API yet.** Server Actions are the standard Next.js pattern for a logged-in web app; the “backend” runs on the same Vercel deployment as the UI.
+
+**Add Route Handlers when there is a concrete need:**
+
+| Trigger | Example route |
+|---------|----------------|
+| Stripe webhooks | `POST /api/stripe/webhook` |
+| Shareable client links (Phase 2) | `GET /api/quotes/[token]` |
+| Mobile app (Phase 6+) | JSON CRUD endpoints |
+| Third-party integrations | Zapier, accounting sync, etc. |
+| Voice-to-quote service (Phase 3) | External POST of draft line items |
+
+New API routes should reuse `ensureDb()` and the same auth/tenant checks — no Supabase client SDK required for Postgres access.
 
 ---
 
@@ -356,26 +392,20 @@ Checklist for going from **local dev** to a **hosted SaaS**. Order matters — h
 - [x] **Vercel project** — auto-deploy from `master`, `npm run build`, Node 20+
 - [ ] **Custom domain** — e.g. `app.tradesplanner.ca`; DNS → Vercel; SSL automatic
 - [x] **Preview vs production** — preview deploys per PR; production branch = `master`
-- [ ] **Environment variables** on Vercel (never commit): `AUTH_SECRET`, `AUTH_URL`, `AUTH_GOOGLE_*`, `TURSO_*`, Stripe keys, email API key
+- [x] **Environment variables** on Vercel (never commit): `AUTH_SECRET`, `AUTH_URL`, `AUTH_GOOGLE_*`, `DATABASE_URL`
+- [ ] Stripe keys, email API key (when those features ship)
 
-#### 2. Database (replace SQLite)
-Local SQLite does not survive serverless/multi-instance deploys. Pick one:
-
-| Option | Notes |
-|--------|--------|
-| **Supabase Postgres** | Original plan; RLS for multi-tenant; dashboard + backups |
-| **Turso (libsql)** | Smallest migration from current `@libsql/client` + Drizzle |
-| **Neon Postgres** | Simple managed Postgres if you drop libsql |
+#### 2. Database (Supabase Postgres)
+Local SQLite does not survive serverless/multi-instance deploys. **Chosen path: Supabase Postgres** via Drizzle + `postgres` driver.
 
 **Steps:**
-- [ ] Provision Turso DB instance (prod + optional staging) — **chosen path: Turso**
-- [x] App reads `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` when set (see `lib/db/index.ts`)
-- [ ] Add Turso credentials to Vercel env vars and redeploy
-- [ ] Run schema migrations (Drizzle Kit or SQL migration files) — today `ensureDb()` runs on first request
-- [ ] Point all environments at Turso URL instead of `file:.../sitebook.db`
-- [ ] **One-time data export** from local SQLite if you have real test data
-- [ ] Enable **automated backups** (daily minimum; test a restore once)
-- [ ] Connection pooling if using serverless
+- [x] Provision Supabase project (`tradesplanner`)
+- [x] App reads `DATABASE_URL` (transaction pooler, port 6543) — see `lib/db/index.ts`
+- [x] Add `DATABASE_URL` to Vercel env vars (production + preview) and redeploy
+- [x] Apply schema — `supabase/migrations/20250824200000_initial.sql` (SQL editor or `./scripts/db-push.sh`)
+- [ ] **Smoke-test prod:** sign in → onboarding → client → quote → PDF
+- [ ] Enable **automated backups** in Supabase (daily minimum; test a restore once)
+- [x] Connection pooling — Supabase transaction pooler for serverless/Vercel
 
 #### 3. Payments (Stripe — contractor subscriptions)
 
@@ -399,11 +429,11 @@ Two payment layers — don’t confuse them:
 **Later (Phase 4):** Stripe Payment Links on *invoices* for job clients — separate from SaaS subscription.
 
 #### 4. Auth (Google OAuth in production)
-- [ ] OAuth redirect: `https://yourdomain.com/api/auth/callback/google`
+- [x] OAuth redirect: `https://trades-planner-bay.vercel.app/api/auth/callback/google`
 - [ ] **Publish OAuth consent screen** (or Testing + test users for private beta)
-- [ ] Rotate `AUTH_SECRET` for production
-- [ ] Set `AUTH_URL=https://yourdomain.com` in Vercel prod env
-- [ ] Confirm session cookies work on custom domain
+- [x] `AUTH_SECRET` on Vercel production + preview
+- [x] `AUTH_URL` on Vercel production (Vercel URL until custom domain)
+- [ ] Confirm session cookies work on custom domain (when added)
 
 #### 5. Email (Phase 2+, infra-ready early)
 - [ ] **Resend** (or Postmark / SendGrid) — domain verification, SPF/DKIM
@@ -474,7 +504,7 @@ No AI, no MCP, no email-to-job-client yet.
 |------|------------|
 | Stripe + onboarding order bugs | Onboard first, then Checkout; webhook is source of truth for `plan` |
 | Scope creep into infra | No K8s, separate API, Redis until you have real scale pain |
-| SQLite → prod DB migration | Pick Turso for smallest diff, or Supabase for original plan |
+| SQLite → prod DB migration | Done — Supabase Postgres + Drizzle |
 | GST/HST PDFs looking unofficial | Numbering, BN, tax label, e-transfer line in Phase 1 |
 | LLM invents materials | Human review (Phase 3) |
 
@@ -482,6 +512,6 @@ No AI, no MCP, no email-to-job-client yet.
 
 ### Open engineering decisions
 
-- **Production DB:** Supabase Postgres vs Turso (libsql) for easiest migration from current stack
+- **Production DB:** Supabase Postgres (decided)
 - **Staging:** separate Vercel preview + staging DB vs single prod environment for solo dev
 - **Auth emails:** stay Google-only vs add email/password + Supabase/Resend for reset flows
