@@ -1,34 +1,50 @@
 import { createClient, type Client } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import { mkdirSync } from "fs";
 import path from "path";
 import * as schema from "./schema";
 
-function createDbClient(): Client {
+type Db = LibSQLDatabase<typeof schema>;
+
+let client: Client | null = null;
+let db: Db | null = null;
+let migrated = false;
+
+function getClient(): Client {
+  if (client) return client;
+
   const tursoUrl = process.env.TURSO_DATABASE_URL;
   if (tursoUrl) {
-    return createClient({
+    client = createClient({
       url: tursoUrl,
       authToken: process.env.TURSO_AUTH_TOKEN,
     });
+    return client;
+  }
+
+  if (process.env.VERCEL) {
+    throw new Error(
+      "TURSO_DATABASE_URL is required on Vercel. Add Turso credentials under Project Settings → Environment Variables, then redeploy.",
+    );
   }
 
   const dataDir = path.join(process.cwd(), "data");
   mkdirSync(dataDir, { recursive: true });
-  return createClient({
+  client = createClient({
     url: `file:${path.join(dataDir, "sitebook.db")}`,
   });
+  return client;
 }
 
-const client = createDbClient();
-
-export const db = drizzle(client, { schema });
-
-let migrated = false;
+function getDb(): Db {
+  if (!db) db = drizzle(getClient(), { schema });
+  return db;
+}
 
 export async function ensureDb() {
-  if (migrated) return db;
-  await client.executeMultiple(`
+  if (migrated) return getDb();
+  const activeClient = getClient();
+  await activeClient.executeMultiple(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
@@ -134,18 +150,18 @@ export async function ensureDb() {
     );
   `);
 
-  const columns = await client.execute("PRAGMA table_info(users)");
+  const columns = await activeClient.execute("PRAGMA table_info(users)");
   const names = new Set(columns.rows.map((row) => String(row.name)));
   if (!names.has("name")) {
-    await client.execute("ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''");
+    await activeClient.execute("ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''");
   }
   if (!names.has("image")) {
-    await client.execute("ALTER TABLE users ADD COLUMN image TEXT NOT NULL DEFAULT ''");
+    await activeClient.execute("ALTER TABLE users ADD COLUMN image TEXT NOT NULL DEFAULT ''");
   }
   if (!names.has("google_id")) {
-    await client.execute("ALTER TABLE users ADD COLUMN google_id TEXT");
+    await activeClient.execute("ALTER TABLE users ADD COLUMN google_id TEXT");
   }
 
   migrated = true;
-  return db;
+  return getDb();
 }
