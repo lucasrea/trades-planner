@@ -1,22 +1,46 @@
 import Link from "next/link";
+import { getAuthUser } from "@/lib/auth";
+import { UserMenu } from "@/components/user-menu";
 
-export function MarketingNav() {
+export async function MarketingNav() {
+  const user = await getAuthUser();
+
   return (
-    <header className="border-b border-line bg-card/80 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-line bg-card/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="text-lg font-semibold tracking-tight">
           Trades Planner
         </Link>
-        <nav className="flex items-center gap-5 text-sm">
+        <nav className="flex items-center gap-3 text-sm sm:gap-5">
+          <a href="/#voice" className="hidden text-muted hover:text-ink sm:inline">
+            Voice
+          </a>
+          <a href="/#features" className="hidden text-muted hover:text-ink sm:inline">
+            Features
+          </a>
+          <a href="/#how" className="hidden text-muted hover:text-ink sm:inline">
+            How it works
+          </a>
           <Link href="/pricing" className="text-muted hover:text-ink">
             Pricing
           </Link>
-          <Link href="/login" className="text-muted hover:text-ink">
-            Log in
-          </Link>
-          <Link href="/signup" className="btn btn-primary">
-            Get started
-          </Link>
+          {user ? (
+            <>
+              <Link href="/app" className="text-muted hover:text-ink">
+                Open app
+              </Link>
+              <UserMenu user={user} />
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="text-muted hover:text-ink">
+                Log in
+              </Link>
+              <Link href="/signup" className="btn btn-primary">
+                Get started
+              </Link>
+            </>
+          )}
         </nav>
       </div>
     </header>
@@ -26,9 +50,12 @@ export function MarketingNav() {
 export function MarketingFooter() {
   return (
     <footer className="mt-auto border-t border-line">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-6 text-sm text-muted">
-        <p>© {new Date().getFullYear()} Trades Planner · Local MVP</p>
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-8 text-sm text-muted">
+        <p>© {new Date().getFullYear()} Trades Planner</p>
         <div className="flex gap-4">
+          <a href="/#voice">Voice</a>
+          <a href="/#features">Features</a>
+          <Link href="/pricing">Pricing</Link>
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
         </div>

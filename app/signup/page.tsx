@@ -1,21 +1,17 @@
-import Link from "next/link";
-import { AuthForm } from "@/components/auth-form";
+import { GoogleAuthCard } from "@/components/google-auth-card";
 import { MarketingNav } from "@/components/marketing";
 
-export default function SignupPage() {
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   return (
     <div className="flex min-h-full flex-col">
       <MarketingNav />
       <div className="flex flex-1 items-center px-6 py-16">
-        <div className="w-full">
-          <AuthForm mode="signup" />
-          <p className="mt-4 text-center text-sm text-muted">
-            Already have an account?{" "}
-            <Link href="/login" className="font-medium text-ink underline">
-              Log in
-            </Link>
-          </p>
-        </div>
+        <GoogleAuthCard mode="signup" error={error} />
       </div>
     </div>
   );

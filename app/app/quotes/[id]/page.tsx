@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app-shell";
 import { DocumentForm } from "@/components/document-form";
+import { StatusBadge } from "@/components/status-badge";
 import { invoiceFromQuoteAction } from "@/lib/actions/data";
 import { getContractor } from "@/lib/auth";
 import { getClients, getJobs, getQuote } from "@/lib/queries";
@@ -17,8 +18,10 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
       <PageHeader
         title={quote.quoteNumber}
         subtitle={quote.client?.name}
+        back={{ href: "/app/quotes", label: "Quotes" }}
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={quote.status} />
             <Link href={`/app/quotes/${quote.id}/print`} className="btn btn-ghost">
               Print / PDF
             </Link>
@@ -35,7 +38,7 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
         taxLabel={contractor.taxLabel}
         labourRate={contractor.labourRateHourly}
         clients={clients.map((c) => ({ id: c.id, label: c.name }))}
-        jobs={jobs.map((j) => ({ id: j.id, label: `${j.title} · ${j.client?.name || ""}` }))}
+        jobs={jobs.map((j) => ({ id: j.id, label: `${j.title} · ${j.client?.name || ""}`, clientId: j.clientId }))}
         initial={{
           id: quote.id,
           clientId: quote.clientId,

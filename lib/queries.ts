@@ -143,3 +143,24 @@ export async function getInvoice(id: string) {
     lines: lines.sort((a, b) => a.sortOrder - b.sortOrder).map(toDraft),
   };
 }
+
+export async function getClientHistory(clientId: string) {
+  const contractor = await getContractor();
+  const db = await ensureDb();
+  const [jobRows, quoteRows, invoiceRows] = await Promise.all([
+    db.select().from(jobs).where(and(eq(jobs.clientId, clientId), eq(jobs.contractorId, contractor.id))),
+    db.select().from(quotes).where(and(eq(quotes.clientId, clientId), eq(quotes.contractorId, contractor.id))),
+    db.select().from(invoices).where(and(eq(invoices.clientId, clientId), eq(invoices.contractorId, contractor.id))),
+  ]);
+  return { jobs: jobRows, quotes: quoteRows, invoices: invoiceRows };
+}
+
+export async function getJobDocuments(jobId: string) {
+  const contractor = await getContractor();
+  const db = await ensureDb();
+  const [quoteRows, invoiceRows] = await Promise.all([
+    db.select().from(quotes).where(and(eq(quotes.jobId, jobId), eq(quotes.contractorId, contractor.id))),
+    db.select().from(invoices).where(and(eq(invoices.jobId, jobId), eq(invoices.contractorId, contractor.id))),
+  ]);
+  return { quotes: quoteRows, invoices: invoiceRows };
+}

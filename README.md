@@ -14,9 +14,11 @@ npm install
 npm run dev
 ```
 
+Copy `.env.example` to `.env.local` and set `AUTH_SECRET`, `AUTH_GOOGLE_ID`, and `AUTH_GOOGLE_SECRET`. In Google Cloud, create a Web OAuth client with redirect URI `http://localhost:3000/api/auth/callback/google`.
+
 Open [http://localhost:3000](http://localhost:3000).
 
-- Sign up with any email + password (8+ characters)
+- Sign up or log in with Google
 - Finish onboarding (business, tax, rates, e-transfer)
 - Add a client → quote → Print / Save as PDF → Create invoice
 

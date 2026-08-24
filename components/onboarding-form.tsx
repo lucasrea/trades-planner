@@ -1,17 +1,31 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { completeOnboardingAction } from "@/lib/actions/auth";
 import { Field } from "@/components/app-shell";
+import { useActionRedirect } from "@/components/use-action-redirect";
 
 const steps = ["Business", "Tax", "Rates", "Getting paid"];
 
 export function OnboardingForm({ email }: { email: string }) {
   const [step, setStep] = useState(0);
+  const [localError, setLocalError] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(completeOnboardingAction, null);
+  useActionRedirect(state);
+
+  function goNext() {
+    const data = formRef.current ? new FormData(formRef.current) : null;
+    if (step === 0 && !String(data?.get("businessName") || "").trim()) {
+      setLocalError("Business name is required.");
+      return;
+    }
+    setLocalError("");
+    setStep((s) => s + 1);
+  }
 
   return (
-    <form action={formAction} className="card mx-auto w-full max-w-xl p-8">
+    <form ref={formRef} action={formAction} className="card mx-auto w-full max-w-xl p-8">
       <p className="text-xs font-medium uppercase tracking-wide text-muted">
         Step {step + 1} of {steps.length}
       </p>
@@ -26,7 +40,7 @@ export function OnboardingForm({ email }: { email: string }) {
 
       <div className={step === 0 ? "mt-8 grid gap-4" : "hidden"}>
         <Field label="Business name">
-          <input className="input" name="businessName" required placeholder="Rea Plumbing" />
+          <input className="input" name="businessName" placeholder="Rea Plumbing" />
         </Field>
         <Field label="Business address">
           <textarea className="input min-h-20" name="businessAddress" placeholder="123 Main St, Hamilton ON" />
@@ -76,14 +90,24 @@ export function OnboardingForm({ email }: { email: string }) {
         </Field>
       </div>
 
-      {state?.error ? <p className="mt-4 text-sm text-accent">{state.error}</p> : null}
+      {localError || state?.error ? (
+        <p className="mt-4 text-sm text-accent">{localError || state?.error}</p>
+      ) : null}
 
       <div className="mt-8 flex justify-between">
-        <button type="button" className="btn btn-ghost" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={step === 0}
+          onClick={() => {
+            setLocalError("");
+            setStep((s) => s - 1);
+          }}
+        >
           Back
         </button>
         {step < steps.length - 1 ? (
-          <button type="button" className="btn btn-navy" onClick={() => setStep((s) => s + 1)}>
+          <button type="button" className="btn btn-navy" onClick={goNext}>
             Next
           </button>
         ) : (

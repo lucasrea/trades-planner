@@ -1,12 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useMemo, useState } from "react";
+import Link from "next/link";
 import { LineEditor } from "@/components/line-editor";
 import { Field } from "@/components/app-shell";
+import { useActionRedirect } from "@/components/use-action-redirect";
 import { saveInvoiceAction, saveQuoteAction } from "@/lib/actions/data";
 import type { DraftLine } from "@/lib/money";
 
-type Option = { id: string; label: string };
+type Option = { id: string; label: string; clientId?: string };
 
 export function DocumentForm({
   kind,
@@ -36,6 +38,15 @@ export function DocumentForm({
 }) {
   const action = kind === "quote" ? saveQuoteAction : saveInvoiceAction;
   const [state, formAction, pending] = useActionState(action, null);
+  useActionRedirect(state);
+  const [clientId, setClientId] = useState(initial?.clientId || "");
+  const visibleJobs = useMemo(
+    () => jobs.filter((j) => !clientId || !j.clientId || j.clientId === clientId),
+    [jobs, clientId],
+  );
+  const editing = Boolean(initial?.id);
+  const listHref = kind === "quote" ? "/app/quotes" : "/app/invoices";
+  const saveLabel = kind === "quote" ? (editing ? "Save quote" : "Create quote") : editing ? "Save invoice" : "Create invoice";
 
   return (
     <form action={formAction} className="space-y-6">
@@ -46,7 +57,13 @@ export function DocumentForm({
 
       <div className="card grid gap-4 p-6 sm:grid-cols-2">
         <Field label="Client">
-          <select className="input" name="clientId" required defaultValue={initial?.clientId || ""}>
+          <select
+            className="input"
+            name="clientId"
+            required
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+          >
             <option value="">Select client</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
@@ -56,9 +73,9 @@ export function DocumentForm({
           </select>
         </Field>
         <Field label="Job (optional)">
-          <select className="input" name="jobId" defaultValue={initial?.jobId || ""}>
+          <select className="input" name="jobId" defaultValue={initial?.jobId || ""} key={clientId}>
             <option value="">No job yet</option>
-            {jobs.map((j) => (
+            {visibleJobs.map((j) => (
               <option key={j.id} value={j.id}>
                 {j.label}
               </option>
@@ -108,9 +125,14 @@ export function DocumentForm({
       </div>
 
       {state?.error ? <p className="text-sm text-accent">{state.error}</p> : null}
-      <button className="btn btn-primary" disabled={pending}>
-        {pending ? "Saving…" : "Save"}
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button className="btn btn-primary" disabled={pending}>
+          {pending ? "Saving…" : saveLabel}
+        </button>
+        <Link href={listHref} className="btn btn-ghost">
+          Cancel
+        </Link>
+      </div>
     </form>
   );
 }

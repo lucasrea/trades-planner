@@ -2,41 +2,38 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app-shell";
 import { ClientForm } from "@/components/client-form";
-import { getClient } from "@/lib/queries";
-import { ensureDb } from "@/lib/db";
-import { getContractor } from "@/lib/auth";
-import { eq, and } from "drizzle-orm";
-import { jobs, quotes, invoices } from "@/lib/db/schema";
+import { getClient, getClientHistory } from "@/lib/queries";
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const client = await getClient(id);
   if (!client) notFound();
-  const contractor = await getContractor();
-  const db = await ensureDb();
-  const [jobRows, quoteRows, invoiceRows] = await Promise.all([
-    db.select().from(jobs).where(and(eq(jobs.clientId, id), eq(jobs.contractorId, contractor.id))),
-    db.select().from(quotes).where(and(eq(quotes.clientId, id), eq(quotes.contractorId, contractor.id))),
-    db.select().from(invoices).where(and(eq(invoices.clientId, id), eq(invoices.contractorId, contractor.id))),
-  ]);
+  const { jobs, quotes, invoices } = await getClientHistory(id);
 
   return (
     <div className="space-y-8">
       <PageHeader
         title={client.name}
+        subtitle={client.email || client.phone || undefined}
+        back={{ href: "/app/clients", label: "Clients" }}
         action={
-          <Link href={`/app/quotes/new?clientId=${client.id}`} className="btn btn-primary">
-            Quote this client
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/app/jobs/new?clientId=${client.id}`} className="btn btn-ghost">
+              New job
+            </Link>
+            <Link href={`/app/quotes/new?clientId=${client.id}`} className="btn btn-primary">
+              New quote
+            </Link>
+          </div>
         }
       />
       <ClientForm initial={client} />
       <div className="grid gap-4 md:grid-cols-3">
-        <Related title="Jobs" items={jobRows.map((j) => ({ href: `/app/jobs/${j.id}`, label: j.title }))} />
-        <Related title="Quotes" items={quoteRows.map((q) => ({ href: `/app/quotes/${q.id}`, label: q.quoteNumber }))} />
+        <Related title="Jobs" items={jobs.map((j) => ({ href: `/app/jobs/${j.id}`, label: j.title }))} />
+        <Related title="Quotes" items={quotes.map((q) => ({ href: `/app/quotes/${q.id}`, label: q.quoteNumber }))} />
         <Related
           title="Invoices"
-          items={invoiceRows.map((i) => ({ href: `/app/invoices/${i.id}`, label: i.invoiceNumber }))}
+          items={invoices.map((i) => ({ href: `/app/invoices/${i.id}`, label: i.invoiceNumber }))}
         />
       </div>
     </div>

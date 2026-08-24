@@ -1,7 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { Field } from "@/components/app-shell";
+import { useActionRedirect } from "@/components/use-action-redirect";
 import { saveJobAction } from "@/lib/actions/data";
 
 export function JobForm({
@@ -10,19 +12,22 @@ export function JobForm({
 }: {
   clients: { id: string; name: string }[];
   initial?: {
-    id: string;
-    title: string;
-    clientId: string;
-    status: string;
-    siteAddress: string;
-    notes: string;
-    targetDate: string | null;
+    id?: string;
+    title?: string;
+    clientId?: string;
+    status?: string;
+    siteAddress?: string;
+    notes?: string;
+    targetDate?: string | null;
   };
 }) {
   const [state, formAction, pending] = useActionState(saveJobAction, null);
+  useActionRedirect(state);
+  const editing = Boolean(initial?.id);
+
   return (
     <form action={formAction} className="card max-w-xl space-y-4 p-6">
-      {initial?.id ? <input type="hidden" name="id" value={initial.id} /> : null}
+      {editing ? <input type="hidden" name="id" value={initial!.id} /> : null}
       <Field label="Title">
         <input className="input" name="title" required defaultValue={initial?.title} placeholder="Kitchen rough-in" />
       </Field>
@@ -45,7 +50,12 @@ export function JobForm({
         </select>
       </Field>
       <Field label="Job site address">
-        <textarea className="input min-h-20" name="siteAddress" defaultValue={initial?.siteAddress} />
+        <textarea
+          className="input min-h-20"
+          name="siteAddress"
+          defaultValue={initial?.siteAddress}
+          placeholder="Where the work happens — can differ from billing"
+        />
       </Field>
       <Field label="Target date">
         <input className="input" type="date" name="targetDate" defaultValue={initial?.targetDate || ""} />
@@ -54,9 +64,14 @@ export function JobForm({
         <textarea className="input min-h-20" name="notes" defaultValue={initial?.notes} />
       </Field>
       {state?.error ? <p className="text-sm text-accent">{state.error}</p> : null}
-      <button className="btn btn-primary" disabled={pending}>
-        {pending ? "Saving…" : "Save job"}
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button className="btn btn-primary" disabled={pending}>
+          {pending ? "Saving…" : editing ? "Save changes" : "Save job"}
+        </button>
+        <Link href="/app/jobs" className="btn btn-ghost">
+          Cancel
+        </Link>
+      </div>
     </form>
   );
 }

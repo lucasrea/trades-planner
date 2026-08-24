@@ -27,15 +27,22 @@ function id() {
 }
 
 function parseLines(raw: string): DraftLine[] {
-  const parsed = JSON.parse(raw) as DraftLine[];
-  return parsed.map((line) => ({
-    ...line,
-    kind: (["material", "labour", "other"].includes(line.kind) ? line.kind : "material") as LineKind,
-    quantity: Number(line.quantity) || 0,
-    unitPrice: Number(line.unitPrice) || 0,
-    description: String(line.description || ""),
-    unit: String(line.unit || "ea"),
-  }));
+  try {
+    const parsed = JSON.parse(raw) as DraftLine[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((line) => ({
+        ...line,
+        kind: (["material", "labour", "other"].includes(line.kind) ? line.kind : "material") as LineKind,
+        quantity: Number(line.quantity) || 0,
+        unitPrice: Number(line.unitPrice) || 0,
+        description: String(line.description || "").trim(),
+        unit: String(line.unit || "ea"),
+      }))
+      .filter((line) => line.description);
+  } catch {
+    return [];
+  }
 }
 
 export async function saveClientAction(_: unknown, formData: FormData) {
@@ -56,7 +63,9 @@ export async function saveClientAction(_: unknown, formData: FormData) {
       .set(values)
       .where(and(eq(clients.id, clientId), eq(clients.contractorId, contractor.id)));
     revalidatePath("/app/clients");
-    redirect(`/app/clients/${clientId}`);
+    revalidatePath(`/app/clients/${clientId}`);
+    revalidatePath("/app");
+    return { redirectTo: "/app/clients" };
   }
   const newId = id();
   await db.insert(clients).values({
@@ -66,7 +75,8 @@ export async function saveClientAction(_: unknown, formData: FormData) {
     ...values,
   });
   revalidatePath("/app/clients");
-  redirect(`/app/clients/${newId}`);
+  revalidatePath("/app");
+  return { redirectTo: "/app/clients" };
 }
 
 export async function saveJobAction(_: unknown, formData: FormData) {
@@ -91,7 +101,8 @@ export async function saveJobAction(_: unknown, formData: FormData) {
       .set(values)
       .where(and(eq(jobs.id, jobId), eq(jobs.contractorId, contractor.id)));
     revalidatePath("/app/jobs");
-    redirect(`/app/jobs/${jobId}`);
+    revalidatePath("/app");
+    return { redirectTo: "/app/jobs" };
   }
   const newId = id();
   await db.insert(jobs).values({
@@ -101,7 +112,8 @@ export async function saveJobAction(_: unknown, formData: FormData) {
     ...values,
   });
   revalidatePath("/app/jobs");
-  redirect(`/app/jobs/${newId}`);
+  revalidatePath("/app");
+  return { redirectTo: "/app/jobs" };
 }
 
 export async function saveQuoteAction(_: unknown, formData: FormData) {
@@ -168,7 +180,9 @@ export async function saveQuoteAction(_: unknown, formData: FormData) {
   }
 
   revalidatePath("/app/quotes");
-  redirect(`/app/quotes/${quoteId}`);
+  revalidatePath(`/app/quotes/${quoteId}`);
+  revalidatePath("/app");
+  return { redirectTo: isNew ? `/app/quotes/${quoteId}` : "/app/quotes" };
 }
 
 export async function saveInvoiceAction(_: unknown, formData: FormData) {
@@ -237,7 +251,9 @@ export async function saveInvoiceAction(_: unknown, formData: FormData) {
   }
 
   revalidatePath("/app/invoices");
-  redirect(`/app/invoices/${invoiceId}`);
+  revalidatePath(`/app/invoices/${invoiceId}`);
+  revalidatePath("/app");
+  return { redirectTo: isNew ? `/app/invoices/${invoiceId}` : "/app/invoices" };
 }
 
 export async function invoiceFromQuoteAction(formData: FormData) {
@@ -291,6 +307,9 @@ export async function invoiceFromQuoteAction(formData: FormData) {
     .update(contractors)
     .set({ nextInvoiceNumber: contractor.nextInvoiceNumber + 1 })
     .where(eq(contractors.id, contractor.id));
+  revalidatePath("/app/invoices");
+  revalidatePath("/app/quotes");
+  revalidatePath("/app");
   redirect(`/app/invoices/${invoiceId}`);
 }
 

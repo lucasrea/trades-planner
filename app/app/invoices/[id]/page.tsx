@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app-shell";
 import { DocumentForm } from "@/components/document-form";
+import { StatusBadge } from "@/components/status-badge";
 import { getContractor } from "@/lib/auth";
 import { getClients, getInvoice, getJobs } from "@/lib/queries";
 
@@ -16,10 +17,14 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       <PageHeader
         title={invoice.invoiceNumber}
         subtitle={invoice.client?.name}
+        back={{ href: "/app/invoices", label: "Invoices" }}
         action={
-          <Link href={`/app/invoices/${invoice.id}/print`} className="btn btn-ghost">
-            Print / PDF
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={invoice.status} />
+            <Link href={`/app/invoices/${invoice.id}/print`} className="btn btn-ghost">
+              Print / PDF
+            </Link>
+          </div>
         }
       />
       <DocumentForm
@@ -28,7 +33,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         taxLabel={contractor.taxLabel}
         labourRate={contractor.labourRateHourly}
         clients={clients.map((c) => ({ id: c.id, label: c.name }))}
-        jobs={jobs.map((j) => ({ id: j.id, label: `${j.title} · ${j.client?.name || ""}` }))}
+        jobs={jobs.map((j) => ({ id: j.id, label: `${j.title} · ${j.client?.name || ""}`, clientId: j.clientId }))}
         initial={{
           id: invoice.id,
           clientId: invoice.clientId,

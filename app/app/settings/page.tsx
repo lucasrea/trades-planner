@@ -6,7 +6,11 @@ export default async function SettingsPage() {
   const contractor = await getContractor();
   return (
     <div>
-      <PageHeader title="Settings" subtitle="This is what prints on quotes and invoices." />
+      <PageHeader
+        title="Settings"
+        subtitle="This is what prints on quotes and invoices."
+        back={{ href: "/app", label: "Dashboard" }}
+      />
       <SettingsForm contractor={contractor} />
     </div>
   );

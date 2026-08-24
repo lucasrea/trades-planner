@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/app-shell";
+import { StatusBadge } from "@/components/status-badge";
 import { getInvoices } from "@/lib/queries";
 import { cad } from "@/lib/money";
 
@@ -9,7 +10,7 @@ export default async function InvoicesPage() {
     <div>
       <PageHeader
         title="Invoices"
-        subtitle="Create from scratch or from a quote. Mark paid when the e-transfer lands."
+        subtitle="Create from a quote or from scratch. Mark paid when the e-transfer lands."
         action={
           <Link href="/app/invoices/new" className="btn btn-primary">
             New invoice
@@ -31,20 +32,22 @@ export default async function InvoicesPage() {
                 <th className="px-4 py-3 font-medium">Number</th>
                 <th className="px-4 py-3 font-medium">Client</th>
                 <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Total</th>
+                <th className="px-4 py-3 text-right font-medium">Total</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((inv) => (
-                <tr key={inv.id} className="border-t border-line">
+                <tr key={inv.id} className="border-t border-line hover:bg-paper/70">
                   <td className="px-4 py-3">
                     <Link href={`/app/invoices/${inv.id}`} className="font-medium hover:underline">
                       {inv.invoiceNumber}
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-muted">{inv.client?.name || "—"}</td>
-                  <td className="px-4 py-3 capitalize">{inv.status}</td>
-                  <td className="px-4 py-3">{cad(inv.total)}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={inv.status} />
+                  </td>
+                  <td className="px-4 py-3 text-right">{cad(inv.total)}</td>
                 </tr>
               ))}
             </tbody>

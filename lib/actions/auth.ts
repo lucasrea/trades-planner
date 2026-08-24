@@ -1,78 +1,33 @@
 "use server";
 
 import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import {
-  clearSessionCookie,
-  findUserByEmail,
-  getContractor,
-  getSession,
-  hashPassword,
-  setSessionCookie,
-  verifyPassword,
-} from "@/lib/auth";
+import { signIn, signOut } from "@/auth";
+import { getContractor, getSession } from "@/lib/auth";
 import { ensureDb } from "@/lib/db";
-import { contractors, users } from "@/lib/db/schema";
+import { contractors } from "@/lib/db/schema";
 
-function id() {
-  return crypto.randomUUID();
+function safeNext(value: FormDataEntryValue | string | null) {
+  const next = String(value || "/app");
+  if (
+    next.startsWith("/") &&
+    !next.startsWith("//") &&
+    !next.startsWith("/login") &&
+    !next.startsWith("/signup") &&
+    !next.startsWith("/api")
+  ) {
+    return next;
+  }
+  return "/app";
 }
 
-export async function signupAction(_: unknown, formData: FormData) {
-  const email = String(formData.get("email") || "")
-    .toLowerCase()
-    .trim();
-  const password = String(formData.get("password") || "");
-  if (!email.includes("@") || password.length < 8) {
-    return { error: "Use a real email and a password of at least 8 characters." };
-  }
-  const existing = await findUserByEmail(email);
-  if (existing) return { error: "An account with that email already exists." };
-
-  const db = await ensureDb();
-  const userId = id();
-  const contractorId = id();
-  const now = Date.now();
-  await db.insert(users).values({
-    id: userId,
-    email,
-    passwordHash: hashPassword(password),
-    createdAt: now,
-  });
-  await db.insert(contractors).values({
-    id: contractorId,
-    userId,
-    email,
-    plan: "pro",
-  });
-  await setSessionCookie(userId, contractorId);
-  redirect("/onboarding");
-}
-
-export async function loginAction(_: unknown, formData: FormData) {
-  const email = String(formData.get("email") || "")
-    .toLowerCase()
-    .trim();
-  const password = String(formData.get("password") || "");
-  const user = await findUserByEmail(email);
-  if (!user || !verifyPassword(password, user.passwordHash)) {
-    return { error: "Email or password is wrong." };
-  }
-  const db = await ensureDb();
-  const [contractor] = await db
-    .select()
-    .from(contractors)
-    .where(eq(contractors.userId, user.id))
-    .limit(1);
-  if (!contractor) return { error: "That account is missing a business profile." };
-  await setSessionCookie(user.id, contractor.id);
-  if (!contractor.onboardingCompletedAt) redirect("/onboarding");
-  redirect("/app");
+export async function googleSignInAction(formData: FormData) {
+  await signIn("google", { redirectTo: safeNext(formData.get("next")) });
 }
 
 export async function logoutAction() {
-  await clearSessionCookie();
-  redirect("/");
+  await signOut({ redirectTo: "/" });
 }
 
 export async function completeOnboardingAction(_: unknown, formData: FormData) {
@@ -101,17 +56,19 @@ export async function completeOnboardingAction(_: unknown, formData: FormData) {
       plan: "pro",
     })
     .where(eq(contractors.id, session.contractorId));
-  redirect("/app");
+  return { redirectTo: "/app" };
 }
 
 export async function updateSettingsAction(_: unknown, formData: FormData) {
   const contractor = await getContractor();
+  const businessName = String(formData.get("businessName") || "").trim();
+  if (!businessName) return { error: "Business name is required." };
   const taxPct = Number(formData.get("taxPct") || contractor.taxRate * 100);
   const db = await ensureDb();
   await db
     .update(contractors)
     .set({
-      businessName: String(formData.get("businessName") || "").trim(),
+      businessName,
       businessAddress: String(formData.get("businessAddress") || "").trim(),
       phone: String(formData.get("phone") || "").trim(),
       email: String(formData.get("email") || "").trim(),
@@ -124,5 +81,7 @@ export async function updateSettingsAction(_: unknown, formData: FormData) {
       etransferNote: String(formData.get("etransferNote") || "").trim(),
     })
     .where(eq(contractors.id, contractor.id));
+  revalidatePath("/app/settings");
+  revalidatePath("/app");
   return { ok: true };
 }

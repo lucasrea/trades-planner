@@ -21,7 +21,10 @@ export async function ensureDb() {
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      image TEXT NOT NULL DEFAULT '',
+      google_id TEXT,
+      password_hash TEXT NOT NULL DEFAULT '',
       created_at INTEGER NOT NULL
     );
     CREATE TABLE IF NOT EXISTS contractors (
@@ -119,6 +122,19 @@ export async function ensureDb() {
       line_total REAL NOT NULL DEFAULT 0
     );
   `);
+
+  const columns = await client.execute("PRAGMA table_info(users)");
+  const names = new Set(columns.rows.map((row) => String(row.name)));
+  if (!names.has("name")) {
+    await client.execute("ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''");
+  }
+  if (!names.has("image")) {
+    await client.execute("ALTER TABLE users ADD COLUMN image TEXT NOT NULL DEFAULT ''");
+  }
+  if (!names.has("google_id")) {
+    await client.execute("ALTER TABLE users ADD COLUMN google_id TEXT");
+  }
+
   migrated = true;
   return db;
 }

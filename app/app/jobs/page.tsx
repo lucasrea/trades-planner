@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/app-shell";
+import { StatusBadge } from "@/components/status-badge";
 import { getJobs } from "@/lib/queries";
 
 export default async function JobsPage() {
@@ -35,14 +36,16 @@ export default async function JobsPage() {
             </thead>
             <tbody>
               {rows.map((job) => (
-                <tr key={job.id} className="border-t border-line">
+                <tr key={job.id} className="border-t border-line hover:bg-paper/70">
                   <td className="px-4 py-3">
                     <Link href={`/app/jobs/${job.id}`} className="font-medium hover:underline">
                       {job.title}
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-muted">{job.client?.name || "—"}</td>
-                  <td className="px-4 py-3 capitalize">{job.status}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={job.status} />
+                  </td>
                   <td className="px-4 py-3 text-muted">{job.siteAddress || "—"}</td>
                 </tr>
               ))}

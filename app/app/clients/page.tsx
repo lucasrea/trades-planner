@@ -18,7 +18,7 @@ export default async function ClientsPage() {
       {rows.length === 0 ? (
         <EmptyState
           title="Add your first client"
-          body="A client is just a name and how to reach them. Job site addresses live on the job."
+          body="A client is a name and how to reach them. Job site addresses live on the job."
           href="/app/clients/new"
           cta="Add client"
         />
@@ -34,7 +34,7 @@ export default async function ClientsPage() {
             </thead>
             <tbody>
               {rows.map((c) => (
-                <tr key={c.id} className="border-t border-line">
+                <tr key={c.id} className="border-t border-line hover:bg-paper/70">
                   <td className="px-4 py-3">
                     <Link href={`/app/clients/${c.id}`} className="font-medium hover:underline">
                       {c.name}

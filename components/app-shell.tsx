@@ -6,12 +6,12 @@ import {
   FileText,
   HardHat,
   LayoutDashboard,
-  LogOut,
   Receipt,
   Settings,
   Users,
 } from "lucide-react";
-import { logoutAction } from "@/lib/actions/auth";
+import type { AuthUser } from "@/lib/auth";
+import { UserAvatar, UserMenu } from "@/components/user-menu";
 
 const links = [
   { href: "/app", label: "Dashboard", icon: LayoutDashboard },
@@ -24,9 +24,11 @@ const links = [
 
 export function AppShell({
   businessName,
+  user,
   children,
 }: {
   businessName: string;
+  user: AuthUser;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -61,16 +63,22 @@ export function AppShell({
             );
           })}
         </nav>
-        <form action={logoutAction} className="p-3">
-          <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-white/70 hover:bg-white/10 hover:text-white">
-            <LogOut size={16} />
-            Log out
-          </button>
-        </form>
+        <div className="border-t border-white/10 p-3">
+          <div className="flex items-center gap-3 rounded-lg px-2 py-1.5">
+            <UserAvatar user={user} size={32} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{user.name || "Your account"}</p>
+              <p className="truncate text-xs text-white/60">{user.email}</p>
+            </div>
+          </div>
+        </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="no-print border-b border-line bg-amber-50 px-6 py-2 text-xs text-amber-950">
-          Local mode — data lives in <code>data/sitebook.db</code>. Stripe is stubbed; every account is Pro.
+        <div className="no-print flex items-center justify-between gap-3 border-b border-line bg-amber-50 px-6 py-2">
+          <p className="text-xs text-amber-950">
+            Local mode — data lives in <code>data/sitebook.db</code>. Stripe is stubbed; every account is Pro.
+          </p>
+          <UserMenu user={user} />
         </div>
         <main className="flex-1 px-6 py-8">{children}</main>
       </div>
@@ -82,14 +90,21 @@ export function PageHeader({
   title,
   subtitle,
   action,
+  back,
 }: {
   title: string;
   subtitle?: string;
   action?: React.ReactNode;
+  back?: { href: string; label: string };
 }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
+        {back ? (
+          <Link href={back.href} className="mb-1 inline-block text-sm text-muted hover:text-ink">
+            ← {back.label}
+          </Link>
+        ) : null}
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         {subtitle ? <p className="mt-1 text-sm text-muted">{subtitle}</p> : null}
       </div>
