@@ -30,6 +30,45 @@ Data is stored in `data/sitebook.db` (gitignored). Delete that file to reset.
 
 **Stubbed:** Stripe Checkout (every local account is Pro). Emailing clients. Voice-to-quote. Live material pricing.
 
-## Later deploy
+## Deploy to Vercel
 
-Same Next.js app. Swap SQLite for Supabase Postgres, wire Stripe to `/pricing`, host on Vercel. No rewrite required for the screens.
+Vercel’s serverless runtime cannot persist a local SQLite file. Production uses **Turso** (hosted libSQL) with the same Drizzle schema — set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` on Vercel.
+
+### 1. Turso database
+
+```bash
+# Install: https://docs.turso.tech/cli
+turso auth login
+turso db create trades-planner
+turso db show trades-planner --url
+turso db tokens create trades-planner
+```
+
+### 2. Vercel project
+
+Import `lucasrea/trades-planner` at [vercel.com/new](https://vercel.com/new), or:
+
+```bash
+npx vercel link
+npx vercel env add AUTH_SECRET
+npx vercel env add AUTH_URL
+npx vercel env add AUTH_GOOGLE_ID
+npx vercel env add AUTH_GOOGLE_SECRET
+npx vercel env add TURSO_DATABASE_URL
+npx vercel env add TURSO_AUTH_TOKEN
+npx vercel --prod
+```
+
+Set `AUTH_URL` to your production URL (e.g. `https://trades-planner.vercel.app`).
+
+### 3. Google OAuth (production)
+
+In Google Cloud Console, add an authorized redirect URI:
+
+`https://YOUR-VERCEL-DOMAIN/api/auth/callback/google`
+
+### 4. First deploy
+
+Schema tables are created automatically on first request (`ensureDb`). Sign in with Google, finish onboarding, and add a client to confirm the remote DB works.
+
+**Still stubbed in production:** Stripe Checkout (every account is Pro). Client email. Voice-to-quote.

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { EmptyState, PageHeader } from "@/components/app-shell";
+import { EmptyState, PageHeader, TableCard } from "@/components/app-shell";
 import { StatusBadge } from "@/components/status-badge";
 import { getInvoices } from "@/lib/queries";
 import { cad } from "@/lib/money";
@@ -25,14 +25,15 @@ export default async function InvoicesPage() {
           cta="New invoice"
         />
       ) : (
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
+        <TableCard>
+          <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-paper text-left text-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">Number</th>
                 <th className="px-4 py-3 font-medium">Client</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Total</th>
+                <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -47,12 +48,22 @@ export default async function InvoicesPage() {
                   <td className="px-4 py-3">
                     <StatusBadge status={inv.status} />
                   </td>
-                  <td className="px-4 py-3 text-right">{cad(inv.total)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{cad(inv.total)}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Link
+                      href={`/app/invoices/${inv.id}/print`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-ghost btn-sm"
+                    >
+                      View as PDF
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </TableCard>
       )}
     </div>
   );

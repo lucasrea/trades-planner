@@ -46,6 +46,8 @@ export function DocumentForm({
   );
   const editing = Boolean(initial?.id);
   const listHref = kind === "quote" ? "/app/quotes" : "/app/invoices";
+  const cancelHref =
+    editing && initial?.id ? `${listHref}/${initial.id}` : listHref;
   const saveLabel = kind === "quote" ? (editing ? "Save quote" : "Create quote") : editing ? "Save invoice" : "Create invoice";
 
   return (
@@ -129,7 +131,7 @@ export function DocumentForm({
         <button className="btn btn-primary" disabled={pending}>
           {pending ? "Saving…" : saveLabel}
         </button>
-        <Link href={listHref} className="btn btn-ghost">
+        <Link href={cancelHref} className="btn btn-ghost">
           Cancel
         </Link>
       </div>

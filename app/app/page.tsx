@@ -53,7 +53,7 @@ export default async function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
-          <Link key={s.label} href={s.href} className="card p-5 transition-colors hover:border-navy/30">
+          <Link key={s.label} href={s.href} className="card p-5 transition hover:border-navy/30 hover:shadow-sm">
             <p className="text-sm text-muted">{s.label}</p>
             <p className="mt-2 text-3xl font-semibold">{s.value}</p>
           </Link>
@@ -69,13 +69,13 @@ export default async function DashboardPage() {
           </div>
           <ul className="mt-3 divide-y divide-line text-sm">
             {quotes.slice(0, 5).map((q) => (
-              <li key={q.id} className="flex items-center justify-between gap-3 py-2">
+              <li key={q.id} className="flex items-center justify-between gap-3 py-2.5">
                 <Link href={`/app/quotes/${q.id}`} className="font-medium hover:underline">
                   {q.quoteNumber}
                 </Link>
                 <span className="flex items-center gap-2 text-muted">
                   <StatusBadge status={q.status} />
-                  {cad(q.total)}
+                  <span className="tabular-nums">{cad(q.total)}</span>
                 </span>
               </li>
             ))}
@@ -93,13 +93,13 @@ export default async function DashboardPage() {
           </div>
           <ul className="mt-3 divide-y divide-line text-sm">
             {unpaid.slice(0, 5).map((inv) => (
-              <li key={inv.id} className="flex items-center justify-between gap-3 py-2">
+              <li key={inv.id} className="flex items-center justify-between gap-3 py-2.5">
                 <Link href={`/app/invoices/${inv.id}`} className="font-medium hover:underline">
                   {inv.invoiceNumber}
                 </Link>
                 <span className="flex items-center gap-2 text-muted">
                   <StatusBadge status={inv.status} />
-                  {cad(inv.total)}
+                  <span className="tabular-nums">{cad(inv.total)}</span>
                 </span>
               </li>
             ))}

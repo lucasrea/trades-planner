@@ -22,8 +22,13 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
         action={
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={quote.status} />
-            <Link href={`/app/quotes/${quote.id}/print`} className="btn btn-ghost">
-              Print / PDF
+            <Link
+              href={`/app/quotes/${quote.id}/print`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-ghost"
+            >
+              View as PDF
             </Link>
             <form action={invoiceFromQuoteAction}>
               <input type="hidden" name="quoteId" value={quote.id} />

@@ -6,9 +6,9 @@ import { getClients, getJobs } from "@/lib/queries";
 export default async function NewQuotePage({
   searchParams,
 }: {
-  searchParams: Promise<{ clientId?: string }>;
+  searchParams: Promise<{ clientId?: string; jobId?: string }>;
 }) {
-  const { clientId } = await searchParams;
+  const { clientId, jobId } = await searchParams;
   const [contractor, clients, jobs] = await Promise.all([getContractor(), getClients(), getJobs()]);
 
   if (clients.length === 0) {
@@ -39,7 +39,7 @@ export default async function NewQuotePage({
         labourRate={contractor.labourRateHourly}
         clients={clients.map((c) => ({ id: c.id, label: c.name }))}
         jobs={jobs.map((j) => ({ id: j.id, label: `${j.title} · ${j.client?.name || ""}`, clientId: j.clientId }))}
-        initial={{ clientId }}
+        initial={{ clientId, jobId }}
       />
     </div>
   );

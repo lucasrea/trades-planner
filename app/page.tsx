@@ -197,7 +197,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="border-b border-line bg-card">
+      <section id="pricing" className="scroll-mt-24 border-b border-line bg-card">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-20 lg:grid-cols-2">
           <div>
             <p className="text-sm font-medium uppercase tracking-wide text-accent">Pricing</p>
@@ -206,9 +206,6 @@ export default function HomePage() {
               $29 CAD / month when billing is live. Right now you can run the whole product locally for free while we
               finish voice-to-quote and client emails.
             </p>
-            <Link href="/pricing" className="btn btn-ghost mt-6">
-              Full pricing
-            </Link>
           </div>
           <div className="card p-8">
             <p className="text-sm font-medium text-accent">Pro</p>

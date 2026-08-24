@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { EmptyState, PageHeader } from "@/components/app-shell";
+import { EmptyState, PageHeader, TableCard } from "@/components/app-shell";
 import { StatusBadge } from "@/components/status-badge";
 import { getQuotes } from "@/lib/queries";
 import { cad } from "@/lib/money";
@@ -25,8 +25,8 @@ export default async function QuotesPage() {
           cta="New quote"
         />
       ) : (
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
+        <TableCard>
+          <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-paper text-left text-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">Number</th>
@@ -48,13 +48,13 @@ export default async function QuotesPage() {
                   <td className="px-4 py-3">
                     <StatusBadge status={q.status} />
                   </td>
-                  <td className="px-4 py-3 text-right">{cad(q.total)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{cad(q.total)}</td>
                   <td className="px-4 py-3 text-right">
                     <Link
                       href={`/app/quotes/${q.id}/print`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="btn btn-ghost whitespace-nowrap px-3 py-1.5 text-xs"
+                      className="btn btn-ghost btn-sm"
                     >
                       View as PDF
                     </Link>
@@ -63,7 +63,7 @@ export default async function QuotesPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TableCard>
       )}
     </div>
   );

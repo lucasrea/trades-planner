@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { EmptyState, PageHeader } from "@/components/app-shell";
+import { EmptyState, PageHeader, TableCard } from "@/components/app-shell";
 import { StatusBadge } from "@/components/status-badge";
 import { getJobs } from "@/lib/queries";
 
@@ -24,14 +24,15 @@ export default async function JobsPage() {
           cta="New job"
         />
       ) : (
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
+        <TableCard>
+          <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-paper text-left text-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">Job</th>
                 <th className="px-4 py-3 font-medium">Client</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Site</th>
+                <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -46,12 +47,20 @@ export default async function JobsPage() {
                   <td className="px-4 py-3">
                     <StatusBadge status={job.status} />
                   </td>
-                  <td className="px-4 py-3 text-muted">{job.siteAddress || "—"}</td>
+                  <td className="max-w-[220px] truncate px-4 py-3 text-muted">{job.siteAddress || "—"}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Link
+                      href={`/app/quotes/new?clientId=${job.clientId}&jobId=${job.id}`}
+                      className="btn btn-ghost btn-sm"
+                    >
+                      New quote
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </TableCard>
       )}
     </div>
   );

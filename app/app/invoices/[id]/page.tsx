@@ -21,8 +21,13 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         action={
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={invoice.status} />
-            <Link href={`/app/invoices/${invoice.id}/print`} className="btn btn-ghost">
-              Print / PDF
+            <Link
+              href={`/app/invoices/${invoice.id}/print`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-ghost"
+            >
+              View as PDF
             </Link>
           </div>
         }

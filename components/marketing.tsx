@@ -11,32 +11,32 @@ export async function MarketingNav() {
         <Link href="/" className="text-lg font-semibold tracking-tight">
           Trades Planner
         </Link>
-        <nav className="flex items-center gap-3 text-sm sm:gap-5">
-          <a href="/#voice" className="hidden text-muted hover:text-ink sm:inline">
+        <nav className="flex items-center gap-2 text-sm sm:gap-5">
+          <a href="/#voice" className="hidden text-muted hover:text-ink md:inline">
             Voice
           </a>
-          <a href="/#features" className="hidden text-muted hover:text-ink sm:inline">
+          <a href="/#features" className="hidden text-muted hover:text-ink md:inline">
             Features
           </a>
-          <a href="/#how" className="hidden text-muted hover:text-ink sm:inline">
+          <a href="/#how" className="hidden text-muted hover:text-ink lg:inline">
             How it works
           </a>
-          <Link href="/pricing" className="text-muted hover:text-ink">
+          <a href="/#pricing" className="hidden text-muted hover:text-ink sm:inline">
             Pricing
-          </Link>
+          </a>
           {user ? (
             <>
-              <Link href="/app" className="text-muted hover:text-ink">
+              <Link href="/app" className="btn btn-ghost btn-sm">
                 Open app
               </Link>
               <UserMenu user={user} />
             </>
           ) : (
             <>
-              <Link href="/login" className="text-muted hover:text-ink">
+              <Link href="/login" className="hidden text-muted hover:text-ink sm:inline">
                 Log in
               </Link>
-              <Link href="/signup" className="btn btn-primary">
+              <Link href="/signup" className="btn btn-primary shrink-0">
                 Get started
               </Link>
             </>
@@ -53,11 +53,21 @@ export function MarketingFooter() {
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-8 text-sm text-muted">
         <p>© {new Date().getFullYear()} Trades Planner</p>
         <div className="flex gap-4">
-          <a href="/#voice">Voice</a>
-          <a href="/#features">Features</a>
-          <Link href="/pricing">Pricing</Link>
-          <Link href="/privacy">Privacy</Link>
-          <Link href="/terms">Terms</Link>
+          <a href="/#voice" className="hover:text-ink">
+            Voice
+          </a>
+          <a href="/#features" className="hover:text-ink">
+            Features
+          </a>
+          <a href="/#pricing" className="hover:text-ink">
+            Pricing
+          </a>
+          <Link href="/privacy" className="hover:text-ink">
+            Privacy
+          </Link>
+          <Link href="/terms" className="hover:text-ink">
+            Terms
+          </Link>
         </div>
       </div>
     </footer>

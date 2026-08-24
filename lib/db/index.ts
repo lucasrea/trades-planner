@@ -1,15 +1,26 @@
-import { createClient } from "@libsql/client";
+import { createClient, type Client } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { mkdirSync } from "fs";
 import path from "path";
 import * as schema from "./schema";
 
-const dataDir = path.join(process.cwd(), "data");
-mkdirSync(dataDir, { recursive: true });
+function createDbClient(): Client {
+  const tursoUrl = process.env.TURSO_DATABASE_URL;
+  if (tursoUrl) {
+    return createClient({
+      url: tursoUrl,
+      authToken: process.env.TURSO_AUTH_TOKEN,
+    });
+  }
 
-const client = createClient({
-  url: `file:${path.join(dataDir, "sitebook.db")}`,
-});
+  const dataDir = path.join(process.cwd(), "data");
+  mkdirSync(dataDir, { recursive: true });
+  return createClient({
+    url: `file:${path.join(dataDir, "sitebook.db")}`,
+  });
+}
+
+const client = createDbClient();
 
 export const db = drizzle(client, { schema });
 

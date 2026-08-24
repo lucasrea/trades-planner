@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { EmptyState, PageHeader } from "@/components/app-shell";
+import { EmptyState, PageHeader, TableCard } from "@/components/app-shell";
 import { getClients } from "@/lib/queries";
 
 export default async function ClientsPage() {
@@ -23,13 +23,14 @@ export default async function ClientsPage() {
           cta="Add client"
         />
       ) : (
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
+        <TableCard>
+          <table className="w-full min-w-[520px] text-sm">
             <thead className="bg-paper text-left text-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">Phone</th>
+                <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -42,11 +43,16 @@ export default async function ClientsPage() {
                   </td>
                   <td className="px-4 py-3 text-muted">{c.email || "—"}</td>
                   <td className="px-4 py-3 text-muted">{c.phone || "—"}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Link href={`/app/quotes/new?clientId=${c.id}`} className="btn btn-ghost btn-sm">
+                      New quote
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </TableCard>
       )}
     </div>
   );

@@ -67,7 +67,9 @@ export function SettingsForm({
       <Field label="Payment note">
         <input className="input" name="etransferNote" defaultValue={contractor.etransferNote} />
       </Field>
-      {state?.ok ? <p className="text-sm text-ok">Saved.</p> : null}
+      {state?.ok ? (
+        <p className="rounded-lg bg-lime-50 px-3 py-2 text-sm text-ok">Settings saved.</p>
+      ) : null}
       {state?.error ? <p className="text-sm text-accent">{state.error}</p> : null}
       <button className="btn btn-primary" disabled={pending}>
         {pending ? "Saving…" : "Save settings"}

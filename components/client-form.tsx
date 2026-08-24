@@ -40,7 +40,7 @@ export function ClientForm({
         <button className="btn btn-primary" disabled={pending}>
           {pending ? "Saving…" : editing ? "Save changes" : "Save client"}
         </button>
-        <Link href="/app/clients" className="btn btn-ghost">
+        <Link href={editing && initial?.id ? `/app/clients/${initial.id}` : "/app/clients"} className="btn btn-ghost">
           Cancel
         </Link>
       </div>

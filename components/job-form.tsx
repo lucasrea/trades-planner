@@ -68,7 +68,7 @@ export function JobForm({
         <button className="btn btn-primary" disabled={pending}>
           {pending ? "Saving…" : editing ? "Save changes" : "Save job"}
         </button>
-        <Link href="/app/jobs" className="btn btn-ghost">
+        <Link href={editing && initial?.id ? `/app/jobs/${initial.id}` : "/app/jobs"} className="btn btn-ghost">
           Cancel
         </Link>
       </div>

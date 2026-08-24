@@ -125,12 +125,12 @@ export function LineEditor({
       </div>
       {lines.length === 0 ? <p className="text-sm text-muted">No line items yet. Add material or labour.</p> : null}
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-ghost" onClick={() => setLines((rows) => [...rows, emptyLine("material")])}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLines((rows) => [...rows, emptyLine("material")])}>
           <Plus size={16} /> Material
         </button>
         <button
           type="button"
-          className="btn btn-ghost"
+          className="btn btn-ghost btn-sm"
           onClick={() => setLines((rows) => [...rows, emptyLine("labour", labourRate)])}
         >
           <Plus size={16} /> Labour
