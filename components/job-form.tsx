@@ -63,7 +63,11 @@ export function JobForm({
       <Field label="Notes">
         <textarea className="input min-h-20" name="notes" defaultValue={initial?.notes} />
       </Field>
-      {state?.error ? <p className="text-sm text-accent">{state.error}</p> : null}
+      {state?.error ? (
+        <p className="text-sm text-accent" role="alert">
+          {state.error}
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <button className="btn btn-primary" disabled={pending}>
           {pending ? "Saving…" : editing ? "Save changes" : "Save job"}

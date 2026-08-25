@@ -2,10 +2,10 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-type Db = PostgresJsDatabase<typeof schema>;
+export type Database = PostgresJsDatabase<typeof schema>;
 
 let sql: ReturnType<typeof postgres> | null = null;
-let db: Db | null = null;
+let db: Database | null = null;
 
 function getSql() {
   if (sql) return sql;
@@ -24,7 +24,7 @@ function getSql() {
   return sql;
 }
 
-function getDb(): Db {
+function getDb(): Database {
   if (!db) db = drizzle(getSql(), { schema });
   return db;
 }

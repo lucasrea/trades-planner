@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/app-shell";
 import { StatusBadge } from "@/components/status-badge";
-import { listDashboard } from "@/lib/actions/data";
 import { cad } from "@/lib/money";
+import { getDashboard } from "@/lib/queries";
 
 export default async function DashboardPage() {
-  const { contractor, clients, jobs, quotes, invoices } = await listDashboard();
+  const { contractor, clients, jobs, quotes, invoices } = await getDashboard();
   const activeJobs = jobs.filter((j) => j.status === "active" || j.status === "quoted").length;
   const openQuotes = quotes.filter((q) => q.status === "draft" || q.status === "sent").length;
   const unpaid = invoices.filter((i) => i.status !== "paid");
