@@ -5,11 +5,30 @@ import { completeOnboardingAction } from "@/lib/actions/auth";
 import { Field } from "@/components/app-shell";
 import { useActionRedirect } from "@/components/use-action-redirect";
 
-const steps = ["Business", "Tax", "Rates", "Getting paid"];
+const steps = ["Business", "Tax", "Rates", "Getting paid", "Confirm"];
+
+function readFormValues(form: HTMLFormElement | null) {
+  if (!form) return null;
+  const data = new FormData(form);
+  return {
+    businessName: String(data.get("businessName") || "").trim(),
+    businessAddress: String(data.get("businessAddress") || "").trim(),
+    phone: String(data.get("phone") || "").trim(),
+    email: String(data.get("email") || "").trim(),
+    gstHstNumber: String(data.get("gstHstNumber") || "").trim(),
+    taxLabel: String(data.get("taxLabel") || "HST").trim() || "HST",
+    taxPct: String(data.get("taxPct") || "13"),
+    labourRate: String(data.get("labourRate") || "85"),
+    markupPct: String(data.get("markupPct") || "20"),
+    etransferEmail: String(data.get("etransferEmail") || "").trim(),
+    etransferNote: String(data.get("etransferNote") || "").trim(),
+  };
+}
 
 export function OnboardingForm({ email }: { email: string }) {
   const [step, setStep] = useState(0);
   const [localError, setLocalError] = useState("");
+  const [review, setReview] = useState<ReturnType<typeof readFormValues>>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(completeOnboardingAction, null);
   useActionRedirect(state);
@@ -20,12 +39,21 @@ export function OnboardingForm({ email }: { email: string }) {
       setLocalError("Business name is required.");
       return;
     }
+    if (step === steps.length - 2) {
+      setReview(readFormValues(formRef.current));
+    }
     setLocalError("");
     setStep((s) => s + 1);
   }
 
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    if (step !== steps.length - 1) {
+      event.preventDefault();
+    }
+  }
+
   return (
-    <form ref={formRef} action={formAction} className="card mx-auto w-full max-w-xl p-8">
+    <form ref={formRef} action={formAction} onSubmit={handleSubmit} className="card mx-auto w-full max-w-xl p-8">
       <p className="text-xs font-medium uppercase tracking-wide text-muted">
         Step {step + 1} of {steps.length}
       </p>
@@ -90,6 +118,41 @@ export function OnboardingForm({ email }: { email: string }) {
         </Field>
       </div>
 
+      <div className={step === 4 ? "mt-8 space-y-4" : "hidden"}>
+        <p className="text-sm text-muted">Review your setup. Nothing is saved until you confirm below.</p>
+        <dl className="grid gap-3 text-sm">
+          <div>
+            <dt className="font-medium text-ink">Business</dt>
+            <dd className="mt-1 text-muted">{review?.businessName || "—"}</dd>
+            {review?.businessAddress ? <dd className="text-muted">{review.businessAddress}</dd> : null}
+            {review?.phone || review?.email ? (
+              <dd className="text-muted">
+                {[review?.phone, review?.email].filter(Boolean).join(" · ")}
+              </dd>
+            ) : null}
+          </div>
+          <div>
+            <dt className="font-medium text-ink">Tax</dt>
+            <dd className="mt-1 text-muted">
+              {[review?.gstHstNumber, review?.taxLabel, review?.taxPct ? `${review.taxPct}%` : ""]
+                .filter(Boolean)
+                .join(" · ") || "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-ink">Rates</dt>
+            <dd className="mt-1 text-muted">
+              Labour ${review?.labourRate || "85"}/hr · Markup {review?.markupPct || "20"}%
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-ink">Getting paid</dt>
+            <dd className="mt-1 text-muted">{review?.etransferEmail || "—"}</dd>
+            {review?.etransferNote ? <dd className="text-muted">{review.etransferNote}</dd> : null}
+          </div>
+        </dl>
+      </div>
+
       {localError || state?.error ? (
         <p className="mt-4 text-sm text-accent">{localError || state?.error}</p>
       ) : null}
@@ -101,6 +164,7 @@ export function OnboardingForm({ email }: { email: string }) {
           disabled={step === 0}
           onClick={() => {
             setLocalError("");
+            setReview(null);
             setStep((s) => s - 1);
           }}
         >
@@ -111,8 +175,8 @@ export function OnboardingForm({ email }: { email: string }) {
             Next
           </button>
         ) : (
-          <button className="btn btn-primary" disabled={pending}>
-            {pending ? "Saving…" : "Go to dashboard"}
+          <button type="submit" className="btn btn-primary" disabled={pending}>
+            {pending ? "Saving…" : "Confirm and go to dashboard"}
           </button>
         )}
       </div>
