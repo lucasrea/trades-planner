@@ -28,7 +28,7 @@ function GoogleMark() {
 function GoogleSubmit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
-    <button className="btn btn-ghost w-full py-3" disabled={pending} type="submit">
+    <button className="btn btn-ghost w-full px-5 py-3 text-base" disabled={pending} type="submit">
       <GoogleMark />
       {pending ? "Redirecting to Google…" : label}
     </button>

@@ -33,7 +33,7 @@ export async function MarketingNav() {
             </>
           ) : (
             <>
-              <Link href="/login" className="hidden text-muted hover:text-ink sm:inline">
+              <Link href="/login" className="btn btn-ghost hidden shrink-0 sm:inline-flex">
                 Log in
               </Link>
               <Link href="/signup" className="btn btn-primary shrink-0">
