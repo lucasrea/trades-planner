@@ -13,7 +13,20 @@ import { MarketingFooter, MarketingNav } from "@/components/marketing";
 
 const trades = ["Plumbers", "Electricians", "Carpenters", "General contractors", "HVAC"];
 
-const pricingTiers = [
+type PricingTier = {
+  id: string;
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  highlighted: boolean;
+  badge?: string;
+  cta: string;
+  href: string;
+  features: string[];
+};
+
+const pricingTiers: PricingTier[] = [
   {
     id: "free",
     name: "Free",
@@ -67,7 +80,7 @@ const pricingTiers = [
       "Quote templates (coming soon)",
     ],
   },
-] as const;
+];
 
 const features = [
   {
