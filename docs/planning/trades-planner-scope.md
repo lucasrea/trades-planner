@@ -6,7 +6,7 @@ Phased scope for a small-scale SaaS PM platform for solo Canadian tradespeople. 
 
 ### Features
 - [ ] **Phase 1:** PM hub + SaaS shell (landing, pricing, Stripe, onboarding, auth emails, GST/HST PDFs)
-- [ ] **Phase 2:** Quote → job workflow, shopping list, invoice-from-job, shareable client links
+- [ ] **Phase 2:** Quote → job workflow, shopping list, invoice-from-job, shareable client links, job photos
 - [ ] **Phase 3:** Voice/text → AI quote draft with human review inside quote creation
 - [ ] **Phase 4:** Growth leftovers — payment reminders, client payment links, marketing polish
 - [ ] **Phase 5:** Contractor price catalog (simple) then optional live retail via MCP
@@ -53,7 +53,7 @@ Things the app should do for contractors — product capabilities, phased roadma
 - Clients, jobs, manual quotes/invoices, dashboard
 - GST/HST PDFs, sequential numbering
 
-**Phase 2 adds the job loop:** share links, client approve, shopping list, email-to-client.
+**Phase 2 adds the job loop:** share links, client approve, shopping list, email-to-client, photos per job.
 
 **Explicitly out of Phase 1–2:**
 - Crew / extra logins
@@ -106,6 +106,7 @@ Things the app should do for contractors — product capabilities, phased roadma
 - Shareable quote/invoice links + Approve / Decline
 - Resend: email the *job client* a link (not marketing)
 - Job activity log
+- **Job photos:** capture or upload pictures on a job — site conditions, before/after, rough-in, permits. Stored in-app and organized by project (job), not scattered across camera roll and texts. Gallery on the job detail page; optional caption + timestamp. Upload from desktop in Phase 2; camera capture improves with Phase 6 PWA.
 
 **Success criteria:** Quote link → client approves → shopping list → invoice sent → paid.
 
@@ -167,6 +168,12 @@ Product ideas captured from discussion. **Not scheduled** — do not pull into P
 - Same as Phase 5b — Home Depot as first supplier
 
 #### Quoting & proposals
+
+**Job photos (native)**
+- Attach photos to a job — organize site pictures by project instead of the camera roll
+- Capture on site (Phase 6 PWA) or upload from desktop (Phase 2)
+- Use cases: before/after, rough-in progress, panel labels, permit stickers, damage documentation
+- Distinct from **Link Google Drive** (optional sync/export); this is in-app storage first
 
 **Template-based estimates**
 - Reusable templates: name, default line items, notes, typical quantities
