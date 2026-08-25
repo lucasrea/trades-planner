@@ -56,7 +56,8 @@ export async function completeOnboardingAction(_: unknown, formData: FormData) {
       plan: "pro",
     })
     .where(eq(contractors.id, session.contractorId));
-  return { redirectTo: "/app" };
+  revalidatePath("/app");
+  redirect("/app");
 }
 
 export async function updateSettingsAction(_: unknown, formData: FormData) {

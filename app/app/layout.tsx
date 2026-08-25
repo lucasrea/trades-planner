@@ -1,12 +1,10 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { getAuthUser, getContractor } from "@/lib/auth";
+import { getAppShellContext } from "@/lib/auth";
 
 export default async function LoggedInLayout({ children }: { children: React.ReactNode }) {
-  const contractor = await getContractor();
+  const { contractor, user } = await getAppShellContext();
   if (!contractor.onboardingCompletedAt) redirect("/onboarding");
-  const user = await getAuthUser();
-  if (!user) redirect("/login");
   return (
     <AppShell businessName={contractor.businessName} user={user}>
       {children}

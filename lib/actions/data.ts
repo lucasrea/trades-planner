@@ -65,7 +65,7 @@ export async function saveClientAction(_: unknown, formData: FormData) {
     revalidatePath("/app/clients");
     revalidatePath(`/app/clients/${clientId}`);
     revalidatePath("/app");
-    return { redirectTo: "/app/clients" };
+    redirect("/app/clients");
   }
   const newId = id();
   await db.insert(clients).values({
@@ -76,7 +76,7 @@ export async function saveClientAction(_: unknown, formData: FormData) {
   });
   revalidatePath("/app/clients");
   revalidatePath("/app");
-  return { redirectTo: "/app/clients" };
+  redirect("/app/clients");
 }
 
 export async function saveJobAction(_: unknown, formData: FormData) {
@@ -102,7 +102,7 @@ export async function saveJobAction(_: unknown, formData: FormData) {
       .where(and(eq(jobs.id, jobId), eq(jobs.contractorId, contractor.id)));
     revalidatePath("/app/jobs");
     revalidatePath("/app");
-    return { redirectTo: "/app/jobs" };
+    redirect("/app/jobs");
   }
   const newId = id();
   await db.insert(jobs).values({
@@ -113,7 +113,7 @@ export async function saveJobAction(_: unknown, formData: FormData) {
   });
   revalidatePath("/app/jobs");
   revalidatePath("/app");
-  return { redirectTo: "/app/jobs" };
+  redirect("/app/jobs");
 }
 
 export async function saveQuoteAction(_: unknown, formData: FormData) {
@@ -182,7 +182,7 @@ export async function saveQuoteAction(_: unknown, formData: FormData) {
   revalidatePath("/app/quotes");
   revalidatePath(`/app/quotes/${quoteId}`);
   revalidatePath("/app");
-  return { redirectTo: isNew ? `/app/quotes/${quoteId}` : "/app/quotes" };
+  redirect(isNew ? `/app/quotes/${quoteId}` : "/app/quotes");
 }
 
 export async function saveInvoiceAction(_: unknown, formData: FormData) {
@@ -253,7 +253,7 @@ export async function saveInvoiceAction(_: unknown, formData: FormData) {
   revalidatePath("/app/invoices");
   revalidatePath(`/app/invoices/${invoiceId}`);
   revalidatePath("/app");
-  return { redirectTo: isNew ? `/app/invoices/${invoiceId}` : "/app/invoices" };
+  redirect(isNew ? `/app/invoices/${invoiceId}` : "/app/invoices");
 }
 
 export async function invoiceFromQuoteAction(formData: FormData) {

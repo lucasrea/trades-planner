@@ -11,6 +11,22 @@ import {
 } from "@/lib/db/schema";
 import type { DraftLine, LineKind } from "@/lib/money";
 
+type ClientSummary = { id: string; name: string; email: string; phone: string };
+
+async function clientMapForContractor(contractorId: string) {
+  const db = await ensureDb();
+  const clientRows = await db
+    .select({
+      id: clients.id,
+      name: clients.name,
+      email: clients.email,
+      phone: clients.phone,
+    })
+    .from(clients)
+    .where(eq(clients.contractorId, contractorId));
+  return Object.fromEntries(clientRows.map((c) => [c.id, c])) as Record<string, ClientSummary>;
+}
+
 export async function getClients() {
   const contractor = await getContractor();
   const db = await ensureDb();
@@ -35,13 +51,14 @@ export async function getClient(id: string) {
 export async function getJobs() {
   const contractor = await getContractor();
   const db = await ensureDb();
-  const rows = await db
-    .select()
-    .from(jobs)
-    .where(eq(jobs.contractorId, contractor.id))
-    .orderBy(desc(jobs.createdAt));
-  const clientRows = await getClients();
-  const byId = Object.fromEntries(clientRows.map((c) => [c.id, c]));
+  const [rows, byId] = await Promise.all([
+    db
+      .select()
+      .from(jobs)
+      .where(eq(jobs.contractorId, contractor.id))
+      .orderBy(desc(jobs.createdAt)),
+    clientMapForContractor(contractor.id),
+  ]);
   return rows.map((job) => ({ ...job, client: byId[job.clientId] }));
 }
 
@@ -61,13 +78,14 @@ export async function getJob(id: string) {
 export async function getQuotes() {
   const contractor = await getContractor();
   const db = await ensureDb();
-  const rows = await db
-    .select()
-    .from(quotes)
-    .where(eq(quotes.contractorId, contractor.id))
-    .orderBy(desc(quotes.updatedAt));
-  const clientRows = await getClients();
-  const byId = Object.fromEntries(clientRows.map((c) => [c.id, c]));
+  const [rows, byId] = await Promise.all([
+    db
+      .select()
+      .from(quotes)
+      .where(eq(quotes.contractorId, contractor.id))
+      .orderBy(desc(quotes.updatedAt)),
+    clientMapForContractor(contractor.id),
+  ]);
   return rows.map((quote) => ({ ...quote, client: byId[quote.clientId] }));
 }
 
@@ -98,28 +116,28 @@ export async function getQuote(id: string) {
     .where(and(eq(quotes.id, id), eq(quotes.contractorId, contractor.id)))
     .limit(1);
   if (!row) return null;
-  const lines = await db
-    .select()
-    .from(quoteLineItems)
-    .where(eq(quoteLineItems.quoteId, row.id));
-  const client = await getClient(row.clientId);
+  const [lineRows, client] = await Promise.all([
+    db.select().from(quoteLineItems).where(eq(quoteLineItems.quoteId, row.id)),
+    getClient(row.clientId),
+  ]);
   return {
     ...row,
     client,
-    lines: lines.sort((a, b) => a.sortOrder - b.sortOrder).map(toDraft),
+    lines: lineRows.sort((a, b) => a.sortOrder - b.sortOrder).map(toDraft),
   };
 }
 
 export async function getInvoices() {
   const contractor = await getContractor();
   const db = await ensureDb();
-  const rows = await db
-    .select()
-    .from(invoices)
-    .where(eq(invoices.contractorId, contractor.id))
-    .orderBy(desc(invoices.updatedAt));
-  const clientRows = await getClients();
-  const byId = Object.fromEntries(clientRows.map((c) => [c.id, c]));
+  const [rows, byId] = await Promise.all([
+    db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.contractorId, contractor.id))
+      .orderBy(desc(invoices.updatedAt)),
+    clientMapForContractor(contractor.id),
+  ]);
   return rows.map((invoice) => ({ ...invoice, client: byId[invoice.clientId] }));
 }
 
@@ -132,11 +150,10 @@ export async function getInvoice(id: string) {
     .where(and(eq(invoices.id, id), eq(invoices.contractorId, contractor.id)))
     .limit(1);
   if (!row) return null;
-  const lines = await db
-    .select()
-    .from(invoiceLineItems)
-    .where(eq(invoiceLineItems.invoiceId, row.id));
-  const client = await getClient(row.clientId);
+  const [lines, client] = await Promise.all([
+    db.select().from(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, row.id)),
+    getClient(row.clientId),
+  ]);
   return {
     ...row,
     client,
