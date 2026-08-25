@@ -11,6 +11,9 @@
   --accent: #c2410c;
   --accent-2: #9a3412;
   --ok: #3f6212;
+  --blueprint-ink: #1a3344;
+  --blueprint-grid-major: rgba(26, 51, 68, 0.07);
+  --blueprint-grid-minor: rgba(26, 51, 68, 0.04);
 }
 
 @theme inline {
@@ -165,6 +168,468 @@ select.input {
 .wave-bar {
   animation: wave 1.1s ease-in-out infinite;
   transform-origin: center;
+}
+
+.voice-feature {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--navy);
+  color: white;
+}
+
+.voice-feature-grid {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.4;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.13) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 85% 75% at 50% 35%, #000 15%, transparent 72%);
+}
+
+.voice-feature-card {
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  box-shadow:
+    0 24px 50px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+@media (min-width: 1024px) {
+  .voice-feature-card-shell {
+    min-height: 31rem;
+  }
+}
+
+.voice-flow-line {
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  height: 2.5rem;
+  width: 1px;
+}
+
+@media (min-width: 1024px) {
+  .voice-flow-line {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    height: 1px;
+    width: 2.5rem;
+  }
+}
+
+@keyframes voice-shimmer {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.voice-shimmer {
+  animation: voice-shimmer 2.4s ease-in-out infinite;
+}
+
+@keyframes voice-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.voice-card-enter {
+  animation: voice-card-enter 0.45s ease-out;
+}
+
+@keyframes voice-parsing-spin {
+  from {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.08);
+  }
+  to {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.voice-parsing {
+  animation: voice-parsing-spin 0.65s ease-in-out;
+}
+
+/* Landing — construction blueprint visuals */
+.hero-readability-scrim {
+  background: linear-gradient(
+    102deg,
+    var(--paper) 0%,
+    var(--paper) 38%,
+    rgba(244, 239, 230, 0.97) 48%,
+    rgba(244, 239, 230, 0.72) 58%,
+    rgba(244, 239, 230, 0.15) 72%,
+    transparent 88%
+  );
+}
+
+.hero-copy-panel {
+  padding: 0.25rem 0;
+}
+
+@media (min-width: 1024px) {
+  .hero-copy-panel {
+    padding-right: 1.5rem;
+  }
+}
+
+.hero-blueprint-stage {
+  opacity: 0.9;
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.35) 18%, #000 36%, #000 100%);
+}
+
+.hero-blueprint-stage .construction-plan-sheet {
+  opacity: 0.58;
+}
+
+.hero-blueprint-stage .blueprint-plan-svg {
+  opacity: 1;
+}
+
+.hero-blueprint-grid {
+  opacity: 0.82;
+  --blueprint-grid-major: rgba(26, 51, 68, 0.11);
+  --blueprint-grid-minor: rgba(26, 51, 68, 0.065);
+  mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.hero-accent-glow {
+  background: radial-gradient(ellipse 70% 55% at 78% 18%, rgba(194, 65, 12, 0.07), transparent 68%);
+}
+
+.hero-showcase {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  background: var(--card);
+  box-shadow:
+    0 24px 50px rgba(28, 25, 23, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.65);
+}
+
+.hero-showcase-stage {
+  overflow: hidden;
+}
+
+.hero-showcase-body {
+  height: 24rem;
+  overflow: hidden;
+}
+
+.hero-showcase-slide {
+  height: 100%;
+  overflow: hidden;
+  padding: 1.25rem;
+}
+
+@keyframes hero-showcase-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-showcase-panel {
+  animation: hero-showcase-enter 0.45s ease-out;
+}
+
+.hero-showcase-dot {
+  transition:
+    width 0.25s ease,
+    background-color 0.25s ease;
+}
+
+.construction-plans-pan {
+  mask-image: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent);
+}
+
+.construction-plans-track {
+  display: flex;
+  align-items: center;
+  gap: 2.75rem;
+  width: max-content;
+  padding: 3rem 0 2rem 4rem;
+  animation: construction-plans-pan 140s linear infinite;
+}
+
+.construction-plan-sheet {
+  rotate: -3deg;
+  opacity: 0.34;
+  filter: drop-shadow(0 8px 20px rgba(26, 51, 68, 0.05));
+}
+
+.construction-plan-sheet:nth-child(even) {
+  rotate: 2deg;
+  margin-top: 1.75rem;
+}
+
+.construction-plan-sheet:nth-child(3n) {
+  margin-top: -0.5rem;
+}
+
+@keyframes construction-plans-pan {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.construction-blueprint-grid {
+  background-image:
+    linear-gradient(var(--blueprint-grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--blueprint-grid-major) 1px, transparent 1px),
+    linear-gradient(var(--blueprint-grid-minor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--blueprint-grid-minor) 1px, transparent 1px);
+  background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
+  animation: blueprint-pan 56s linear infinite;
+}
+
+.blueprint-section {
+  isolation: isolate;
+}
+
+.blueprint-section-grid {
+  pointer-events: none;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(rgba(26, 51, 68, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 51, 68, 0.09) 1px, transparent 1px),
+    linear-gradient(rgba(26, 51, 68, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 51, 68, 0.045) 1px, transparent 1px);
+  background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
+  background-position: 0 0, 0 0, 0 0, 0 0;
+}
+
+.construction-blueprint-scan {
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(194, 65, 12, 0.03) 48%,
+    rgba(194, 65, 12, 0.05) 50%,
+    rgba(194, 65, 12, 0.03) 52%,
+    transparent 100%
+  );
+  background-size: 100% 220%;
+  animation: blueprint-scan 9s ease-in-out infinite;
+  opacity: 0.5;
+}
+
+@keyframes blueprint-pan {
+  from {
+    background-position: 0 0, 0 0, 0 0, 0 0;
+  }
+  to {
+    background-position: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
+  }
+}
+
+@keyframes blueprint-scan {
+  0%,
+  100% {
+    background-position: 0 -60%;
+  }
+  50% {
+    background-position: 0 160%;
+  }
+}
+
+.blueprint-path {
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+}
+
+.blueprint-path-a {
+  animation: blueprint-draw 10s ease-in-out infinite;
+}
+
+.blueprint-path-b {
+  animation: blueprint-draw 10s ease-in-out 1.2s infinite;
+}
+
+.blueprint-path-c {
+  animation: blueprint-draw 10s ease-in-out 2.4s infinite;
+}
+
+@keyframes blueprint-draw {
+  0%,
+  12% {
+    stroke-dashoffset: 1200;
+    opacity: 0.25;
+  }
+  40%,
+  70% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  88%,
+  100% {
+    stroke-dashoffset: -200;
+    opacity: 0.25;
+  }
+}
+
+.blueprint-pulse-dot {
+  animation: blueprint-dot 2.4s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@keyframes blueprint-dot {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 1;
+  }
+}
+
+.blueprint-measure {
+  animation: blueprint-measure 3.6s ease-in-out infinite;
+}
+
+@keyframes blueprint-measure {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateX(0);
+  }
+  50% {
+    opacity: 0.95;
+    transform: translateX(6px);
+  }
+}
+
+.construction-float-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 252, 247, 0.92);
+  padding: 0.45rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink);
+  box-shadow: 0 8px 24px rgba(28, 25, 23, 0.06);
+  animation: construction-float 5s ease-in-out infinite;
+}
+
+.construction-float-chip-delay {
+  animation-delay: 1.6s;
+}
+
+@keyframes construction-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.construction-marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.construction-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: construction-marquee 36s linear infinite;
+}
+
+.construction-marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0 1.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+@keyframes construction-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 1023px) {
+  .hero-readability-scrim {
+    background: linear-gradient(
+      180deg,
+      var(--paper) 0%,
+      var(--paper) 52%,
+      rgba(244, 239, 230, 0.94) 68%,
+      rgba(244, 239, 230, 0.55) 82%,
+      transparent 100%
+    );
+  }
+
+  .hero-blueprint-stage {
+    top: auto;
+    bottom: -2rem;
+    height: 52%;
+    width: 100%;
+    max-width: none;
+    opacity: 0.55;
+    mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.45) 35%, #000 100%);
+  }
+
+  .hero-blueprint-stage .construction-plan-sheet {
+    opacity: 0.42;
+  }
+
+  .construction-plans-track {
+    padding-top: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .construction-blueprint-grid,
+  .construction-blueprint-scan,
+  .construction-plans-track,
+  .blueprint-path,
+  .blueprint-pulse-dot,
+  .blueprint-measure,
+  .construction-float-chip,
+  .construction-marquee-track {
+    animation: none !important;
+  }
+
+  .blueprint-path {
+    stroke-dashoffset: 0;
+    opacity: 0.7;
+  }
 }
 
 @media print {

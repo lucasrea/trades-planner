@@ -10,8 +10,9 @@ import {
   Users,
 } from "lucide-react";
 import { MarketingFooter, MarketingNav } from "@/components/marketing";
-
-const trades = ["Plumbers", "Electricians", "Carpenters", "General contractors", "HVAC"];
+import { ConstructionHeroBackdrop, ConstructionMarquee, BlueprintSectionGrid } from "@/components/landing-construction";
+import { HeroProductShowcase } from "@/components/hero-product-showcase";
+import { VoiceFeatureSection } from "@/components/voice-feature-section";
 
 type PricingTier = {
   id: string;
@@ -147,53 +148,49 @@ export default function HomePage() {
     <div className="flex min-h-full flex-col">
       <MarketingNav />
 
-      <section className="relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(194,65,12,0.08),_transparent_55%)]" />
-        <div className="relative mx-auto grid max-w-6xl gap-12 px-6 py-20 lg:grid-cols-2 lg:items-center lg:py-28">
-          <div>
+      <section className="relative overflow-hidden bg-paper">
+        <ConstructionHeroBackdrop />
+        <div className="relative mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-start lg:gap-14 lg:py-24">
+          <div className="hero-copy-panel relative z-10 max-w-xl lg:max-w-none">
             <p className="text-sm font-medium uppercase tracking-wide text-accent">
               Project admin for solo trades
             </p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
+            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-ink sm:text-5xl lg:text-[3.15rem] lg:leading-[1.08]">
               Quotes, jobs, and invoices — without the spreadsheet.
             </h1>
-            <p className="mt-5 max-w-xl text-lg text-muted">
+            <p className="mt-5 max-w-lg text-lg leading-relaxed text-muted">
               Built for plumbers, electricians, carpenters, and contractors in Canada. Describe the work, send a
               professional GST/HST quote, then invoice when you’re done.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/signup" className="btn btn-primary px-5">
+              <Link href="/signup" className="btn btn-primary px-5 py-3">
                 Start free
               </Link>
-              <a href="#voice" className="btn btn-ghost">
+              <a href="#voice" className="btn btn-ghost px-5 py-3">
                 See voice-to-quote
               </a>
             </div>
-            <p className="mt-4 text-sm text-muted">No credit card in local mode. Set up in a few minutes.</p>
+            <p className="mt-4 text-sm text-muted">No credit card required. Set up in a few minutes.</p>
           </div>
-          <HeroQuoteCard />
+          <div className="relative z-10 lg:pt-2">
+            <HeroProductShowcase />
+          </div>
         </div>
       </section>
 
-      <section className="border-y border-line bg-card">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-6 py-5 text-sm text-muted">
-          <span className="font-medium text-ink">Made for</span>
-          {trades.map((trade) => (
-            <span key={trade}>{trade}</span>
-          ))}
-        </div>
-      </section>
+      <ConstructionMarquee />
 
-      <OnTheJobVoice />
+      <VoiceFeatureSection />
 
       <section id="features" className="scroll-mt-24">
         {features.map((feature, i) => (
           <div
             key={feature.id}
-            className={`border-b border-line ${i % 2 === 1 ? "bg-card" : ""}`}
+            className={`relative overflow-hidden border-b border-line ${i % 2 === 1 ? "bg-card" : "blueprint-section"}`}
           >
+            {i % 2 === 0 ? <BlueprintSectionGrid /> : null}
             <div
-              className={`mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-2 ${
+              className={`relative z-10 mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-2 ${
                 i % 2 === 1 ? "lg:[&>*:first-child]:order-2" : ""
               }`}
             >
@@ -216,7 +213,7 @@ export default function HomePage() {
         ))}
       </section>
 
-      <section id="how" className="scroll-mt-24 border-b border-line bg-card">
+      <section id="how" className="relative scroll-mt-24 border-b border-line bg-card">
         <div className="mx-auto max-w-6xl px-6 py-20">
           <p className="text-sm font-medium uppercase tracking-wide text-accent">How it works</p>
           <h2 className="mt-2 text-3xl font-semibold tracking-tight">Three steps. Then you’re on site.</h2>
@@ -248,8 +245,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="border-b border-line">
-        <div className="mx-auto max-w-6xl px-6 py-20">
+      <section className="blueprint-section relative border-b border-line">
+        <BlueprintSectionGrid />
+        <div className="relative z-10 mx-auto max-w-6xl px-6 py-20">
           <p className="text-sm font-medium uppercase tracking-wide text-accent">Everything in one place</p>
           <h2 className="mt-2 max-w-xl text-3xl font-semibold tracking-tight">
             The admin you avoid, without a 40-module field-service suite.
@@ -266,7 +264,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="pricing" className="scroll-mt-24 border-b border-line bg-card">
+      <section id="pricing" className="relative scroll-mt-24 border-b border-line bg-card">
         <div className="mx-auto max-w-6xl px-6 py-20">
           <div className="max-w-2xl">
             <p className="text-sm font-medium uppercase tracking-wide text-accent">Pricing</p>
@@ -321,8 +319,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="px-6 py-20">
-        <div className="mx-auto max-w-3xl text-center">
+      <section className="blueprint-section relative px-6 py-20">
+        <BlueprintSectionGrid />
+        <div className="relative z-10 mx-auto max-w-3xl text-center">
           <h2 className="text-3xl font-semibold tracking-tight">Ready to stop rebuilding the same quote in Word?</h2>
           <p className="mt-3 text-muted">Create an account, set your rates and HST, and write the first quote today.</p>
           <Link href="/signup" className="btn btn-primary mt-8 px-6">
@@ -332,129 +331,6 @@ export default function HomePage() {
       </section>
 
       <MarketingFooter />
-    </div>
-  );
-}
-
-function OnTheJobVoice() {
-  return (
-    <section id="voice" className="scroll-mt-24 border-b border-line bg-navy text-white">
-      <div className="mx-auto grid max-w-6xl items-center gap-14 px-6 py-20 lg:grid-cols-2 lg:py-24">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-orange-300">On the job</p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Don’t type it later. Just speak it.
-          </h2>
-          <p className="mt-4 text-lg text-white/75">
-            Boots still on. Phone in your hand. Hit record and talk through the work the way you would to a helper —
-            “half-inch PEX, Moen valve, six hours.” We turn that into a quote you can check before the client ever sees
-            it.
-          </p>
-          <ul className="mt-8 space-y-3 text-sm">
-            {[
-              "Walk the site. Talk. Don’t fill a form in the driveway.",
-              "Slang, brand names, and rough quantities are fine.",
-              "You get a draft — materials, labour, hours — not a sent email.",
-            ].map((line) => (
-              <li key={line} className="flex gap-3">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-orange-300" strokeWidth={2.5} />
-                <span className="text-white/85">{line}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-8 text-sm text-white/50">Coming soon — the rest of the app is ready now.</p>
-        </div>
-        <VoicePhone />
-      </div>
-    </section>
-  );
-}
-
-function VoicePhone() {
-  const bars = [18, 32, 48, 28, 56, 22, 40, 16, 44, 30, 52, 24];
-  return (
-    <div className="mx-auto w-full max-w-sm">
-      <div className="rounded-[2rem] border border-white/15 bg-navy-2 p-3 shadow-2xl shadow-black/40">
-        <div className="rounded-[1.5rem] bg-[#0c1a22] px-5 pb-6 pt-4">
-          <p className="text-center text-[11px] font-medium uppercase tracking-widest text-white/40">
-            Kitchen · Smith job
-          </p>
-          <p className="mt-4 text-center text-xs text-orange-300">Recording · 0:18</p>
-          <div className="mt-5 flex h-16 items-end justify-center gap-1">
-            {bars.map((h, i) => (
-              <span
-                key={i}
-                className="wave-bar w-1.5 rounded-full bg-orange-400"
-                style={{ height: h, animationDelay: `${i * 0.08}s` }}
-              />
-            ))}
-          </div>
-          <p className="mt-6 min-h-24 rounded-xl bg-white/5 px-4 py-3 text-sm leading-relaxed text-white/80">
-            “Swap the Moen valve, rerun half-inch PEX to the kitchen, new toilet flange, call it a six-hour day…”
-          </p>
-          <div className="mt-6 flex flex-col items-center">
-            <div className="mic-pulse flex h-16 w-16 items-center justify-center rounded-full bg-accent">
-              <Mic className="h-7 w-7 text-white" />
-            </div>
-            <p className="mt-3 text-xs text-white/50">Tap to stop</p>
-          </div>
-          <div className="mt-6 space-y-2 border-t border-white/10 pt-4 text-xs">
-            <p className="font-medium uppercase tracking-wide text-white/40">Turns into</p>
-            {["½ in PEX · 50 ft", "Moen valve · 1", "Labour · 6 hr"].map((line) => (
-              <div key={line} className="flex items-center gap-2 text-white/80">
-                <Check className="h-3.5 w-3.5 text-orange-300" />
-                {line}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function HeroQuoteCard() {
-  return (
-    <div className="card overflow-hidden shadow-lg shadow-stone-900/5">
-      <div className="flex items-center justify-between border-b border-line bg-paper px-5 py-3">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">Quote</p>
-          <p className="font-semibold">Q-0042 · Kitchen rough-in</p>
-        </div>
-        <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-navy">Draft</span>
-      </div>
-      <div className="space-y-3 p-5">
-        <div className="flex items-center gap-2 rounded-lg bg-navy/5 px-3 py-2 text-sm">
-          <Mic className="h-4 w-4 text-navy" />
-          <span className="text-muted">“Swap the Moen valve, rerun half-inch PEX to the kitchen…”</span>
-        </div>
-        {[
-          ["Material", "½ in PEX pipe", "50 ft", "$89.50"],
-          ["Material", "Moen pressure-balance valve", "1 ea", "$214.00"],
-          ["Labour", "Rough-in & install", "6 hr", "$510.00"],
-        ].map(([kind, name, qty, price]) => (
-          <div key={name} className="flex items-start justify-between gap-3 text-sm">
-            <div>
-              <p className="text-[11px] uppercase tracking-wide text-muted">{kind}</p>
-              <p className="font-medium">{name}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-muted">{qty}</p>
-              <p className="font-medium">{price}</p>
-            </div>
-          </div>
-        ))}
-        <div className="border-t border-line pt-3 text-sm">
-          <div className="flex justify-between text-muted">
-            <span>HST (13%)</span>
-            <span>$105.76</span>
-          </div>
-          <div className="mt-1 flex justify-between text-base font-semibold">
-            <span>Total</span>
-            <span>$919.26</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
