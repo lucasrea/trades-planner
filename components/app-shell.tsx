@@ -100,7 +100,12 @@ export function AppShell({
               <Link href="/app" className="text-base font-semibold" onClick={() => setMenuOpen(false)}>
                 Trades Planner
               </Link>
-              <button type="button" className="rounded-lg p-1.5 hover:bg-white/10" onClick={() => setMenuOpen(false)}>
+              <button
+                type="button"
+                className="rounded-lg p-1.5 hover:bg-white/10"
+                aria-label="Close menu"
+                onClick={() => setMenuOpen(false)}
+              >
                 <X size={18} />
               </button>
             </div>
@@ -112,8 +117,8 @@ export function AppShell({
       ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="no-print flex items-center justify-between gap-3 border-b border-line bg-white px-4 py-2 lg:bg-amber-50 lg:px-6">
-          <div className="flex min-w-0 items-center gap-2">
+        <div className="no-print flex items-center justify-between gap-3 border-b border-line bg-white px-4 py-2 lg:justify-end lg:px-6">
+          <div className="flex items-center lg:hidden">
             <button
               type="button"
               className="rounded-lg p-2 text-ink hover:bg-paper lg:hidden"
@@ -122,9 +127,6 @@ export function AppShell({
             >
               <Menu size={18} />
             </button>
-            <p className="truncate text-xs text-muted lg:text-amber-950">
-              Local mode — data lives in <code>data/sitebook.db</code>. Stripe is stubbed; every account is Pro.
-            </p>
           </div>
           <UserMenu user={user} />
         </div>

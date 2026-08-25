@@ -9,7 +9,7 @@ function emptyLine(kind: LineKind, unitPrice = 0): DraftLine {
     id: crypto.randomUUID(),
     kind,
     description: "",
-    quantity: kind === "labour" ? 1 : 1,
+    quantity: 1,
     unit: kind === "labour" ? "hr" : "ea",
     unitPrice,
   };
@@ -54,11 +54,12 @@ export function LineEditor({
             </tr>
           </thead>
           <tbody>
-            {lines.map((line) => (
+            {lines.map((line, index) => (
               <tr key={line.id} className="border-t border-line bg-white">
                 <td className="px-2 py-2">
                   <select
                     className="input"
+                    aria-label={`Line ${index + 1} type`}
                     value={line.kind}
                     onChange={(e) => {
                       const kind = e.target.value as LineKind;
@@ -77,6 +78,7 @@ export function LineEditor({
                 <td className="px-2 py-2">
                   <input
                     className="input"
+                    aria-label={`Line ${index + 1} description`}
                     value={line.description}
                     onChange={(e) => update(line.id, { description: e.target.value })}
                     placeholder={line.kind === "labour" ? "Install valve, rough-in" : "1/2 in PEX pipe"}
@@ -85,6 +87,7 @@ export function LineEditor({
                 <td className="w-24 px-2 py-2">
                   <input
                     className="input"
+                    aria-label={`Line ${index + 1} quantity`}
                     type="number"
                     step="0.01"
                     value={line.quantity}
@@ -94,6 +97,7 @@ export function LineEditor({
                 <td className="w-20 px-2 py-2">
                   <input
                     className="input"
+                    aria-label={`Line ${index + 1} unit`}
                     value={line.unit}
                     onChange={(e) => update(line.id, { unit: e.target.value })}
                   />
@@ -101,6 +105,7 @@ export function LineEditor({
                 <td className="w-28 px-2 py-2">
                   <input
                     className="input"
+                    aria-label={`Line ${index + 1} unit price`}
                     type="number"
                     step="0.01"
                     value={line.unitPrice}
@@ -113,7 +118,7 @@ export function LineEditor({
                     type="button"
                     className="rounded-lg p-2 text-muted hover:bg-paper hover:text-accent"
                     onClick={() => setLines((rows) => rows.filter((row) => row.id !== line.id))}
-                    aria-label="Remove line"
+                    aria-label={`Remove line ${index + 1}`}
                   >
                     <Trash2 size={16} />
                   </button>

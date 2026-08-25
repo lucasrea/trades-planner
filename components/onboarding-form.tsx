@@ -154,7 +154,9 @@ export function OnboardingForm({ email }: { email: string }) {
       </div>
 
       {localError || state?.error ? (
-        <p className="mt-4 text-sm text-accent">{localError || state?.error}</p>
+        <p className="mt-4 text-sm text-accent" role="alert">
+          {localError || state?.error}
+        </p>
       ) : null}
 
       <div className="mt-8 flex justify-between">

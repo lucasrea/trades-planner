@@ -126,7 +126,11 @@ export function DocumentForm({
         />
       </div>
 
-      {state?.error ? <p className="text-sm text-accent">{state.error}</p> : null}
+      {state?.error ? (
+        <p className="text-sm text-accent" role="alert">
+          {state.error}
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <button className="btn btn-primary" disabled={pending}>
           {pending ? "Saving…" : saveLabel}
