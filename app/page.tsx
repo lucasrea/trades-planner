@@ -13,6 +13,62 @@ import { MarketingFooter, MarketingNav } from "@/components/marketing";
 
 const trades = ["Plumbers", "Electricians", "Carpenters", "General contractors", "HVAC"];
 
+const pricingTiers = [
+  {
+    id: "free",
+    name: "Free",
+    price: "$0",
+    period: "forever",
+    description: "Try the workflow on real jobs — no card required.",
+    highlighted: false,
+    cta: "Start free",
+    href: "/signup",
+    features: [
+      "Up to 5 clients",
+      "10 quotes & invoices per month",
+      "GST/HST PDF download",
+      "Manual quotes & line items",
+      "1 business account",
+    ],
+  },
+  {
+    id: "solo",
+    name: "Solo",
+    price: "$9.99",
+    period: "CAD / month",
+    description: "Unlimited paperwork for one contractor running the show.",
+    highlighted: true,
+    badge: "Most popular",
+    cta: "Get Solo",
+    href: "/signup",
+    features: [
+      "Unlimited clients, jobs, quotes & invoices",
+      "GST/HST PDFs + e-Transfer on invoices",
+      "Job tracking & dashboard",
+      "Invoice from quote",
+      "Email PDFs to clients (coming soon)",
+    ],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    price: "$29.99",
+    period: "CAD / month",
+    description: "Field tools and client-facing workflow when you’re ready to scale.",
+    highlighted: false,
+    cta: "Get Pro",
+    href: "/signup",
+    features: [
+      "Everything in Solo",
+      "Voice-to-quote (coming soon)",
+      "Client approve / decline links",
+      "Material shopping lists",
+      "Payment reminder emails",
+      "Quote templates (coming soon)",
+    ],
+  },
+] as const;
+
 const features = [
   {
     id: "gst",
@@ -198,36 +254,56 @@ export default function HomePage() {
       </section>
 
       <section id="pricing" className="scroll-mt-24 border-b border-line bg-card">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-20 lg:grid-cols-2">
-          <div>
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <div className="max-w-2xl">
             <p className="text-sm font-medium uppercase tracking-wide text-accent">Pricing</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight">One plan. Solo contractor.</h2>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+              Start free. Upgrade when the paperwork pays for itself.
+            </h2>
             <p className="mt-4 text-muted">
-              $29 CAD / month when billing is live. Right now you can run the whole product locally for free while we
-              finish voice-to-quote and client emails.
+              Built for one-person trades businesses in Canada. Billing goes live with Stripe — every plan starts with
+              a free account today.
             </p>
           </div>
-          <div className="card p-8">
-            <p className="text-sm font-medium text-accent">Pro</p>
-            <p className="mt-2 text-4xl font-semibold">
-              $29 <span className="text-lg font-medium text-muted">CAD / mo</span>
-            </p>
-            <ul className="mt-6 space-y-2 text-sm">
-              {[
-                "Unlimited clients, jobs, quotes, invoices",
-                "GST/HST PDFs",
-                "Voice-to-quote (shipping next)",
-                "Email quotes to clients (next)",
-              ].map((line) => (
-                <li key={line} className="flex gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-ok" strokeWidth={2.5} />
-                  {line}
-                </li>
-              ))}
-            </ul>
-            <Link href="/signup" className="btn btn-primary mt-8 w-full">
-              Get started
-            </Link>
+          <div className="mt-12 grid gap-6 lg:grid-cols-3">
+            {pricingTiers.map((tier) => (
+              <div
+                key={tier.id}
+                className={`relative flex flex-col rounded-xl border p-8 ${
+                  tier.highlighted
+                    ? "border-navy bg-white shadow-lg shadow-navy/10 ring-1 ring-navy"
+                    : "border-line bg-card"
+                }`}
+              >
+                {tier.badge ? (
+                  <p className="absolute -top-3 left-6 rounded-full bg-navy px-3 py-0.5 text-xs font-semibold text-white">
+                    {tier.badge}
+                  </p>
+                ) : null}
+                <p className="text-sm font-medium text-accent">{tier.name}</p>
+                <p className="mt-2 text-4xl font-semibold tracking-tight">
+                  {tier.price}
+                  {tier.period ? (
+                    <span className="ml-1 text-base font-medium text-muted">{tier.period}</span>
+                  ) : null}
+                </p>
+                <p className="mt-3 text-sm text-muted">{tier.description}</p>
+                <ul className="mt-6 flex-1 space-y-2.5 text-sm">
+                  {tier.features.map((line) => (
+                    <li key={line} className="flex gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-ok" strokeWidth={2.5} />
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href={tier.href}
+                  className={`btn mt-8 w-full ${tier.highlighted ? "btn-primary" : "btn-ghost"}`}
+                >
+                  {tier.cta}
+                </Link>
+              </div>
+            ))}
           </div>
         </div>
       </section>
