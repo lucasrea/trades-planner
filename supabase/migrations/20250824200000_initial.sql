@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   image TEXT NOT NULL DEFAULT '',
   google_id TEXT,
   password_hash TEXT NOT NULL DEFAULT '',
-  created_at INTEGER NOT NULL
+  created_at BIGINT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS contractors (
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS contractors (
   plan TEXT NOT NULL DEFAULT 'pro',
   stripe_customer_id TEXT,
   stripe_subscription_id TEXT,
-  onboarding_completed_at INTEGER,
+  onboarding_completed_at BIGINT,
   next_quote_number INTEGER NOT NULL DEFAULT 1,
   next_invoice_number INTEGER NOT NULL DEFAULT 1
 );
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS clients (
   email TEXT NOT NULL DEFAULT '',
   phone TEXT NOT NULL DEFAULT '',
   billing_address TEXT NOT NULL DEFAULT '',
-  created_at INTEGER NOT NULL
+  created_at BIGINT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS jobs (
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   site_address TEXT NOT NULL DEFAULT '',
   notes TEXT NOT NULL DEFAULT '',
   target_date TEXT,
-  created_at INTEGER NOT NULL
+  created_at BIGINT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS quotes (
@@ -66,8 +66,8 @@ CREATE TABLE IF NOT EXISTS quotes (
   subtotal DOUBLE PRECISION NOT NULL DEFAULT 0,
   tax DOUBLE PRECISION NOT NULL DEFAULT 0,
   total DOUBLE PRECISION NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
+  created_at BIGINT NOT NULL,
+  updated_at BIGINT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS quote_line_items (
@@ -95,8 +95,8 @@ CREATE TABLE IF NOT EXISTS invoices (
   subtotal DOUBLE PRECISION NOT NULL DEFAULT 0,
   tax DOUBLE PRECISION NOT NULL DEFAULT 0,
   total DOUBLE PRECISION NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
+  created_at BIGINT NOT NULL,
+  updated_at BIGINT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS invoice_line_items (

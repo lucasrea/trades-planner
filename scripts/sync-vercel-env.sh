@@ -29,7 +29,11 @@ npx vercel link --yes --project trades-planner >/dev/null 2>&1 || true
 for target in production preview; do
   echo "Syncing to $target…"
   for key in "${REQUIRED[@]}"; do
-    printf '%s' "${!key}" | npx vercel env add "$key" "$target" --force
+    value="${!key}"
+    if [[ "$key" == "AUTH_URL" && "$target" == "production" ]]; then
+      value="${AUTH_URL_PRODUCTION:-https://trades-planner-bay.vercel.app}"
+    fi
+    printf '%s' "$value" | npx vercel env add "$key" "$target" --force
   done
 done
 

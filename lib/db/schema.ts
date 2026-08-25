@@ -1,4 +1,5 @@
 import {
+  bigint,
   doublePrecision,
   integer,
   pgTable,
@@ -12,7 +13,7 @@ export const users = pgTable("users", {
   image: text("image").notNull().default(""),
   googleId: text("google_id"),
   passwordHash: text("password_hash").notNull().default(""),
-  createdAt: integer("created_at").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
 
 export const contractors = pgTable("contractors", {
@@ -32,7 +33,7 @@ export const contractors = pgTable("contractors", {
   plan: text("plan").notNull().default("pro"),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
-  onboardingCompletedAt: integer("onboarding_completed_at"),
+  onboardingCompletedAt: bigint("onboarding_completed_at", { mode: "number" }),
   nextQuoteNumber: integer("next_quote_number").notNull().default(1),
   nextInvoiceNumber: integer("next_invoice_number").notNull().default(1),
 });
@@ -44,7 +45,7 @@ export const clients = pgTable("clients", {
   email: text("email").notNull().default(""),
   phone: text("phone").notNull().default(""),
   billingAddress: text("billing_address").notNull().default(""),
-  createdAt: integer("created_at").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
 
 export const jobs = pgTable("jobs", {
@@ -56,7 +57,7 @@ export const jobs = pgTable("jobs", {
   siteAddress: text("site_address").notNull().default(""),
   notes: text("notes").notNull().default(""),
   targetDate: text("target_date"),
-  createdAt: integer("created_at").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
 
 export const quotes = pgTable("quotes", {
@@ -71,8 +72,8 @@ export const quotes = pgTable("quotes", {
   subtotal: doublePrecision("subtotal").notNull().default(0),
   tax: doublePrecision("tax").notNull().default(0),
   total: doublePrecision("total").notNull().default(0),
-  createdAt: integer("created_at").notNull(),
-  updatedAt: integer("updated_at").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });
 
 export const quoteLineItems = pgTable("quote_line_items", {
@@ -100,8 +101,8 @@ export const invoices = pgTable("invoices", {
   subtotal: doublePrecision("subtotal").notNull().default(0),
   tax: doublePrecision("tax").notNull().default(0),
   total: doublePrecision("total").notNull().default(0),
-  createdAt: integer("created_at").notNull(),
-  updatedAt: integer("updated_at").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });
 
 export const invoiceLineItems = pgTable("invoice_line_items", {
