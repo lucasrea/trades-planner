@@ -1,11 +1,18 @@
 import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/app-shell";
 import { ExpandableListTable } from "@/components/expandable-list-table";
+import { UpgradeNotice } from "@/components/upgrade-notice";
+import { duplicateQuoteAction } from "@/lib/actions/data";
 import { formatDisplayDate, previewText } from "@/lib/format";
 import { getQuotes } from "@/lib/queries";
 import { cad } from "@/lib/money";
 
-export default async function QuotesPage() {
+export default async function QuotesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ upgrade?: string }>;
+}) {
+  const { upgrade } = await searchParams;
   const rows = await getQuotes();
   return (
     <div>
@@ -18,6 +25,9 @@ export default async function QuotesPage() {
           </Link>
         }
       />
+      {upgrade === "duplicate" ? (
+        <UpgradeNotice>Duplicating quotes is on Solo. Upgrade to copy a quote as a starting point.</UpgradeNotice>
+      ) : null}
       {rows.length === 0 ? (
         <EmptyState
           title="Write your first quote"
@@ -43,10 +53,16 @@ export default async function QuotesPage() {
               { kind: "status", status: q.status },
               { kind: "text", value: cad(q.total), className: "block text-right tabular-nums" },
               {
-                kind: "action",
-                href: `/app/quotes/${q.id}/print`,
-                label: "View as PDF",
-                external: true,
+                kind: "actions",
+                items: [
+                  {
+                    kind: "link",
+                    href: `/app/quotes/${q.id}/print`,
+                    label: "View as PDF",
+                    external: true,
+                  },
+                  { kind: "form", action: duplicateQuoteAction, id: q.id, label: "Duplicate" },
+                ],
               },
             ],
             details: [

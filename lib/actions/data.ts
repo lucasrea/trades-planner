@@ -25,6 +25,7 @@ import {
   requireActiveJobSlot,
   requireClientSlot,
   requireDocumentSlot,
+  requireFeature,
 } from "@/lib/entitlements";
 import {
   documentTotals,
@@ -444,4 +445,102 @@ export async function invoiceFromQuoteAction(formData: FormData) {
   revalidatePath("/app/quotes");
   revalidatePath("/app");
   redirect(`/app/invoices/${invoiceId}`);
+}
+
+export async function duplicateQuoteAction(formData: FormData) {
+  const contractor = await getContractor();
+  const sourceId = formText(formData, "id");
+  if (!sourceId) throw new Error("Quote not found.");
+  const blocked = requireFeature(contractor.plan, "duplicate_documents");
+  if (blocked) redirect(`/app/quotes/${sourceId}?upgrade=duplicate`);
+  const db = await ensureDb();
+  const [quote] = await db
+    .select()
+    .from(quotes)
+    .where(and(eq(quotes.id, sourceId), eq(quotes.contractorId, contractor.id)))
+    .limit(1);
+  if (!quote) throw new Error("Quote not found.");
+  const usage = await getPlanUsage(contractor.id);
+  const documentBlock = requireDocumentSlot(contractor.plan, usage.documentsThisMonth);
+  if (documentBlock) redirect(`/app/quotes/${sourceId}?upgrade=1`);
+  const lines = await db.select().from(quoteLineItems).where(eq(quoteLineItems.quoteId, quote.id));
+  const now = Date.now();
+  const quoteId = id();
+  await db.transaction(async (tx) => {
+    const [counter] = await tx
+      .update(contractors)
+      .set({ nextQuoteNumber: sql`${contractors.nextQuoteNumber} + 1` })
+      .where(eq(contractors.id, contractor.id))
+      .returning({ next: contractors.nextQuoteNumber });
+    if (!counter) throw new Error("Contractor not found.");
+    await tx.insert(quotes).values({
+      id: quoteId,
+      contractorId: contractor.id,
+      clientId: quote.clientId,
+      jobId: quote.jobId,
+      quoteNumber: padNumber(counter.next - 1, "Q"),
+      status: "draft",
+      notes: quote.notes,
+      validUntil: quote.validUntil,
+      subtotal: quote.subtotal,
+      tax: quote.tax,
+      total: quote.total,
+      createdAt: now,
+      updatedAt: now,
+    });
+    if (lines.length) {
+      await tx.insert(quoteLineItems).values(
+        lines
+          .slice()
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((line, index) => ({
+            id: id(),
+            quoteId,
+            sortOrder: index,
+            kind: line.kind,
+            description: line.description,
+            quantity: line.quantity,
+            unit: line.unit,
+            unitPrice: line.unitPrice,
+            lineTotal: line.lineTotal,
+          })),
+      );
+    }
+  });
+  revalidatePath("/app/quotes");
+  revalidatePath("/app");
+  redirect(`/app/quotes/${quoteId}`);
+}
+
+export async function duplicateJobAction(formData: FormData) {
+  const contractor = await getContractor();
+  const sourceId = formText(formData, "id");
+  if (!sourceId) throw new Error("Job not found.");
+  const blocked = requireFeature(contractor.plan, "duplicate_documents");
+  if (blocked) redirect(`/app/jobs/${sourceId}?upgrade=duplicate`);
+  const db = await ensureDb();
+  const [job] = await db
+    .select()
+    .from(jobs)
+    .where(and(eq(jobs.id, sourceId), eq(jobs.contractorId, contractor.id)))
+    .limit(1);
+  if (!job) throw new Error("Job not found.");
+  const usage = await getPlanUsage(contractor.id);
+  const jobBlock = requireActiveJobSlot(contractor.plan, usage.activeJobs);
+  if (jobBlock) redirect(`/app/jobs/${sourceId}?upgrade=1`);
+  const newId = id();
+  await db.insert(jobs).values({
+    id: newId,
+    contractorId: contractor.id,
+    clientId: job.clientId,
+    title: `${job.title} (copy)`,
+    status: "quoted",
+    siteAddress: job.siteAddress,
+    notes: job.notes,
+    targetDate: job.targetDate,
+    createdAt: Date.now(),
+  });
+  revalidatePath("/app/jobs");
+  revalidatePath("/app");
+  redirect(`/app/jobs/${newId}`);
 }

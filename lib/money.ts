@@ -18,6 +18,8 @@ export type DraftLine = {
   quantity: number;
   unit: string;
   unitPrice: number;
+  /** UI-only cost before markup. Not persisted. */
+  cost?: number;
 };
 
 export type Totals = {
@@ -52,6 +54,10 @@ export function computeTotals(lines: DraftLine[], taxRate: number): Totals {
 export function documentTotals(lines: DraftLine[], taxRate: number) {
   const { subtotal, tax, total } = computeTotals(lines, taxRate);
   return { subtotal, tax, total };
+}
+
+export function applyMarkup(cost: number, markupPct: number) {
+  return roundMoney((Number(cost) || 0) * (1 + (Number(markupPct) || 0) / 100));
 }
 
 export function padNumber(n: number, prefix: string) {

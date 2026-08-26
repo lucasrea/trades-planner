@@ -6,10 +6,15 @@ import { ChevronRight } from "lucide-react";
 import { TableCard } from "@/components/app-shell";
 import { StatusBadge } from "@/components/status-badge";
 
+export type ExpandableAction =
+  | { kind: "link"; href: string; label: string; external?: boolean }
+  | { kind: "form"; action: (formData: FormData) => void | Promise<void>; id: string; label: string };
+
 export type ExpandableCell =
   | { kind: "text"; value: string; className?: string }
   | { kind: "status"; status: string }
-  | { kind: "action"; href: string; label: string; external?: boolean };
+  | { kind: "action"; href: string; label: string; external?: boolean }
+  | { kind: "actions"; items: ExpandableAction[] };
 
 export type ExpandableDetail = {
   label: string;
@@ -26,6 +31,27 @@ export type ExpandableListRow = {
   details: ExpandableDetail[];
 };
 
+function renderAction(item: ExpandableAction) {
+  if (item.kind === "form") {
+    return (
+      <form action={item.action}>
+        <input type="hidden" name="id" value={item.id} />
+        <button className="btn btn-ghost btn-sm">{item.label}</button>
+      </form>
+    );
+  }
+  return (
+    <Link
+      href={item.href}
+      target={item.external ? "_blank" : undefined}
+      rel={item.external ? "noopener noreferrer" : undefined}
+      className="btn btn-ghost btn-sm"
+    >
+      {item.label}
+    </Link>
+  );
+}
+
 function renderCell(cell: ExpandableCell) {
   if (cell.kind === "text") {
     return <span className={cell.className}>{cell.value}</span>;
@@ -33,18 +59,16 @@ function renderCell(cell: ExpandableCell) {
   if (cell.kind === "status") {
     return <StatusBadge status={cell.status} />;
   }
-  return (
-    <span className="block text-right">
-      <Link
-        href={cell.href}
-        target={cell.external ? "_blank" : undefined}
-        rel={cell.external ? "noopener noreferrer" : undefined}
-        className="btn btn-ghost btn-sm"
-      >
-        {cell.label}
-      </Link>
-    </span>
-  );
+  if (cell.kind === "actions") {
+    return (
+      <div className="flex flex-wrap justify-end gap-1">
+        {cell.items.map((item, index) => (
+          <span key={`${item.label}-${index}`}>{renderAction(item)}</span>
+        ))}
+      </div>
+    );
+  }
+  return <span className="block text-right">{renderAction({ kind: "link", href: cell.href, label: cell.label, external: cell.external })}</span>;
 }
 
 function renderDetail(detail: ExpandableDetail) {

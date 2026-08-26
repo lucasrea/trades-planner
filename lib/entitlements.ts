@@ -9,6 +9,7 @@ export type PlanState = (typeof planStates)[number];
 export type PlanFeature =
   | "duplicate_documents"
   | "export_clients_csv"
+  | "material_markup"
   | "email_pdf"
   | "payment_reminders"
   | "shopping_list"
@@ -46,6 +47,7 @@ export const planLimits: Record<PlanId, PlanLimits> = {
 const planFeatures: Record<PlanFeature, readonly PlanId[]> = {
   duplicate_documents: ["solo", "pro"],
   export_clients_csv: ["solo", "pro"],
+  material_markup: ["solo", "pro"],
   email_pdf: ["pro"],
   payment_reminders: ["pro"],
   shopping_list: ["pro"],

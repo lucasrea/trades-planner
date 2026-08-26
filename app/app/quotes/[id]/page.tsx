@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app-shell";
 import { DocumentForm } from "@/components/document-form";
+import { DuplicateButton } from "@/components/duplicate-button";
 import { StatusBadge } from "@/components/status-badge";
-import { invoiceFromQuoteAction } from "@/lib/actions/data";
+import { UpgradeNotice } from "@/components/upgrade-notice";
+import { duplicateQuoteAction, invoiceFromQuoteAction } from "@/lib/actions/data";
 import { getContractor } from "@/lib/auth";
-import { planLimits } from "@/lib/entitlements";
+import { canUseFeature, planLimits } from "@/lib/entitlements";
 import { getClients, getJobs, getQuote } from "@/lib/queries";
 
 export default async function QuoteDetailPage({
@@ -38,6 +40,7 @@ export default async function QuoteDetailPage({
             >
               View as PDF
             </Link>
+            <DuplicateButton action={duplicateQuoteAction} id={quote.id} />
             <form action={invoiceFromQuoteAction}>
               <input type="hidden" name="quoteId" value={quote.id} />
               <button className="btn btn-navy">Create invoice</button>
@@ -45,20 +48,20 @@ export default async function QuoteDetailPage({
           </div>
         }
       />
-      {upgrade ? (
-        <p className="mb-6 text-sm text-accent" role="alert">
+      {upgrade === "duplicate" ? (
+        <UpgradeNotice>Duplicating quotes is on Solo. Upgrade to copy a quote as a starting point.</UpgradeNotice>
+      ) : upgrade ? (
+        <UpgradeNotice>
           Free includes {planLimits.free.documentsPerMonth} quotes and invoices per month. Upgrade to
-          Solo for unlimited documents.{" "}
-          <Link href="/#pricing" className="font-medium underline hover:text-ink">
-            See plans
-          </Link>
-        </p>
+          Solo for unlimited documents.
+        </UpgradeNotice>
       ) : null}
       <DocumentForm
         kind="quote"
         taxRate={contractor.taxRate}
         taxLabel={contractor.taxLabel}
         labourRate={contractor.labourRateHourly}
+        markupPct={canUseFeature(contractor.plan, "material_markup") ? contractor.defaultMarkupPct : 0}
         clients={clients.map((c) => ({ id: c.id, label: c.name }))}
         jobs={jobs.map((j) => ({ id: j.id, label: `${j.title} · ${j.client?.name || ""}`, clientId: j.clientId }))}
         initial={{

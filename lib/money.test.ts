@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeTotals, documentTotals, lineTotal, padNumber, roundMoney } from "@/lib/money";
+import { applyMarkup, computeTotals, documentTotals, lineTotal, padNumber, roundMoney } from "@/lib/money";
 
 describe("money helpers", () => {
   it("rounds currency to two decimal places", () => {
@@ -64,6 +64,12 @@ describe("money helpers", () => {
   it("formats sequential document numbers", () => {
     expect(padNumber(42, "Q")).toBe("Q-0042");
     expect(padNumber(7, "INV")).toBe("INV-0007");
+  });
+
+  it("applies a percentage markup to a cost", () => {
+    expect(applyMarkup(100, 20)).toBe(120);
+    expect(applyMarkup(89.5, 20)).toBe(107.4);
+    expect(applyMarkup(10, 0)).toBe(10);
   });
 
   it("returns only persisted document totals", () => {

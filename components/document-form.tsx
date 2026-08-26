@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createDefaultLines, LineEditor } from "@/components/line-editor";
 import { ActionError } from "@/components/action-error";
@@ -20,6 +20,7 @@ export function DocumentForm({
   taxRate,
   taxLabel,
   labourRate,
+  markupPct = 0,
   initial,
 }: {
   kind: "quote" | "invoice";
@@ -28,6 +29,7 @@ export function DocumentForm({
   taxRate: number;
   taxLabel: string;
   labourRate: number;
+  markupPct?: number;
   initial?: {
     id?: string;
     clientId?: string;
@@ -41,13 +43,24 @@ export function DocumentForm({
 }) {
   const serverAction: DocumentAction = kind === "quote" ? saveQuoteAction : saveInvoiceAction;
   const [lines, setLines] = useState<DraftLine[]>(() =>
-    initial?.lines?.length ? initial.lines : createDefaultLines(labourRate),
+    initial?.lines?.length ? initial.lines : createDefaultLines(labourRate, markupPct > 0),
   );
   const linesRef = useRef(lines);
-  linesRef.current = lines;
+  useEffect(() => {
+    linesRef.current = lines;
+  }, [lines]);
   const [localError, setLocalError] = useState("");
   const [state, formAction, pending] = useActionState(async (prev: unknown, formData: FormData) => {
-    formData.set("lines", JSON.stringify(linesRef.current));
+    formData.set(
+      "lines",
+      JSON.stringify(
+        linesRef.current.map((line) => {
+          const rest = { ...line };
+          delete rest.cost;
+          return rest;
+        }),
+      ),
+    );
     return serverAction(prev, formData);
   }, null);
   useActionRedirect(state);
@@ -147,6 +160,7 @@ export function DocumentForm({
           taxRate={taxRate}
           taxLabel={taxLabel}
           labourRate={labourRate}
+          markupPct={markupPct}
         />
       </div>
 

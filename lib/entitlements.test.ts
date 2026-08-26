@@ -47,7 +47,10 @@ describe("plan entitlements", () => {
 
   it("gates Solo and Pro features", () => {
     expect(canUseFeature("free", "duplicate_documents")).toBe(false);
-    expect(canUseFeature("solo", "duplicate_documents")).toBe(true);
+    expect(canUseFeature("solo", "export_clients_csv")).toBe(true);
+    expect(canUseFeature("free", "export_clients_csv")).toBe(false);
+    expect(canUseFeature("solo", "material_markup")).toBe(true);
+    expect(canUseFeature("free", "material_markup")).toBe(false);
     expect(canUseFeature("solo", "email_pdf")).toBe(false);
     expect(canUseFeature("pro", "quickbooks_export")).toBe(true);
     expect(canUseFeature("trial", "voice_to_quote")).toBe(true);

@@ -75,6 +75,33 @@ describe("form data helpers", () => {
     ]);
   });
 
+  it("strips UI-only cost from draft lines", () => {
+    const lines = parseDraftLines(
+      JSON.stringify([
+        {
+          id: "line-1",
+          kind: "material",
+          description: "PEX",
+          quantity: 1,
+          unit: "ea",
+          unitPrice: 120,
+          cost: 100,
+        },
+      ]),
+    );
+
+    expect(lines).toEqual([
+      {
+        id: "line-1",
+        kind: "material",
+        description: "PEX",
+        quantity: 1,
+        unit: "ea",
+        unitPrice: 120,
+      },
+    ]);
+  });
+
   it("returns no lines for malformed JSON", () => {
     expect(parseDraftLines("{bad json")).toEqual([]);
   });
