@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { EmptyState, PageHeader, TableCard } from "@/components/app-shell";
-import { StatusBadge } from "@/components/status-badge";
+import { EmptyState, PageHeader } from "@/components/app-shell";
+import { ExpandableListTable } from "@/components/expandable-list-table";
+import { formatDisplayDate, previewText } from "@/lib/format";
 import { getInvoices } from "@/lib/queries";
 import { cad } from "@/lib/money";
 
@@ -25,45 +26,52 @@ export default async function InvoicesPage() {
           cta="New invoice"
         />
       ) : (
-        <TableCard>
-          <table className="w-full min-w-[640px] text-sm">
-            <thead className="bg-paper text-left text-muted">
-              <tr>
-                <th className="px-4 py-3 font-medium">Number</th>
-                <th className="px-4 py-3 font-medium">Client</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 text-right font-medium">Total</th>
-                <th className="px-4 py-3 text-right font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((inv) => (
-                <tr key={inv.id} className="border-t border-line hover:bg-paper/70">
-                  <td className="px-4 py-3">
-                    <Link href={`/app/invoices/${inv.id}`} className="font-medium hover:underline">
-                      {inv.invoiceNumber}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-muted">{inv.client?.name || "—"}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={inv.status} />
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">{cad(inv.total)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/app/invoices/${inv.id}/print`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-ghost btn-sm"
-                    >
-                      View as PDF
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableCard>
+        <ExpandableListTable
+          columns={[
+            { label: "Number" },
+            { label: "Client" },
+            { label: "Status" },
+            { label: "Total", align: "right" },
+            { label: "Actions", align: "right" },
+          ]}
+          rows={rows.map((inv) => ({
+            id: inv.id,
+            label: inv.invoiceNumber,
+            href: `/app/invoices/${inv.id}`,
+            cells: [
+              { kind: "text", value: inv.client?.name || "—", className: "text-muted" },
+              { kind: "status", status: inv.status },
+              { kind: "text", value: cad(inv.total), className: "block text-right tabular-nums" },
+              {
+                kind: "action",
+                href: `/app/invoices/${inv.id}/print`,
+                label: "View as PDF",
+                external: true,
+              },
+            ],
+            details: [
+              { label: "Client", value: inv.client?.name || "—" },
+              {
+                label: "Source quote",
+                value: inv.quote?.quoteNumber || "—",
+                href: inv.quote ? `/app/quotes/${inv.quote.id}` : undefined,
+              },
+              {
+                label: "Job",
+                value: inv.job?.title || "—",
+                href: inv.job ? `/app/jobs/${inv.job.id}` : undefined,
+              },
+              { label: "Status", value: inv.status, status: inv.status },
+              { label: "Subtotal", value: cad(inv.subtotal) },
+              { label: "Tax", value: cad(inv.tax) },
+              { label: "Total", value: cad(inv.total) },
+              { label: "Due date", value: formatDisplayDate(inv.dueDate) },
+              { label: "Created", value: formatDisplayDate(inv.createdAt) },
+              { label: "Last updated", value: formatDisplayDate(inv.updatedAt) },
+              { label: "Notes", value: previewText(inv.notes) },
+            ],
+          }))}
+        />
       )}
     </div>
   );

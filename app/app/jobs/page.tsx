@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { EmptyState, PageHeader, TableCard } from "@/components/app-shell";
-import { StatusBadge } from "@/components/status-badge";
+import { EmptyState, PageHeader } from "@/components/app-shell";
+import { ExpandableListTable } from "@/components/expandable-list-table";
+import { formatDisplayDate, previewText } from "@/lib/format";
 import { getJobs } from "@/lib/queries";
 
 export default async function JobsPage() {
@@ -24,43 +25,44 @@ export default async function JobsPage() {
           cta="New job"
         />
       ) : (
-        <TableCard>
-          <table className="w-full min-w-[640px] text-sm">
-            <thead className="bg-paper text-left text-muted">
-              <tr>
-                <th className="px-4 py-3 font-medium">Job</th>
-                <th className="px-4 py-3 font-medium">Client</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Site</th>
-                <th className="px-4 py-3 text-right font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((job) => (
-                <tr key={job.id} className="border-t border-line hover:bg-paper/70">
-                  <td className="px-4 py-3">
-                    <Link href={`/app/jobs/${job.id}`} className="font-medium hover:underline">
-                      {job.title}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-muted">{job.client?.name || "—"}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={job.status} />
-                  </td>
-                  <td className="max-w-[220px] truncate px-4 py-3 text-muted">{job.siteAddress || "—"}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/app/quotes/new?clientId=${job.clientId}&jobId=${job.id}`}
-                      className="btn btn-ghost btn-sm"
-                    >
-                      New quote
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableCard>
+        <ExpandableListTable
+          columns={[
+            { label: "Job" },
+            { label: "Client" },
+            { label: "Status" },
+            { label: "Site" },
+            { label: "Actions", align: "right" },
+          ]}
+          rows={rows.map((job) => ({
+            id: job.id,
+            label: job.title,
+            href: `/app/jobs/${job.id}`,
+            cells: [
+              { kind: "text", value: job.client?.name || "—", className: "text-muted" },
+              { kind: "status", status: job.status },
+              {
+                kind: "text",
+                value: job.siteAddress || "—",
+                className: "block max-w-[220px] truncate text-muted",
+              },
+              {
+                kind: "action",
+                href: `/app/quotes/new?clientId=${job.clientId}&jobId=${job.id}`,
+                label: "New quote",
+              },
+            ],
+            details: [
+              { label: "Client", value: job.client?.name || "—" },
+              { label: "Client email", value: job.client?.email || "—" },
+              { label: "Client phone", value: job.client?.phone || "—" },
+              { label: "Status", value: job.status, status: job.status },
+              { label: "Site address", value: job.siteAddress || "—" },
+              { label: "Target date", value: formatDisplayDate(job.targetDate) },
+              { label: "Created", value: formatDisplayDate(job.createdAt) },
+              { label: "Notes", value: previewText(job.notes) },
+            ],
+          }))}
+        />
       )}
     </div>
   );

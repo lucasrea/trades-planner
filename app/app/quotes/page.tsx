@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { EmptyState, PageHeader, TableCard } from "@/components/app-shell";
-import { StatusBadge } from "@/components/status-badge";
+import { EmptyState, PageHeader } from "@/components/app-shell";
+import { ExpandableListTable } from "@/components/expandable-list-table";
+import { formatDisplayDate, previewText } from "@/lib/format";
 import { getQuotes } from "@/lib/queries";
 import { cad } from "@/lib/money";
 
@@ -25,45 +26,47 @@ export default async function QuotesPage() {
           cta="New quote"
         />
       ) : (
-        <TableCard>
-          <table className="w-full min-w-[640px] text-sm">
-            <thead className="bg-paper text-left text-muted">
-              <tr>
-                <th className="px-4 py-3 font-medium">Number</th>
-                <th className="px-4 py-3 font-medium">Client</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 text-right font-medium">Total</th>
-                <th className="px-4 py-3 text-right font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((q) => (
-                <tr key={q.id} className="border-t border-line hover:bg-paper/70">
-                  <td className="px-4 py-3">
-                    <Link href={`/app/quotes/${q.id}`} className="font-medium hover:underline">
-                      {q.quoteNumber}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-muted">{q.client?.name || "—"}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={q.status} />
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">{cad(q.total)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/app/quotes/${q.id}/print`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-ghost btn-sm"
-                    >
-                      View as PDF
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableCard>
+        <ExpandableListTable
+          columns={[
+            { label: "Number" },
+            { label: "Client" },
+            { label: "Status" },
+            { label: "Total", align: "right" },
+            { label: "Actions", align: "right" },
+          ]}
+          rows={rows.map((q) => ({
+            id: q.id,
+            label: q.quoteNumber,
+            href: `/app/quotes/${q.id}`,
+            cells: [
+              { kind: "text", value: q.client?.name || "—", className: "text-muted" },
+              { kind: "status", status: q.status },
+              { kind: "text", value: cad(q.total), className: "block text-right tabular-nums" },
+              {
+                kind: "action",
+                href: `/app/quotes/${q.id}/print`,
+                label: "View as PDF",
+                external: true,
+              },
+            ],
+            details: [
+              { label: "Client", value: q.client?.name || "—" },
+              {
+                label: "Job",
+                value: q.job?.title || "—",
+                href: q.job ? `/app/jobs/${q.job.id}` : undefined,
+              },
+              { label: "Status", value: q.status, status: q.status },
+              { label: "Subtotal", value: cad(q.subtotal) },
+              { label: "Tax", value: cad(q.tax) },
+              { label: "Total", value: cad(q.total) },
+              { label: "Valid until", value: formatDisplayDate(q.validUntil) },
+              { label: "Created", value: formatDisplayDate(q.createdAt) },
+              { label: "Last updated", value: formatDisplayDate(q.updatedAt) },
+              { label: "Notes", value: previewText(q.notes) },
+            ],
+          }))}
+        />
       )}
     </div>
   );

@@ -1,3 +1,5 @@
+"use client";
+
 import { statusClass, statusLabel } from "@/lib/status";
 
 export function StatusBadge({ status }: { status: string }) {

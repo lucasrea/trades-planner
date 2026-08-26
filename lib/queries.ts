@@ -67,15 +67,19 @@ export async function getQuotes() {
   const contractor = await getContractor();
   const db = await ensureDb();
   const rows = await db
-    .select({ quote: quotes, client: clients })
+    .select({ quote: quotes, client: clients, job: jobs })
     .from(quotes)
     .leftJoin(
       clients,
       and(eq(clients.id, quotes.clientId), eq(clients.contractorId, contractor.id)),
     )
+    .leftJoin(
+      jobs,
+      and(eq(jobs.id, quotes.jobId), eq(jobs.contractorId, contractor.id)),
+    )
     .where(eq(quotes.contractorId, contractor.id))
     .orderBy(desc(quotes.updatedAt));
-  return rows.map(({ quote, client }) => ({ ...quote, client }));
+  return rows.map(({ quote, client, job }) => ({ ...quote, client, job }));
 }
 
 function toDraft(line: {
@@ -124,15 +128,23 @@ export async function getInvoices() {
   const contractor = await getContractor();
   const db = await ensureDb();
   const rows = await db
-    .select({ invoice: invoices, client: clients })
+    .select({ invoice: invoices, client: clients, job: jobs, quote: quotes })
     .from(invoices)
     .leftJoin(
       clients,
       and(eq(clients.id, invoices.clientId), eq(clients.contractorId, contractor.id)),
     )
+    .leftJoin(
+      jobs,
+      and(eq(jobs.id, invoices.jobId), eq(jobs.contractorId, contractor.id)),
+    )
+    .leftJoin(
+      quotes,
+      and(eq(quotes.id, invoices.quoteId), eq(quotes.contractorId, contractor.id)),
+    )
     .where(eq(invoices.contractorId, contractor.id))
     .orderBy(desc(invoices.updatedAt));
-  return rows.map(({ invoice, client }) => ({ ...invoice, client }));
+  return rows.map(({ invoice, client, job, quote }) => ({ ...invoice, client, job, quote }));
 }
 
 export async function getInvoice(id: string) {
