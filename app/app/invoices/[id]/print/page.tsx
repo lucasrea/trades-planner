@@ -11,7 +11,7 @@ export default async function InvoicePrintPage({ params }: { params: Promise<{ i
   const [contractor, user] = await Promise.all([getContractor(), getAuthUser()]);
   const job = invoice.jobId ? await getJob(invoice.jobId) : null;
   return (
-    <div className="min-h-screen bg-stone-100 print:bg-white">
+    <div className="min-h-screen bg-paper print:bg-white">
       <PrintToolbar backHref={`/app/invoices/${invoice.id}`} />
       <div className="py-8 print:py-0">
         <PrintDocument

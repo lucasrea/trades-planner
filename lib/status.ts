@@ -8,16 +8,16 @@ export function statusClass(status: string) {
     case "paid":
     case "active":
     case "completed":
-      return "bg-lime-100 text-ok";
+      return "bg-lime-950/60 text-lime-400 ring-1 ring-lime-900/50";
     case "sent":
     case "quoted":
-      return "bg-sky-100 text-navy";
+      return "bg-sky-950/60 text-sky-400 ring-1 ring-sky-900/50";
     case "declined":
     case "overdue":
     case "archived":
-      return "bg-orange-100 text-accent";
+      return "bg-orange-950/60 text-orange-400 ring-1 ring-orange-900/50";
     default:
-      return "bg-stone-100 text-muted";
+      return "bg-elevated text-muted ring-1 ring-line";
   }
 }
 

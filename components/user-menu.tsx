@@ -39,7 +39,7 @@ export function UserAvatar({
   }
   return (
     <span
-      className="inline-flex items-center justify-center rounded-full bg-navy text-xs font-semibold text-white"
+      className="inline-flex items-center justify-center rounded-full bg-ivory/15 text-xs font-semibold text-ivory ring-1 ring-ivory/25"
       style={{ width: size, height: size }}
     >
       {initials(user.name, user.email)}
@@ -72,7 +72,7 @@ export function UserMenu({ user }: { user: AuthUser }) {
     <div className="relative" ref={root}>
       <button
         type="button"
-        className="rounded-full outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-navy"
+        className="rounded-full outline-none ring-offset-2 ring-offset-card focus-visible:ring-2 focus-visible:ring-accent"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account menu"

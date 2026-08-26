@@ -55,7 +55,7 @@ export function LineEditor({
           </thead>
           <tbody>
             {lines.map((line, index) => (
-              <tr key={line.id} className="border-t border-line bg-white">
+              <tr key={line.id} className="border-t border-line bg-card/50">
                 <td className="px-2 py-2">
                   <select
                     className="input"

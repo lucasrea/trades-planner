@@ -1,19 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #f4efe6;
-  --ink: #1c1917;
-  --muted: #78716c;
-  --line: #e7e0d4;
-  --card: #fffcf7;
-  --navy: #1f3b4d;
-  --navy-2: #16303e;
-  --accent: #c2410c;
-  --accent-2: #9a3412;
-  --ok: #3f6212;
-  --blueprint-ink: #1a3344;
-  --blueprint-grid-major: rgba(26, 51, 68, 0.07);
-  --blueprint-grid-minor: rgba(26, 51, 68, 0.04);
+  /* Cursor-inspired dark theme — Anthropic coral + soft ivory secondary */
+  --paper: #0c0c0c;
+  --ink: #e4e4e7;
+  --muted: #a1a1aa;
+  --line: #2a2a2a;
+  --card: #161616;
+  --elevated: #1f1f1f;
+  --input-bg: #1a1a1a;
+  --navy: #111111;
+  --navy-2: #1a1a1a;
+  --accent: #d97757;
+  --accent-2: #c86545;
+  --ivory: #f5f0e8;
+  --ivory-muted: rgba(245, 240, 232, 0.72);
+  --ok: #84cc16;
+  --blueprint-ink: #7da4b8;
+  --blueprint-grid-major: rgba(255, 255, 255, 0.07);
+  --blueprint-grid-minor: rgba(255, 255, 255, 0.035);
 }
 
 @theme inline {
@@ -26,7 +31,9 @@
   --color-navy-2: var(--navy-2);
   --color-accent: var(--accent);
   --color-accent-2: var(--accent-2);
+  --color-ivory: var(--ivory);
   --color-ok: var(--ok);
+  --color-elevated: var(--elevated);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -52,7 +59,8 @@ a {
 .input {
   width: 100%;
   border: 1px solid var(--line);
-  background: white;
+  background: var(--input-bg);
+  color: var(--ink);
   border-radius: 0.5rem;
   padding: 0.625rem 0.75rem;
   font-size: 0.95rem;
@@ -62,15 +70,16 @@ a {
 
 select.input {
   appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2378716c' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>");
+  background-color: var(--input-bg);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>");
   background-repeat: no-repeat;
   background-position: right 0.7rem center;
   padding-right: 2.1rem;
 }
 
 .input:focus {
-  border-color: var(--navy);
-  box-shadow: 0 0 0 3px rgba(31, 59, 77, 0.12);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.22);
 }
 
 .btn {
@@ -95,7 +104,7 @@ select.input {
 
 .btn:focus-visible,
 .input:focus-visible {
-  outline: 2px solid var(--navy);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -106,11 +115,24 @@ select.input {
 
 .btn-primary {
   background: var(--accent);
-  color: white;
+  color: #141414;
 }
 
 .btn-primary:hover {
   background: var(--accent-2);
+  color: #141414;
+}
+
+.btn-secondary {
+  background: transparent;
+  border-color: rgba(245, 240, 232, 0.35);
+  color: var(--ivory);
+}
+
+.btn-secondary:hover {
+  background: rgba(245, 240, 232, 0.08);
+  border-color: rgba(245, 240, 232, 0.5);
+  color: var(--ivory);
 }
 
 .btn-navy {
@@ -129,25 +151,25 @@ select.input {
 }
 
 .btn-ghost:hover {
-  background: white;
+  background: var(--elevated);
 }
 
 .card {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 1rem;
-  box-shadow: 0 1px 0 rgba(28, 25, 23, 0.03);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
 }
 
 @keyframes mic-pulse {
   0%,
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(194, 65, 12, 0.45);
+    box-shadow: 0 0 0 0 rgba(217, 119, 87, 0.45);
   }
   50% {
     transform: scale(1.04);
-    box-shadow: 0 0 0 12px rgba(194, 65, 12, 0);
+    box-shadow: 0 0 0 12px rgba(217, 119, 87, 0);
   }
 }
 
@@ -269,9 +291,9 @@ select.input {
     102deg,
     var(--paper) 0%,
     var(--paper) 38%,
-    rgba(244, 239, 230, 0.97) 48%,
-    rgba(244, 239, 230, 0.72) 58%,
-    rgba(244, 239, 230, 0.15) 72%,
+    rgba(12, 12, 12, 0.97) 48%,
+    rgba(12, 12, 12, 0.72) 58%,
+    rgba(12, 12, 12, 0.15) 72%,
     transparent 88%
   );
 }
@@ -307,7 +329,7 @@ select.input {
 }
 
 .hero-accent-glow {
-  background: radial-gradient(ellipse 70% 55% at 78% 18%, rgba(194, 65, 12, 0.07), transparent 68%);
+  background: radial-gradient(ellipse 70% 55% at 78% 18%, rgba(217, 119, 87, 0.14), transparent 68%);
 }
 
 .hero-showcase {
@@ -316,8 +338,8 @@ select.input {
   border-radius: 1.25rem;
   background: var(--card);
   box-shadow:
-    0 24px 50px rgba(28, 25, 23, 0.1),
-    0 0 0 1px rgba(255, 255, 255, 0.65);
+    0 24px 50px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 .hero-showcase-stage {
@@ -411,10 +433,10 @@ select.input {
   pointer-events: none;
   background-color: var(--paper);
   background-image:
-    linear-gradient(rgba(26, 51, 68, 0.09) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(26, 51, 68, 0.09) 1px, transparent 1px),
-    linear-gradient(rgba(26, 51, 68, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(26, 51, 68, 0.045) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
   background-position: 0 0, 0 0, 0 0, 0 0;
 }
@@ -423,9 +445,9 @@ select.input {
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(194, 65, 12, 0.03) 48%,
-    rgba(194, 65, 12, 0.05) 50%,
-    rgba(194, 65, 12, 0.03) 52%,
+    rgba(217, 119, 87, 0.03) 48%,
+    rgba(217, 119, 87, 0.05) 50%,
+    rgba(217, 119, 87, 0.03) 52%,
     transparent 100%
   );
   background-size: 100% 220%;
@@ -527,12 +549,12 @@ select.input {
   gap: 0.5rem;
   border-radius: 9999px;
   border: 1px solid var(--line);
-  background: rgba(255, 252, 247, 0.92);
+  background: rgba(22, 22, 22, 0.92);
   padding: 0.45rem 0.85rem;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--ink);
-  box-shadow: 0 8px 24px rgba(28, 25, 23, 0.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   animation: construction-float 5s ease-in-out infinite;
 }
 
@@ -589,8 +611,8 @@ select.input {
       180deg,
       var(--paper) 0%,
       var(--paper) 52%,
-      rgba(244, 239, 230, 0.94) 68%,
-      rgba(244, 239, 230, 0.55) 82%,
+      rgba(12, 12, 12, 0.94) 68%,
+      rgba(12, 12, 12, 0.55) 82%,
       transparent 100%
     );
   }

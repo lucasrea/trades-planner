@@ -152,7 +152,7 @@ export default function HomePage() {
         <ConstructionHeroBackdrop />
         <div className="relative mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-start lg:gap-14 lg:py-24">
           <div className="hero-copy-panel relative z-10 max-w-xl lg:max-w-none">
-            <p className="text-sm font-medium uppercase tracking-wide text-accent">
+            <p className="text-sm font-medium uppercase tracking-wide text-ivory">
               Project admin for solo trades
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-ink sm:text-5xl lg:text-[3.15rem] lg:leading-[1.08]">
@@ -166,7 +166,7 @@ export default function HomePage() {
               <Link href="/signup" className="btn btn-primary px-5 py-3">
                 Start free
               </Link>
-              <a href="#voice" className="btn btn-ghost px-5 py-3">
+              <a href="#voice" className="btn btn-secondary px-5 py-3">
                 See voice-to-quote
               </a>
             </div>
@@ -195,7 +195,7 @@ export default function HomePage() {
               }`}
             >
               <div>
-                <p className="text-sm font-medium uppercase tracking-wide text-accent">{feature.eyebrow}</p>
+                <p className="text-sm font-medium uppercase tracking-wide text-ivory">{feature.eyebrow}</p>
                 <h2 className="mt-2 text-3xl font-semibold tracking-tight">{feature.title}</h2>
                 <p className="mt-4 text-muted">{feature.body}</p>
                 <ul className="mt-6 space-y-2.5">
@@ -215,7 +215,7 @@ export default function HomePage() {
 
       <section id="how" className="relative scroll-mt-24 border-b border-line bg-card">
         <div className="mx-auto max-w-6xl px-6 py-20">
-          <p className="text-sm font-medium uppercase tracking-wide text-accent">How it works</p>
+          <p className="text-sm font-medium uppercase tracking-wide text-ivory">How it works</p>
           <h2 className="mt-2 text-3xl font-semibold tracking-tight">Three steps. Then you’re on site.</h2>
           <ol className="mt-12 grid gap-8 md:grid-cols-3">
             {[
@@ -236,7 +236,7 @@ export default function HomePage() {
               },
             ].map((step) => (
               <li key={step.n}>
-                <p className="font-mono text-sm text-accent">{step.n}</p>
+                <p className="font-mono text-sm text-ivory">{step.n}</p>
                 <h3 className="mt-3 text-xl font-semibold">{step.title}</h3>
                 <p className="mt-2 text-sm text-muted">{step.body}</p>
               </li>
@@ -248,14 +248,14 @@ export default function HomePage() {
       <section className="blueprint-section relative border-b border-line">
         <BlueprintSectionGrid />
         <div className="relative z-10 mx-auto max-w-6xl px-6 py-20">
-          <p className="text-sm font-medium uppercase tracking-wide text-accent">Everything in one place</p>
+          <p className="text-sm font-medium uppercase tracking-wide text-ivory">Everything in one place</p>
           <h2 className="mt-2 max-w-xl text-3xl font-semibold tracking-tight">
             The admin you avoid, without a 40-module field-service suite.
           </h2>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {grid.map((item) => (
               <div key={item.title} className="card p-6">
-                <item.icon className="h-5 w-5 text-navy" />
+                <item.icon className="h-5 w-5 text-ivory" />
                 <h3 className="mt-4 font-semibold">{item.title}</h3>
                 <p className="mt-2 text-sm text-muted">{item.body}</p>
               </div>
@@ -267,7 +267,7 @@ export default function HomePage() {
       <section id="pricing" className="relative scroll-mt-24 border-b border-line bg-card">
         <div className="mx-auto max-w-6xl px-6 py-20">
           <div className="max-w-2xl">
-            <p className="text-sm font-medium uppercase tracking-wide text-accent">Pricing</p>
+            <p className="text-sm font-medium uppercase tracking-wide text-ivory">Pricing</p>
             <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
               Start free. Upgrade when the paperwork pays for itself.
             </h2>
@@ -282,16 +282,16 @@ export default function HomePage() {
                 key={tier.id}
                 className={`relative flex flex-col rounded-xl border p-8 ${
                   tier.highlighted
-                    ? "border-navy bg-white shadow-lg shadow-navy/10 ring-1 ring-navy"
+                    ? "border-accent bg-card shadow-lg shadow-accent/15 ring-1 ring-accent/40"
                     : "border-line bg-card"
                 }`}
               >
                 {tier.badge ? (
-                  <p className="absolute -top-3 left-6 rounded-full bg-navy px-3 py-0.5 text-xs font-semibold text-white">
+                  <p className="absolute -top-3 left-6 rounded-full bg-accent px-3 py-0.5 text-xs font-semibold text-[#141414]">
                     {tier.badge}
                   </p>
                 ) : null}
-                <p className="text-sm font-medium text-accent">{tier.name}</p>
+                <p className="text-sm font-medium text-ivory">{tier.name}</p>
                 <p className="mt-2 text-4xl font-semibold tracking-tight">
                   {tier.price}
                   {tier.period ? (

@@ -11,7 +11,7 @@ export default async function QuotePrintPage({ params }: { params: Promise<{ id:
   const [contractor, user] = await Promise.all([getContractor(), getAuthUser()]);
   const job = quote.jobId ? await getJob(quote.jobId) : null;
   return (
-    <div className="min-h-screen bg-stone-100 print:bg-white">
+    <div className="min-h-screen bg-paper print:bg-white">
       <PrintToolbar backHref={`/app/quotes/${quote.id}`} />
       <div className="py-8 print:py-0">
         <PrintDocument

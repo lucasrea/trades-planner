@@ -117,7 +117,7 @@ export function AppShell({
       ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="no-print flex items-center justify-between gap-3 border-b border-line bg-white px-4 py-2 lg:justify-end lg:px-6">
+        <div className="no-print flex items-center justify-between gap-3 border-b border-line bg-card px-4 py-2 lg:justify-end lg:px-6">
           <div className="flex items-center lg:hidden">
             <button
               type="button"

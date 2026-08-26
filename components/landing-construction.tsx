@@ -51,7 +51,7 @@ export function ConstructionMarquee() {
             const Icon = item.icon;
             return (
               <div key={`${item.label}-${index}`} className="construction-marquee-item">
-                <Icon className="h-4 w-4 shrink-0 text-orange-300" strokeWidth={2} />
+                <Icon className="h-4 w-4 shrink-0 text-ivory" strokeWidth={2} />
                 <span>{item.label}</span>
               </div>
             );

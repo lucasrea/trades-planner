@@ -146,10 +146,10 @@ export function VoiceFeatureSection() {
       <div className="relative mx-auto max-w-6xl px-6 py-20 lg:py-28">
         <div className="mx-auto max-w-2xl text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/8 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/90">
-            <Sparkles className="h-3.5 w-3.5 text-orange-300" strokeWidth={2} />
+            <Sparkles className="h-3.5 w-3.5 text-ivory" strokeWidth={2} />
             Coming soon
           </span>
-          <p className="mt-5 text-sm font-medium uppercase tracking-wide text-orange-300">Voice-to-quote</p>
+          <p className="mt-5 text-sm font-medium uppercase tracking-wide text-ivory">Voice-to-quote</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
             From jobsite chatter to a numbered quote.
           </h2>
@@ -177,7 +177,7 @@ export function VoiceFeatureSection() {
                   onClick={() => selectScenario(item.id)}
                   className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                     selected
-                      ? "bg-white text-navy shadow-sm"
+                      ? "bg-accent text-[#141414] shadow-sm"
                       : "border border-white/15 bg-white/6 text-white/80 hover:bg-white/12 hover:text-white"
                   }`}
                 >
@@ -195,7 +195,7 @@ export function VoiceFeatureSection() {
                 <p className="text-xs font-medium uppercase tracking-wide text-muted">Step 1 · Record</p>
                 <p className="mt-1 font-semibold">{scenario.job}</p>
               </div>
-              <span className="shrink-0 rounded-full bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent">
+              <span className="shrink-0 rounded-full bg-ivory/10 px-2.5 py-1 text-xs font-semibold text-ivory">
                 {scenario.duration}
               </span>
             </div>
@@ -233,8 +233,8 @@ export function VoiceFeatureSection() {
             </p>
             <p className="mt-2 text-xs text-muted">Tap a phrase to see the matching line item →</p>
             <div className="mt-4 flex items-center gap-3">
-              <div className="mic-pulse flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent">
-                <Mic className="h-5 w-5 text-white" strokeWidth={2.25} />
+              <div className="mic-pulse flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-[#141414]">
+                <Mic className="h-5 w-5" strokeWidth={2.25} />
               </div>
               <p className="text-sm text-muted">Hands free on site. No forms in the driveway.</p>
             </div>
@@ -247,7 +247,7 @@ export function VoiceFeatureSection() {
                 parsing ? "voice-parsing" : "voice-shimmer"
               }`}
             >
-              <Sparkles className="h-5 w-5 text-orange-300" strokeWidth={2} />
+              <Sparkles className="h-5 w-5 text-ivory" strokeWidth={2} />
             </div>
             <div className="voice-flow-line" aria-hidden />
           </div>
@@ -258,7 +258,7 @@ export function VoiceFeatureSection() {
                 <p className="text-xs font-medium uppercase tracking-wide text-muted">Step 2 · Review draft</p>
                 <p className="mt-1 font-semibold">Quote {scenario.quoteNumber}</p>
               </div>
-              <span className="shrink-0 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-navy">
+              <span className="shrink-0 rounded-full bg-ivory/10 px-2.5 py-1 text-xs font-medium text-ivory">
                 {parsing ? "Parsing…" : "Draft"}
               </span>
             </div>
