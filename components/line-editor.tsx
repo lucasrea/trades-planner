@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { cad, computeTotals, type DraftLine, type LineKind, lineTotal } from "@/lib/money";
 
@@ -15,31 +15,31 @@ function emptyLine(kind: LineKind, unitPrice = 0): DraftLine {
   };
 }
 
+export function createDefaultLines(labourRate: number): DraftLine[] {
+  return [emptyLine("material"), emptyLine("labour", labourRate)];
+}
+
 export function LineEditor({
-  name = "lines",
-  initial,
+  lines,
+  onChange,
   taxRate,
   taxLabel,
   labourRate,
 }: {
-  name?: string;
-  initial?: DraftLine[];
+  lines: DraftLine[];
+  onChange: (lines: DraftLine[]) => void;
   taxRate: number;
   taxLabel: string;
   labourRate: number;
 }) {
-  const [lines, setLines] = useState<DraftLine[]>(
-    initial?.length ? initial : [emptyLine("material"), emptyLine("labour", labourRate)],
-  );
   const totals = useMemo(() => computeTotals(lines, taxRate), [lines, taxRate]);
 
   function update(id: string, patch: Partial<DraftLine>) {
-    setLines((rows) => rows.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+    onChange(lines.map((row) => (row.id === id ? { ...row, ...patch } : row)));
   }
 
   return (
     <div className="space-y-3">
-      <input type="hidden" name={name} value={JSON.stringify(lines)} />
       <div className="overflow-x-auto rounded-xl border border-line">
         <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-paper text-left text-muted">
@@ -117,7 +117,7 @@ export function LineEditor({
                   <button
                     type="button"
                     className="rounded-lg p-2 text-muted hover:bg-paper hover:text-accent"
-                    onClick={() => setLines((rows) => rows.filter((row) => row.id !== line.id))}
+                    onClick={() => onChange(lines.filter((row) => row.id !== line.id))}
                     aria-label={`Remove line ${index + 1}`}
                   >
                     <Trash2 size={16} />
@@ -130,13 +130,13 @@ export function LineEditor({
       </div>
       {lines.length === 0 ? <p className="text-sm text-muted">No line items yet. Add material or labour.</p> : null}
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLines((rows) => [...rows, emptyLine("material")])}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange([...lines, emptyLine("material")])}>
           <Plus size={16} /> Material
         </button>
         <button
           type="button"
           className="btn btn-ghost btn-sm"
-          onClick={() => setLines((rows) => [...rows, emptyLine("labour", labourRate)])}
+          onClick={() => onChange([...lines, emptyLine("labour", labourRate)])}
         >
           <Plus size={16} /> Labour
         </button>

@@ -5,6 +5,7 @@ import {
   formOptionalText,
   formText,
   parseDraftLines,
+  requireDraftLines,
 } from "@/lib/actions/form-data";
 
 describe("form data helpers", () => {
@@ -76,5 +77,57 @@ describe("form data helpers", () => {
 
   it("returns no lines for malformed JSON", () => {
     expect(parseDraftLines("{bad json")).toEqual([]);
+  });
+
+  it("rejects missing or empty line payloads", () => {
+    expect(requireDraftLines(null)).toEqual({
+      error: "Line items did not save. Refresh the page and try again.",
+    });
+    expect(requireDraftLines("")).toEqual({
+      error: "Line items did not save. Refresh the page and try again.",
+    });
+  });
+
+  it("requires at least one described line item", () => {
+    expect(
+      requireDraftLines(
+        JSON.stringify([
+          {
+            id: "line-1",
+            kind: "material",
+            description: " ",
+            quantity: 2,
+            unit: "ea",
+            unitPrice: 10,
+          },
+        ]),
+      ),
+    ).toEqual({ error: "Add at least one line item with a description." });
+  });
+
+  it("accepts valid described line items", () => {
+    expect(
+      requireDraftLines(
+        JSON.stringify([
+          {
+            id: "line-1",
+            kind: "labour",
+            description: "Install valve",
+            quantity: 2,
+            unit: "hr",
+            unitPrice: 85,
+          },
+        ]),
+      ),
+    ).toEqual([
+      {
+        id: "line-1",
+        kind: "labour",
+        description: "Install valve",
+        quantity: 2,
+        unit: "hr",
+        unitPrice: 85,
+      },
+    ]);
   });
 });

@@ -9,7 +9,7 @@ import {
   formEnum,
   formOptionalText,
   formText,
-  parseDraftLines,
+  requireDraftLines,
 } from "@/lib/actions/form-data";
 import {
   clients,
@@ -21,7 +21,7 @@ import {
   quotes,
 } from "@/lib/db/schema";
 import {
-  computeTotals,
+  documentTotals,
   lineTotal,
   padNumber,
 } from "@/lib/money";
@@ -154,8 +154,10 @@ export async function saveQuoteAction(_: unknown, formData: FormData) {
   if (!(await ownsClient(db, contractor.id, clientId))) {
     return { error: "Client not found." };
   }
-  const lines = parseDraftLines(formData.get("lines"));
-  const totals = computeTotals(lines, contractor.taxRate);
+  const parsedLines = requireDraftLines(formData.get("lines"));
+  if ("error" in parsedLines) return parsedLines;
+  const lines = parsedLines;
+  const totals = documentTotals(lines, contractor.taxRate);
   const now = Date.now();
   const jobId = formOptionalText(formData, "jobId");
   if (!(await ownsJobForClient(db, contractor.id, clientId, jobId))) {
@@ -241,8 +243,10 @@ export async function saveInvoiceAction(_: unknown, formData: FormData) {
   if (!(await ownsClient(db, contractor.id, clientId))) {
     return { error: "Client not found." };
   }
-  const lines = parseDraftLines(formData.get("lines"));
-  const totals = computeTotals(lines, contractor.taxRate);
+  const parsedLines = requireDraftLines(formData.get("lines"));
+  if ("error" in parsedLines) return parsedLines;
+  const lines = parsedLines;
+  const totals = documentTotals(lines, contractor.taxRate);
   const now = Date.now();
   const jobId = formOptionalText(formData, "jobId");
   const quoteId = formOptionalText(formData, "quoteId");

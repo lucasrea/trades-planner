@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeTotals, lineTotal, padNumber, roundMoney } from "@/lib/money";
+import { computeTotals, documentTotals, lineTotal, padNumber, roundMoney } from "@/lib/money";
 
 describe("money helpers", () => {
   it("rounds currency to two decimal places", () => {
@@ -64,5 +64,23 @@ describe("money helpers", () => {
   it("formats sequential document numbers", () => {
     expect(padNumber(42, "Q")).toBe("Q-0042");
     expect(padNumber(7, "INV")).toBe("INV-0007");
+  });
+
+  it("returns only persisted document totals", () => {
+    const totals = documentTotals(
+      [
+        {
+          id: "material",
+          kind: "material",
+          description: "PEX",
+          quantity: 2,
+          unit: "ft",
+          unitPrice: 5,
+        },
+      ],
+      0.13,
+    );
+
+    expect(totals).toEqual({ subtotal: 10, tax: 1.3, total: 11.3 });
   });
 });

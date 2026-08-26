@@ -38,11 +38,31 @@ export function formEnum<const T extends readonly [string, ...string[]]>(
 }
 
 export function parseDraftLines(raw: FormDataEntryValue | null): DraftLine[] {
+  if (raw == null || String(raw).trim() === "") return [];
   try {
-    const parsed = z.array(draftLineSchema).safeParse(JSON.parse(String(raw ?? "[]")));
+    const parsed = z.array(draftLineSchema).safeParse(JSON.parse(String(raw)));
     if (!parsed.success) return [];
     return parsed.data.filter((line) => line.description);
   } catch {
     return [];
+  }
+}
+
+export function requireDraftLines(raw: FormDataEntryValue | null): DraftLine[] | { error: string } {
+  if (raw == null || String(raw).trim() === "") {
+    return { error: "Line items did not save. Refresh the page and try again." };
+  }
+  try {
+    const parsed = z.array(draftLineSchema).safeParse(JSON.parse(String(raw)));
+    if (!parsed.success) {
+      return { error: "Line items are invalid. Refresh the page and try again." };
+    }
+    const lines = parsed.data.filter((line) => line.description);
+    if (lines.length === 0) {
+      return { error: "Add at least one line item with a description." };
+    }
+    return lines;
+  } catch {
+    return { error: "Line items are invalid. Refresh the page and try again." };
   }
 }

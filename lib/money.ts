@@ -48,6 +48,12 @@ export function computeTotals(lines: DraftLine[], taxRate: number): Totals {
   return { materials, labour, other, subtotal, tax, total: roundMoney(subtotal + tax) };
 }
 
+/** Quote/invoice columns stored on the document row. */
+export function documentTotals(lines: DraftLine[], taxRate: number) {
+  const { subtotal, tax, total } = computeTotals(lines, taxRate);
+  return { subtotal, tax, total };
+}
+
 export function padNumber(n: number, prefix: string) {
   return `${prefix}-${String(n).padStart(4, "0")}`;
 }

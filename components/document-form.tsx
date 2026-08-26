@@ -1,14 +1,16 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { LineEditor } from "@/components/line-editor";
+import { createDefaultLines, LineEditor } from "@/components/line-editor";
 import { Field } from "@/components/app-shell";
 import { useActionRedirect } from "@/components/use-action-redirect";
 import { saveInvoiceAction, saveQuoteAction } from "@/lib/actions/data";
 import type { DraftLine } from "@/lib/money";
 
 type Option = { id: string; label: string; clientId?: string };
+
+type DocumentAction = typeof saveQuoteAction;
 
 export function DocumentForm({
   kind,
@@ -36,8 +38,17 @@ export function DocumentForm({
     lines?: DraftLine[];
   };
 }) {
-  const action = kind === "quote" ? saveQuoteAction : saveInvoiceAction;
-  const [state, formAction, pending] = useActionState(action, null);
+  const serverAction: DocumentAction = kind === "quote" ? saveQuoteAction : saveInvoiceAction;
+  const [lines, setLines] = useState<DraftLine[]>(() =>
+    initial?.lines?.length ? initial.lines : createDefaultLines(labourRate),
+  );
+  const linesRef = useRef(lines);
+  linesRef.current = lines;
+  const [localError, setLocalError] = useState("");
+  const [state, formAction, pending] = useActionState(async (prev: unknown, formData: FormData) => {
+    formData.set("lines", JSON.stringify(linesRef.current));
+    return serverAction(prev, formData);
+  }, null);
   useActionRedirect(state);
   const [clientId, setClientId] = useState(initial?.clientId || "");
   const visibleJobs = useMemo(
@@ -50,8 +61,16 @@ export function DocumentForm({
     editing && initial?.id ? `${listHref}/${initial.id}` : listHref;
   const saveLabel = kind === "quote" ? (editing ? "Save quote" : "Create quote") : editing ? "Save invoice" : "Create invoice";
 
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    const hasLine = linesRef.current.some((line) => line.description.trim());
+    if (!hasLine) {
+      event.preventDefault();
+      setLocalError("Add at least one line item with a description.");
+    }
+  }
+
   return (
-    <form action={formAction} className="space-y-6">
+    <form action={formAction} onSubmit={handleSubmit} className="space-y-6">
       {initial?.id ? <input type="hidden" name="id" value={initial.id} /> : null}
       {kind === "invoice" && initial?.quoteId ? (
         <input type="hidden" name="quoteId" value={initial.quoteId} />
@@ -119,16 +138,20 @@ export function DocumentForm({
       <div className="card p-6">
         <h2 className="mb-4 text-lg font-semibold">Line items</h2>
         <LineEditor
-          initial={initial?.lines}
+          lines={lines}
+          onChange={(next) => {
+            setLocalError("");
+            setLines(next);
+          }}
           taxRate={taxRate}
           taxLabel={taxLabel}
           labourRate={labourRate}
         />
       </div>
 
-      {state?.error ? (
+      {localError || state?.error ? (
         <p className="text-sm text-accent" role="alert">
-          {state.error}
+          {localError || state?.error}
         </p>
       ) : null}
       <div className="flex flex-wrap gap-2">
