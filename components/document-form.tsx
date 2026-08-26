@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createDefaultLines, LineEditor } from "@/components/line-editor";
+import { ActionError } from "@/components/action-error";
 import { Field } from "@/components/app-shell";
 import { useActionRedirect } from "@/components/use-action-redirect";
 import { saveInvoiceAction, saveQuoteAction } from "@/lib/actions/data";
@@ -149,11 +150,13 @@ export function DocumentForm({
         />
       </div>
 
-      {localError || state?.error ? (
+      {localError ? (
         <p className="text-sm text-accent" role="alert">
-          {localError || state?.error}
+          {localError}
         </p>
-      ) : null}
+      ) : (
+        <ActionError state={state} />
+      )}
       <div className="flex flex-wrap gap-2">
         <button className="btn btn-primary" disabled={pending}>
           {pending ? "Saving…" : saveLabel}

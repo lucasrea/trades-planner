@@ -21,10 +21,17 @@ import {
   quotes,
 } from "@/lib/db/schema";
 import {
+  isActiveJobStatus,
+  requireActiveJobSlot,
+  requireClientSlot,
+  requireDocumentSlot,
+} from "@/lib/entitlements";
+import {
   documentTotals,
   lineTotal,
   padNumber,
 } from "@/lib/money";
+import { getPlanUsage } from "@/lib/plan-usage";
 
 const jobStatuses = ["quoted", "active", "completed", "archived"] as const;
 const quoteStatuses = ["draft", "sent", "approved", "declined"] as const;
@@ -88,6 +95,9 @@ export async function saveClientAction(_: unknown, formData: FormData) {
     revalidatePath("/app");
     redirect("/app/clients");
   }
+  const usage = await getPlanUsage(contractor.id);
+  const blocked = requireClientSlot(contractor.plan, usage.clients);
+  if (blocked) return blocked;
   const newId = id();
   await db.insert(clients).values({
     id: newId,
@@ -120,16 +130,31 @@ export async function saveJobAction(_: unknown, formData: FormData) {
     targetDate: formOptionalText(formData, "targetDate"),
   };
   if (jobId) {
-    const [updated] = await db
+    const [existing] = await db
+      .select({ id: jobs.id, status: jobs.status })
+      .from(jobs)
+      .where(and(eq(jobs.id, jobId), eq(jobs.contractorId, contractor.id)))
+      .limit(1);
+    if (!existing) return { error: "Job not found." };
+    const becomingActive = isActiveJobStatus(values.status) && !isActiveJobStatus(existing.status);
+    if (becomingActive) {
+      const usage = await getPlanUsage(contractor.id);
+      const blocked = requireActiveJobSlot(contractor.plan, usage.activeJobs);
+      if (blocked) return blocked;
+    }
+    await db
       .update(jobs)
       .set(values)
-      .where(and(eq(jobs.id, jobId), eq(jobs.contractorId, contractor.id)))
-      .returning({ id: jobs.id });
-    if (!updated) return { error: "Job not found." };
+      .where(and(eq(jobs.id, jobId), eq(jobs.contractorId, contractor.id)));
     revalidatePath("/app/jobs");
     revalidatePath(`/app/jobs/${jobId}`);
     revalidatePath("/app");
     redirect("/app/jobs");
+  }
+  if (isActiveJobStatus(values.status)) {
+    const usage = await getPlanUsage(contractor.id);
+    const blocked = requireActiveJobSlot(contractor.plan, usage.activeJobs);
+    if (blocked) return blocked;
   }
   const newId = id();
   await db.insert(jobs).values({
@@ -170,6 +195,10 @@ export async function saveQuoteAction(_: unknown, formData: FormData) {
       .where(and(eq(quotes.id, quoteId), eq(quotes.contractorId, contractor.id)))
       .limit(1);
     if (!existingQuote) return { error: "Quote not found." };
+  } else {
+    const usage = await getPlanUsage(contractor.id);
+    const blocked = requireDocumentSlot(contractor.plan, usage.documentsThisMonth);
+    if (blocked) return blocked;
   }
 
   await db.transaction(async (tx) => {
@@ -274,6 +303,10 @@ export async function saveInvoiceAction(_: unknown, formData: FormData) {
       .where(and(eq(invoices.id, invoiceId), eq(invoices.contractorId, contractor.id)))
       .limit(1);
     if (!existingInvoice) return { error: "Invoice not found." };
+  } else {
+    const usage = await getPlanUsage(contractor.id);
+    const blocked = requireDocumentSlot(contractor.plan, usage.documentsThisMonth);
+    if (blocked) return blocked;
   }
 
   await db.transaction(async (tx) => {
@@ -358,6 +391,10 @@ export async function invoiceFromQuoteAction(formData: FormData) {
     )
     .limit(1);
   if (existingInvoice) redirect(`/app/invoices/${existingInvoice.id}`);
+
+  const usage = await getPlanUsage(contractor.id);
+  const blocked = requireDocumentSlot(contractor.plan, usage.documentsThisMonth);
+  if (blocked) redirect(`/app/quotes/${quote.id}?upgrade=1`);
 
   const lines = await db
     .select()

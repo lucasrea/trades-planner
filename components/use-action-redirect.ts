@@ -7,6 +7,7 @@ export type ActionState = {
   error?: string;
   redirectTo?: string;
   ok?: boolean;
+  upgradeHref?: string;
 } | null;
 
 export function useActionRedirect(state: ActionState) {

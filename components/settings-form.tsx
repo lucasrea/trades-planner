@@ -1,9 +1,11 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Field } from "@/components/app-shell";
 import { updateSettingsAction } from "@/lib/actions/auth";
+import { effectivePlan, getPlanLimits, isUnlimited, type PlanUsage } from "@/lib/entitlements";
 
 type ContractorSettings = {
   businessName: string;
@@ -213,7 +215,13 @@ function SettingsFields({
   );
 }
 
-export function SettingsForm({ contractor }: { contractor: ContractorSettings }) {
+export function SettingsForm({
+  contractor,
+  usage,
+}: {
+  contractor: ContractorSettings;
+  usage: PlanUsage;
+}) {
   const [editingSection, setEditingSection] = useState<SectionId | null>(null);
   const [savedSection, setSavedSection] = useState<SectionId | null>(null);
 
@@ -231,14 +239,53 @@ export function SettingsForm({ contractor }: { contractor: ContractorSettings })
     setEditingSection(section);
   }
 
+  const plan = effectivePlan(contractor.plan);
+  const limits = getPlanLimits(plan);
+  const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+
   return (
     <div className="max-w-xl space-y-4">
       <section className="card p-6">
         <h2 className="text-base font-semibold text-ink">Plan</h2>
         <p className="mt-4 text-sm text-muted">
-          Current plan: <span className="font-medium text-ink">{contractor.plan}</span>
+          Current plan: <span className="font-medium text-ink">{planLabel}</span>
         </p>
-        <p className="mt-1 text-sm text-muted">Billing portal coming with Stripe.</p>
+        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+          <div>
+            <dt className="text-muted">Clients</dt>
+            <dd className="mt-1 font-medium text-ink">
+              {usage.clients}
+              {isUnlimited(limits.clients) ? " · unlimited" : ` / ${limits.clients}`}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted">Active jobs</dt>
+            <dd className="mt-1 font-medium text-ink">
+              {usage.activeJobs}
+              {isUnlimited(limits.activeJobs) ? " · unlimited" : ` / ${limits.activeJobs}`}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted">Docs this month</dt>
+            <dd className="mt-1 font-medium text-ink">
+              {usage.documentsThisMonth}
+              {isUnlimited(limits.documentsPerMonth)
+                ? " · unlimited"
+                : ` / ${limits.documentsPerMonth}`}
+            </dd>
+          </div>
+        </dl>
+        {plan === "free" ? (
+          <p className="mt-4 text-sm text-muted">
+            Upgrade to Solo for unlimited paperwork, or Pro for email, reminders, and QuickBooks
+            export.{" "}
+            <Link href="/#pricing" className="font-medium text-ink underline">
+              See plans
+            </Link>
+          </p>
+        ) : (
+          <p className="mt-4 text-sm text-muted">Billing portal coming with Stripe.</p>
+        )}
       </section>
 
       <SettingsSection

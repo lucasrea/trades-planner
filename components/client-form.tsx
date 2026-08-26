@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
+import { ActionError } from "@/components/action-error";
 import { Field } from "@/components/app-shell";
 import { useActionRedirect } from "@/components/use-action-redirect";
 import { saveClientAction } from "@/lib/actions/data";
@@ -35,11 +36,7 @@ export function ClientForm({
           placeholder="Street, city, postal code"
         />
       </Field>
-      {state?.error ? (
-        <p className="text-sm text-accent" role="alert">
-          {state.error}
-        </p>
-      ) : null}
+      <ActionError state={state} />
       <div className="flex flex-wrap gap-2">
         <button className="btn btn-primary" disabled={pending}>
           {pending ? "Saving…" : editing ? "Save changes" : "Save client"}

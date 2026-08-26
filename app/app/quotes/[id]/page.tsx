@@ -5,10 +5,18 @@ import { DocumentForm } from "@/components/document-form";
 import { StatusBadge } from "@/components/status-badge";
 import { invoiceFromQuoteAction } from "@/lib/actions/data";
 import { getContractor } from "@/lib/auth";
+import { planLimits } from "@/lib/entitlements";
 import { getClients, getJobs, getQuote } from "@/lib/queries";
 
-export default async function QuoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function QuoteDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ upgrade?: string }>;
+}) {
   const { id } = await params;
+  const { upgrade } = await searchParams;
   const quote = await getQuote(id);
   if (!quote) notFound();
   const [contractor, clients, jobs] = await Promise.all([getContractor(), getClients(), getJobs()]);
@@ -37,6 +45,15 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
           </div>
         }
       />
+      {upgrade ? (
+        <p className="mb-6 text-sm text-accent" role="alert">
+          Free includes {planLimits.free.documentsPerMonth} quotes and invoices per month. Upgrade to
+          Solo for unlimited documents.{" "}
+          <Link href="/#pricing" className="font-medium underline hover:text-ink">
+            See plans
+          </Link>
+        </p>
+      ) : null}
       <DocumentForm
         kind="quote"
         taxRate={contractor.taxRate}
