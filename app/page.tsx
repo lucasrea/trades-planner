@@ -1,17 +1,14 @@
 import Link from "next/link";
-import {
-  Check,
-  FileText,
-  HardHat,
-  Landmark,
-  Mic,
-  Receipt,
-  Sparkles,
-  Users,
-} from "lucide-react";
+import { Check } from "lucide-react";
 import { MarketingFooter, MarketingNav } from "@/components/marketing";
 import { ConstructionHeroBackdrop, ConstructionMarquee, BlueprintSectionGrid } from "@/components/landing-construction";
 import { HeroProductShowcase } from "@/components/hero-product-showcase";
+import {
+  HubDemo,
+  PaperworkDemo,
+  ToolkitDemo,
+  WorkflowDemo,
+} from "@/components/landing-product-demos";
 import { VoiceFeatureSection } from "@/components/voice-feature-section";
 
 type PricingTier = {
@@ -85,66 +82,6 @@ const pricingTiers: PricingTier[] = [
   },
 ];
 
-const features = [
-  {
-    id: "gst",
-    eyebrow: "Canadian paperwork",
-    title: "GST/HST that looks official.",
-    body: "Sequential quote and invoice numbers, your business number, tax on the right lines, and Interac e-Transfer instructions printed on the invoice. Built for Canada, not bolted on.",
-    points: [
-      "Q-0001 and INV-0001 numbering",
-      "HST / GST label and rate you set once",
-      "e-Transfer email on every invoice PDF",
-    ],
-    visual: <InvoicePreview />,
-  },
-  {
-    id: "jobs",
-    eyebrow: "Job tracking",
-    title: "Clients, jobs, and the paper in one place.",
-    body: "Stop hunting through texts and Word docs. Each client has a history. Each job has a site address (separate from billing). Quotes become invoices without retyping.",
-    points: [
-      "Client list with contact and job history",
-      "Job site vs billing address",
-      "One click from approved quote to invoice",
-    ],
-    visual: <JobsPreview />,
-  },
-];
-
-const grid = [
-  {
-    icon: Mic,
-    title: "Voice-to-quote",
-    body: "Walk the site, talk it out, review the draft on your phone.",
-  },
-  {
-    icon: FileText,
-    title: "Itemized quotes",
-    body: "Materials, labour, and other lines with live totals.",
-  },
-  {
-    icon: Receipt,
-    title: "Invoices that match",
-    body: "Copy a quote into INV-0001. Mark paid when the transfer lands.",
-  },
-  {
-    icon: Landmark,
-    title: "GST / HST built in",
-    body: "Your BN, tax rate, and label print on every PDF.",
-  },
-  {
-    icon: Users,
-    title: "Clients & jobs",
-    body: "Who you work for, where the work is, what’s outstanding.",
-  },
-  {
-    icon: Sparkles,
-    title: "Your rates, once",
-    body: "Labour rate, markup, and e-Transfer details live in settings.",
-  },
-];
-
 export default function HomePage() {
   return (
     <div className="flex min-h-full flex-col">
@@ -155,24 +92,22 @@ export default function HomePage() {
         <div className="relative mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-start lg:gap-14 lg:py-24">
           <div className="hero-copy-panel relative z-10 max-w-xl lg:max-w-none">
             <p className="text-sm font-medium uppercase tracking-wide text-ivory">
-              Project admin for solo trades
+              For solo trades in Canada
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-ink sm:text-5xl lg:text-[3.15rem] lg:leading-[1.08]">
               Quotes, jobs, and invoices — without the spreadsheet.
             </h1>
             <p className="mt-5 max-w-lg text-lg leading-relaxed text-muted">
-              Built for plumbers, electricians, carpenters, and contractors in Canada. Describe the work, send a
-              professional GST/HST quote, then invoice when you’re done.
+              Click through the product below. Start free — no credit card.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/signup" className="btn btn-primary px-5 py-3">
                 Start free
               </Link>
-              <a href="#voice" className="btn btn-secondary px-5 py-3">
-                See voice-to-quote
+              <a href="#how" className="btn btn-secondary px-5 py-3">
+                See it in action
               </a>
             </div>
-            <p className="mt-4 text-sm text-muted">No credit card required. Set up in a few minutes.</p>
           </div>
           <div className="relative z-10 lg:pt-2">
             <HeroProductShowcase />
@@ -182,89 +117,59 @@ export default function HomePage() {
 
       <ConstructionMarquee />
 
-      <VoiceFeatureSection />
-
-      <section id="features" className="scroll-mt-24">
-        {features.map((feature, i) => (
-          <div
-            key={feature.id}
-            className={`relative overflow-hidden border-b border-line ${i % 2 === 1 ? "bg-card" : "blueprint-section"}`}
-          >
-            {i % 2 === 0 ? <BlueprintSectionGrid /> : null}
-            <div
-              className={`relative z-10 mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-2 ${
-                i % 2 === 1 ? "lg:[&>*:first-child]:order-2" : ""
-              }`}
-            >
-              <div>
-                <p className="text-sm font-medium uppercase tracking-wide text-ivory">{feature.eyebrow}</p>
-                <h2 className="mt-2 text-3xl font-semibold tracking-tight">{feature.title}</h2>
-                <p className="mt-4 text-muted">{feature.body}</p>
-                <ul className="mt-6 space-y-2.5">
-                  {feature.points.map((point) => (
-                    <li key={point} className="flex gap-2 text-sm">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-ok" strokeWidth={2.5} />
-                      <span>{point}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              {feature.visual}
-            </div>
-          </div>
-        ))}
-      </section>
-
       <section id="how" className="relative scroll-mt-24 border-b border-line bg-card">
         <div className="mx-auto max-w-6xl px-6 py-20">
           <p className="text-sm font-medium uppercase tracking-wide text-ivory">How it works</p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight">Three steps. Then you’re on site.</h2>
-          <ol className="mt-12 grid gap-8 md:grid-cols-3">
-            {[
-              {
-                n: "01",
-                title: "Talk on site",
-                body: "Hit record. Describe the job the way you already talk — no forms, no laptop on the tailgate.",
-              },
-              {
-                n: "02",
-                title: "Send a real quote",
-                body: "Review totals, tax, and your logo-ready PDF. Numbered Q-0001 so it looks like a business.",
-              },
-              {
-                n: "03",
-                title: "Invoice when you’re done",
-                body: "Turn the quote into an invoice with e-Transfer instructions. Mark paid. Move on.",
-              },
-            ].map((step) => (
-              <li key={step.n}>
-                <p className="font-mono text-sm text-ivory">{step.n}</p>
-                <h3 className="mt-3 text-xl font-semibold">{step.title}</h3>
-                <p className="mt-2 text-sm text-muted">{step.body}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
-
-      <section className="blueprint-section relative border-b border-line">
-        <BlueprintSectionGrid />
-        <div className="relative z-10 mx-auto max-w-6xl px-6 py-20">
-          <p className="text-sm font-medium uppercase tracking-wide text-ivory">Everything in one place</p>
-          <h2 className="mt-2 max-w-xl text-3xl font-semibold tracking-tight">
-            The admin you avoid, without a 40-module field-service suite.
-          </h2>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {grid.map((item) => (
-              <div key={item.title} className="card p-6">
-                <item.icon className="h-5 w-5 text-ivory" />
-                <h3 className="mt-4 font-semibold">{item.title}</h3>
-                <p className="mt-2 text-sm text-muted">{item.body}</p>
-              </div>
-            ))}
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight">Client. Quote. Invoice.</h2>
+          <p className="mt-3 max-w-xl text-muted">Tap a step to see the screen.</p>
+          <div className="mt-10">
+            <WorkflowDemo />
           </div>
         </div>
       </section>
+
+      <section id="features" className="scroll-mt-24">
+        <div className="blueprint-section relative overflow-hidden border-b border-line">
+          <BlueprintSectionGrid />
+          <div className="relative z-10 mx-auto max-w-6xl px-6 py-20">
+            <p className="text-sm font-medium uppercase tracking-wide text-ivory">The hub</p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight">Pick a job. See the paper.</h2>
+            <p className="mt-3 max-w-xl text-muted">
+              Clients, quotes, invoices, and photos stay on the job — not in your camera roll.
+            </p>
+            <div className="mt-10">
+              <HubDemo />
+            </div>
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden border-b border-line bg-card">
+          <div className="mx-auto max-w-6xl px-6 py-20">
+            <p className="text-sm font-medium uppercase tracking-wide text-ivory">Canadian paperwork</p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight">GST/HST that looks official.</h2>
+            <p className="mt-3 max-w-xl text-muted">Toggle quote vs invoice. Same job, numbered PDF, tax on the right lines.</p>
+            <div className="mt-10">
+              <PaperworkDemo />
+            </div>
+          </div>
+        </div>
+
+        <div className="blueprint-section relative overflow-hidden border-b border-line">
+          <BlueprintSectionGrid />
+          <div className="relative z-10 mx-auto max-w-6xl px-6 py-20">
+            <p className="text-sm font-medium uppercase tracking-wide text-ivory">Solo & Pro</p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight">Try the tools.</h2>
+            <p className="mt-3 max-w-xl text-muted">
+              Duplicate on Solo. Email, shopping lists, reminders, and QuickBooks export on Pro.
+            </p>
+            <div className="mt-10">
+              <ToolkitDemo />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <VoiceFeatureSection />
 
       <section id="pricing" className="relative scroll-mt-24 border-b border-line bg-card">
         <div className="mx-auto max-w-6xl px-6 py-20">
@@ -274,8 +179,8 @@ export default function HomePage() {
               Start free. Upgrade when the paperwork pays for itself.
             </h2>
             <p className="mt-4 text-muted">
-              Built for one-person trades businesses in Canada. Billing goes live with Stripe — every plan starts with
-              a free account today.
+              Built for one-person trades businesses in Canada. Billing goes live with Stripe — every plan starts
+              with a free account today.
             </p>
           </div>
           <div className="mt-12 grid gap-6 lg:grid-cols-3">
@@ -333,65 +238,6 @@ export default function HomePage() {
       </section>
 
       <MarketingFooter />
-    </div>
-  );
-}
-
-function InvoicePreview() {
-  return (
-    <div className="card p-6 font-sans">
-      <div className="flex justify-between">
-        <div>
-          <p className="font-semibold">Rea Plumbing</p>
-          <p className="text-xs text-muted">GST/HST 123456789RT0001</p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs uppercase tracking-wide text-muted">Invoice</p>
-          <p className="text-lg font-semibold">INV-0018</p>
-        </div>
-      </div>
-      <div className="mt-6 border-t border-line pt-4 text-sm">
-        <div className="flex justify-between">
-          <span>Subtotal</span>
-          <span>$1,240.00</span>
-        </div>
-        <div className="mt-1 flex justify-between text-muted">
-          <span>HST 13%</span>
-          <span>$161.20</span>
-        </div>
-        <div className="mt-2 flex justify-between border-t border-line pt-2 font-semibold">
-          <span>Total due</span>
-          <span>$1,401.20</span>
-        </div>
-      </div>
-      <p className="mt-4 text-xs text-muted">Pay by Interac e-Transfer to pay@reaplumbing.ca</p>
-    </div>
-  );
-}
-
-function JobsPreview() {
-  return (
-    <div className="card overflow-hidden">
-      <div className="border-b border-line px-5 py-3 text-sm font-medium">Today</div>
-      <ul className="divide-y divide-line text-sm">
-        {[
-          ["Kitchen rough-in", "The Smiths", "Active"],
-          ["Panel upgrade", "Chen Residence", "Quoted"],
-          ["Deck stairs", "Oak St. rental", "Invoiced"],
-        ].map(([job, client, status]) => (
-          <li key={job} className="flex items-center justify-between px-5 py-3">
-            <div>
-              <p className="font-medium">{job}</p>
-              <p className="text-muted">{client}</p>
-            </div>
-            <span className="text-xs text-muted">{status}</span>
-          </li>
-        ))}
-      </ul>
-      <div className="flex items-center gap-2 border-t border-line bg-paper px-5 py-3 text-sm text-muted">
-        <HardHat className="h-4 w-4" />
-        Site address on the job — billing on the client
-      </div>
     </div>
   );
 }

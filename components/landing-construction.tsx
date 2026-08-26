@@ -11,14 +11,14 @@ import {
 import { BlueprintPlansPanorama } from "@/components/blueprint-plans";
 
 const marqueeItems = [
-  { icon: HardHat, label: "Site quotes" },
-  { icon: Ruler, label: "Measured lines" },
-  { icon: Hammer, label: "Job-ready PDFs" },
-  { icon: Wrench, label: "Plumbing & HVAC" },
-  { icon: Landmark, label: "GST / HST" },
-  { icon: Truck, label: "Truck to desk" },
-  { icon: Drill, label: "Rough-in to finish" },
-  { icon: Shovel, label: "Groundwork" },
+  { icon: HardHat, label: "Clients & jobs" },
+  { icon: Ruler, label: "Itemized quotes" },
+  { icon: Hammer, label: "GST/HST PDFs" },
+  { icon: Wrench, label: "Invoices that match" },
+  { icon: Landmark, label: "e-Transfer on the page" },
+  { icon: Truck, label: "QuickBooks export" },
+  { icon: Drill, label: "Email the PDF" },
+  { icon: Shovel, label: "Payment reminders" },
 ];
 
 /** Static blueprint grid for cream (paper) marketing sections. */

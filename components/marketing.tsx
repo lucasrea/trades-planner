@@ -12,14 +12,14 @@ export async function MarketingNav() {
           Trades Planner
         </Link>
         <nav className="flex items-center gap-2 text-sm sm:gap-5">
-          <Link href="/#voice" className="hidden text-muted hover:text-ink md:inline">
-            Voice
-          </Link>
           <Link href="/#features" className="hidden text-muted hover:text-ink md:inline">
             Features
           </Link>
           <Link href="/#how" className="hidden text-muted hover:text-ink lg:inline">
             How it works
+          </Link>
+          <Link href="/#voice" className="hidden text-muted hover:text-ink md:inline">
+            Voice
           </Link>
           <Link href="/#pricing" className="hidden text-muted hover:text-ink sm:inline">
             Pricing
@@ -53,11 +53,11 @@ export function MarketingFooter() {
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-8 text-sm text-muted">
         <p>© {new Date().getFullYear()} Trades Planner</p>
         <div className="flex gap-4">
-          <Link href="/#voice" className="hover:text-ink">
-            Voice
-          </Link>
           <Link href="/#features" className="hover:text-ink">
             Features
+          </Link>
+          <Link href="/#voice" className="hover:text-ink">
+            Voice
           </Link>
           <Link href="/#pricing" className="hover:text-ink">
             Pricing
