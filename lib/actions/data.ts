@@ -1,12 +1,13 @@
 "use server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, max, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getContractor } from "@/lib/auth";
 import { ensureDb, type Database } from "@/lib/db";
 import {
   formEnum,
+  formNumber,
   formOptionalText,
   formText,
   requireDraftLines,
@@ -16,17 +17,26 @@ import {
   contractors,
   invoiceLineItems,
   invoices,
+  jobCosts,
   jobs,
   quoteLineItems,
   quotes,
 } from "@/lib/db/schema";
 import {
   isActiveJobStatus,
+  canUseFeature,
   requireActiveJobSlot,
   requireClientSlot,
   requireDocumentSlot,
   requireFeature,
 } from "@/lib/entitlements";
+import {
+  defaultSellPrice,
+  jobCostKinds,
+  jobCostLineTotal,
+  jobCostToDraftLine,
+  type JobCostKind,
+} from "@/lib/job-costs";
 import {
   documentTotals,
   lineTotal,
@@ -49,6 +59,15 @@ async function ownsClient(db: Database, contractorId: string, clientId: string) 
     .where(and(eq(clients.id, clientId), eq(clients.contractorId, contractorId)))
     .limit(1);
   return Boolean(client);
+}
+
+async function ownsJob(db: Database, contractorId: string, jobId: string) {
+  const [job] = await db
+    .select()
+    .from(jobs)
+    .where(and(eq(jobs.id, jobId), eq(jobs.contractorId, contractorId)))
+    .limit(1);
+  return job ?? null;
 }
 
 async function ownsJobForClient(
@@ -543,4 +562,141 @@ export async function duplicateJobAction(formData: FormData) {
   revalidatePath("/app/jobs");
   revalidatePath("/app");
   redirect(`/app/jobs/${newId}`);
+}
+
+export async function saveJobCostAction(_: unknown, formData: FormData) {
+  const contractor = await getContractor();
+  const jobId = formText(formData, "jobId");
+  const description = formText(formData, "description");
+  if (!jobId) return { error: "Job not found." };
+  if (!description) return { error: "Add a description." };
+  const db = await ensureDb();
+  const job = await ownsJob(db, contractor.id, jobId);
+  if (!job) return { error: "Job not found." };
+  const kind = formEnum(formData, "kind", jobCostKinds, "material");
+  const quantity = formNumber(formData, "quantity", 1);
+  const unit = formText(formData, "unit") || (kind === "labour" ? "hr" : "ea");
+  const cost = formNumber(formData, "cost", 0);
+  const unitPriceRaw = formText(formData, "unitPrice");
+  const unitPrice = unitPriceRaw
+    ? formNumber(formData, "unitPrice", 0)
+    : defaultSellPrice(kind, cost, {
+        markupPct: contractor.defaultMarkupPct,
+        labourRate: contractor.labourRateHourly,
+        applyMarkup: canUseFeature(contractor.plan, "material_markup") && kind !== "labour",
+      });
+  const [sort] = await db
+    .select({ value: max(jobCosts.sortOrder) })
+    .from(jobCosts)
+    .where(and(eq(jobCosts.jobId, jobId), eq(jobCosts.contractorId, contractor.id)));
+  await db.insert(jobCosts).values({
+    id: id(),
+    jobId,
+    contractorId: contractor.id,
+    receiptId: null,
+    sortOrder: (sort?.value ?? -1) + 1,
+    kind,
+    description,
+    quantity,
+    unit,
+    cost,
+    unitPrice,
+    lineTotal: jobCostLineTotal({ quantity, unitPrice }),
+    createdAt: Date.now(),
+  });
+  revalidatePath(`/app/jobs/${jobId}`);
+  revalidatePath("/app/jobs");
+  revalidatePath("/app");
+  return { ok: true };
+}
+
+export async function deleteJobCostAction(formData: FormData) {
+  const contractor = await getContractor();
+  const costId = formText(formData, "id");
+  const jobId = formText(formData, "jobId");
+  if (!costId || !jobId) return;
+  const db = await ensureDb();
+  await db
+    .delete(jobCosts)
+    .where(
+      and(eq(jobCosts.id, costId), eq(jobCosts.jobId, jobId), eq(jobCosts.contractorId, contractor.id)),
+    );
+  revalidatePath(`/app/jobs/${jobId}`);
+  revalidatePath("/app/jobs");
+  revalidatePath("/app");
+}
+
+export async function invoiceFromJobAction(formData: FormData) {
+  const contractor = await getContractor();
+  const jobId = formText(formData, "jobId");
+  if (!jobId) throw new Error("Job not found.");
+  const db = await ensureDb();
+  const job = await ownsJob(db, contractor.id, jobId);
+  if (!job) throw new Error("Job not found.");
+  const costs = await db
+    .select()
+    .from(jobCosts)
+    .where(and(eq(jobCosts.jobId, job.id), eq(jobCosts.contractorId, contractor.id)));
+  const lines = costs
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt - b.createdAt)
+    .filter((cost) => cost.description.trim())
+    .map((cost) =>
+      jobCostToDraftLine({
+        id: cost.id,
+        kind: cost.kind as JobCostKind,
+        description: cost.description,
+        quantity: cost.quantity,
+        unit: cost.unit,
+        cost: cost.cost,
+        unitPrice: cost.unitPrice,
+      }),
+    );
+  if (!lines.length) redirect(`/app/jobs/${job.id}?error=costs`);
+  const usage = await getPlanUsage(contractor.id);
+  const blocked = requireDocumentSlot(contractor.plan, usage.documentsThisMonth);
+  if (blocked) redirect(`/app/jobs/${job.id}?upgrade=documents`);
+  const totals = documentTotals(lines, contractor.taxRate);
+  const now = Date.now();
+  const invoiceId = id();
+  await db.transaction(async (tx) => {
+    const [counter] = await tx
+      .update(contractors)
+      .set({ nextInvoiceNumber: sql`${contractors.nextInvoiceNumber} + 1` })
+      .where(eq(contractors.id, contractor.id))
+      .returning({ next: contractors.nextInvoiceNumber });
+    if (!counter) throw new Error("Contractor not found.");
+    await tx.insert(invoices).values({
+      id: invoiceId,
+      contractorId: contractor.id,
+      clientId: job.clientId,
+      jobId: job.id,
+      quoteId: null,
+      invoiceNumber: padNumber(counter.next - 1, "INV"),
+      status: "draft",
+      notes: job.notes,
+      subtotal: totals.subtotal,
+      tax: totals.tax,
+      total: totals.total,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await tx.insert(invoiceLineItems).values(
+      lines.map((line, index) => ({
+        id: id(),
+        invoiceId,
+        sortOrder: index,
+        kind: line.kind,
+        description: line.description,
+        quantity: line.quantity,
+        unit: line.unit,
+        unitPrice: line.unitPrice,
+        lineTotal: lineTotal(line),
+      })),
+    );
+  });
+  revalidatePath("/app/invoices");
+  revalidatePath(`/app/jobs/${job.id}`);
+  revalidatePath("/app");
+  redirect(`/app/invoices/${invoiceId}`);
 }

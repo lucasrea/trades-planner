@@ -2,24 +2,34 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader, RelatedList } from "@/components/app-shell";
 import { DuplicateButton } from "@/components/duplicate-button";
+import { JobCostsForm } from "@/components/job-costs-form";
 import { JobForm } from "@/components/job-form";
 import { UpgradeNotice } from "@/components/upgrade-notice";
-import { duplicateJobAction } from "@/lib/actions/data";
-import { getClients, getJob, getJobDocuments } from "@/lib/queries";
-import { planLimits } from "@/lib/entitlements";
+import { duplicateJobAction, invoiceFromJobAction } from "@/lib/actions/data";
+import { getContractor } from "@/lib/auth";
+import { canUseFeature, planLimits } from "@/lib/entitlements";
+import { getClients, getJob, getJobCosts, getJobDocuments } from "@/lib/queries";
 
 export default async function JobDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ upgrade?: string }>;
+  searchParams: Promise<{ upgrade?: string; error?: string }>;
 }) {
   const { id } = await params;
-  const { upgrade } = await searchParams;
+  const { upgrade, error } = await searchParams;
   const job = await getJob(id);
   if (!job) notFound();
-  const [clients, docs] = await Promise.all([getClients(), getJobDocuments(id)]);
+  const [contractor, clients, docs, costs] = await Promise.all([
+    getContractor(),
+    getClients(),
+    getJobDocuments(id),
+    getJobCosts(id),
+  ]);
+  const markupPct = canUseFeature(contractor.plan, "material_markup")
+    ? contractor.defaultMarkupPct
+    : 0;
 
   return (
     <div className="space-y-8">
@@ -30,6 +40,10 @@ export default async function JobDetailPage({
         action={
           <div className="flex flex-wrap items-center gap-2">
             <DuplicateButton action={duplicateJobAction} id={job.id} />
+            <form action={invoiceFromJobAction}>
+              <input type="hidden" name="jobId" value={job.id} />
+              <button className="btn btn-navy">Create invoice</button>
+            </form>
             <Link
               href={`/app/quotes/new?clientId=${job.clientId}&jobId=${job.id}`}
               className="btn btn-primary"
@@ -39,8 +53,18 @@ export default async function JobDetailPage({
           </div>
         }
       />
+      {error === "costs" ? (
+        <p className="mb-0 text-sm text-accent" role="alert">
+          Add a material, expense, or labour line before creating an invoice.
+        </p>
+      ) : null}
       {upgrade === "duplicate" ? (
         <UpgradeNotice>Duplicating jobs is on Solo. Upgrade to copy a job as a starting point.</UpgradeNotice>
+      ) : upgrade === "documents" ? (
+        <UpgradeNotice>
+          Free includes {planLimits.free.documentsPerMonth} quotes and invoices per month. Upgrade to
+          Solo for unlimited documents.
+        </UpgradeNotice>
       ) : upgrade ? (
         <UpgradeNotice>
           Free includes {planLimits.free.activeJobs} active jobs. Completed and archived jobs don’t
@@ -48,6 +72,12 @@ export default async function JobDetailPage({
         </UpgradeNotice>
       ) : null}
       <JobForm clients={clients} initial={job} />
+      <JobCostsForm
+        jobId={job.id}
+        costs={costs}
+        labourRate={contractor.labourRateHourly}
+        markupPct={markupPct}
+      />
       <div className="grid gap-4 md:grid-cols-2">
         <RelatedList
           title="Quotes"

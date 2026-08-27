@@ -6,6 +6,7 @@ import {
   invoiceLineItems,
   invoices,
   jobs,
+  jobCosts,
   quoteLineItems,
   quotes,
 } from "@/lib/db/schema";
@@ -61,6 +62,16 @@ export async function getJob(id: string) {
     .limit(1);
   if (!row) return null;
   return { ...row.job, client: row.client };
+}
+
+export async function getJobCosts(jobId: string) {
+  const contractor = await getContractor();
+  const db = await ensureDb();
+  const rows = await db
+    .select()
+    .from(jobCosts)
+    .where(and(eq(jobCosts.jobId, jobId), eq(jobCosts.contractorId, contractor.id)));
+  return rows.sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt - b.createdAt);
 }
 
 export async function getQuotes() {

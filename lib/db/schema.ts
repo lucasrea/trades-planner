@@ -60,6 +60,34 @@ export const jobs = pgTable("jobs", {
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
 
+export const jobReceipts = pgTable("job_receipts", {
+  id: text("id").primaryKey(),
+  jobId: text("job_id").notNull(),
+  contractorId: text("contractor_id").notNull(),
+  imageUrl: text("image_url").notNull().default(""),
+  vendor: text("vendor").notNull().default(""),
+  purchasedAt: text("purchased_at"),
+  receiptTotal: doublePrecision("receipt_total").notNull().default(0),
+  status: text("status").notNull().default("uploaded"),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+});
+
+export const jobCosts = pgTable("job_costs", {
+  id: text("id").primaryKey(),
+  jobId: text("job_id").notNull(),
+  contractorId: text("contractor_id").notNull(),
+  receiptId: text("receipt_id"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  kind: text("kind").notNull().default("material"),
+  description: text("description").notNull().default(""),
+  quantity: doublePrecision("quantity").notNull().default(1),
+  unit: text("unit").notNull().default("ea"),
+  cost: doublePrecision("cost").notNull().default(0),
+  unitPrice: doublePrecision("unit_price").notNull().default(0),
+  lineTotal: doublePrecision("line_total").notNull().default(0),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+});
+
 export const quotes = pgTable("quotes", {
   id: text("id").primaryKey(),
   contractorId: text("contractor_id").notNull(),
