@@ -169,7 +169,7 @@ function AddCostForm({
   }
 
   return (
-    <form action={formAction} className="mt-4 space-y-3">
+    <form action={formAction} className="mt-4 space-y-4">
       <input type="hidden" name="jobId" value={jobId} />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <label className="block">
@@ -204,8 +204,6 @@ function AddCostForm({
           <span className="mb-1.5 block text-sm font-medium">Unit</span>
           <input className="input" name="unit" value={unit} onChange={(e) => setUnit(e.target.value)} />
         </label>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium">Your cost</span>
           <input
@@ -233,11 +231,11 @@ function AddCostForm({
             </span>
           ) : null}
         </label>
-        <div className="flex items-end lg:col-span-2">
-          <button className="btn btn-primary" disabled={pending}>
-            {pending ? "Adding…" : "Add to job"}
-          </button>
-        </div>
+      </div>
+      <div className="flex justify-end">
+        <button className="btn btn-primary" disabled={pending}>
+          {pending ? "Adding…" : "Add to job"}
+        </button>
       </div>
       <ActionError state={state} />
     </form>
