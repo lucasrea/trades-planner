@@ -23,8 +23,8 @@ async function ctx() {
   return { db: await ensureDb(), contractorId: contractor.id };
 }
 
-function redirectDocumentError(documentId: string, code: string) {
-  redirect(`/app/documents/${documentId}?error=${code}`);
+function redirectWithMessage(path: string, message: string): never {
+  redirect(`${path}?error=${encodeURIComponent(message)}`);
 }
 
 export async function createDraftDocumentAction(formData: FormData) {
@@ -54,44 +54,51 @@ export async function setDocumentStatusAction(formData: FormData) {
   if (!documentId || !next) throw new Error("Invalid input.");
   try {
     await setDocumentStatus(await ctx(), documentId, next as DocStatus);
-    revalidatePath(`/app/documents/${documentId}`);
-    redirect(`/app/documents/${documentId}`);
   } catch (error) {
-    if (error instanceof ValidationError || error instanceof ConflictError || error instanceof NotFoundError) {
-      redirectDocumentError(documentId, "status");
+    if (error instanceof NotFoundError) redirectWithMessage("/app/documents", error.message);
+    if (error instanceof ValidationError || error instanceof ConflictError) {
+      redirectWithMessage(`/app/documents/${documentId}`, error.message);
     }
     throw error;
   }
+  revalidatePath(`/app/documents/${documentId}`);
+  revalidatePath("/app/documents");
+  redirect(`/app/documents/${documentId}`);
 }
 
 export async function createInvoiceFromQuoteAction(formData: FormData) {
   const quoteId = formText(formData, "quoteId");
   if (!quoteId) throw new Error("Invalid input.");
+  let invoiceId = "";
   try {
-    const invoiceId = await createInvoiceFromQuote(await ctx(), quoteId);
-    revalidatePath("/app/documents");
-    revalidatePath(`/app/documents/${quoteId}`);
-    redirect(`/app/documents/${invoiceId}`);
+    invoiceId = await createInvoiceFromQuote(await ctx(), quoteId);
   } catch (error) {
-    if (error instanceof ValidationError || error instanceof ConflictError || error instanceof NotFoundError) {
-      redirectDocumentError(quoteId, "invoice");
+    if (error instanceof NotFoundError) redirectWithMessage("/app/documents", error.message);
+    if (error instanceof ValidationError || error instanceof ConflictError) {
+      redirectWithMessage(`/app/documents/${quoteId}`, error.message);
     }
     throw error;
   }
+  revalidatePath("/app/documents");
+  revalidatePath(`/app/documents/${quoteId}`);
+  redirect(`/app/documents/${invoiceId}`);
 }
 
 export async function createInvoiceFromTrackedLinesAction(formData: FormData) {
   const jobId = formText(formData, "jobId");
   if (!jobId) throw new Error("Invalid input.");
+  let invoiceId = "";
   try {
-    const invoiceId = await createInvoiceFromTrackedLines(await ctx(), jobId);
-    revalidatePath("/app/documents");
-    revalidatePath(`/app/jobs/${jobId}`);
-    redirect(`/app/documents/${invoiceId}`);
+    invoiceId = await createInvoiceFromTrackedLines(await ctx(), jobId);
   } catch (error) {
-    if (error instanceof ValidationError) redirect(`/app/jobs/${jobId}?error=nothing-to-bill`);
+    if (error instanceof ValidationError || error instanceof ConflictError || error instanceof NotFoundError) {
+      redirectWithMessage(`/app/jobs/${jobId}`, error.message);
+    }
     throw error;
   }
+  revalidatePath("/app/documents");
+  revalidatePath(`/app/jobs/${jobId}`);
+  redirect(`/app/documents/${invoiceId}`);
 }
 
 export async function addTrackedLinesToInvoiceAction(formData: FormData) {
@@ -99,29 +106,26 @@ export async function addTrackedLinesToInvoiceAction(formData: FormData) {
   if (!documentId) throw new Error("Invalid input.");
   try {
     await addTrackedLinesToInvoice(await ctx(), documentId);
-    revalidatePath(`/app/documents/${documentId}`);
-    redirect(`/app/documents/${documentId}`);
   } catch (error) {
-    if (error instanceof ValidationError || error instanceof ConflictError || error instanceof NotFoundError) {
-      redirectDocumentError(documentId, "tracked");
+    if (error instanceof NotFoundError) redirectWithMessage("/app/documents", error.message);
+    if (error instanceof ValidationError || error instanceof ConflictError) {
+      redirectWithMessage(`/app/documents/${documentId}`, error.message);
     }
     throw error;
   }
+  revalidatePath(`/app/documents/${documentId}`);
+  redirect(`/app/documents/${documentId}`);
 }
 
 export async function deleteDraftDocumentAction(formData: FormData) {
   const documentId = formText(formData, "documentId");
-  if (!documentId) return;
+  if (!documentId) redirectWithMessage("/app/documents", "Missing document.");
   try {
     await deleteDraftDocument(await ctx(), documentId);
   } catch (error) {
-    if (error instanceof NotFoundError) {
-      // Already deleted — still send the user to the list.
-    } else if (error instanceof ConflictError) {
-      redirectDocumentError(documentId, "not-draft");
-    } else {
-      throw error;
-    }
+    if (error instanceof NotFoundError) redirectWithMessage("/app/documents", error.message);
+    if (error instanceof ConflictError) redirectWithMessage(`/app/documents/${documentId}`, error.message);
+    throw error;
   }
   revalidatePath("/app/documents");
   revalidatePath(`/app/documents/${documentId}`);

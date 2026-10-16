@@ -46,9 +46,15 @@ function displayStatus(
 export default async function DocumentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string | string[]; status?: string | string[]; cursor?: string | string[] }>;
+  searchParams: Promise<{
+    type?: string | string[];
+    status?: string | string[];
+    cursor?: string | string[];
+    error?: string | string[];
+  }>;
 }) {
   const raw = await searchParams;
+  const notice = one(raw.error);
   const typeParam = one(raw.type);
   const statusParam = one(raw.status);
   const cursor = one(raw.cursor);
@@ -62,6 +68,11 @@ export default async function DocumentsPage({
   return (
     <div>
       <PageHeader title="Documents" subtitle="Quotes and invoices in one list." />
+      {notice ? (
+        <p className="mb-4 text-sm text-accent" role="alert">
+          {notice}
+        </p>
+      ) : null}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           <Link href={listHref({ status })} className={type ? "btn btn-ghost btn-sm" : "btn btn-primary btn-sm"}>

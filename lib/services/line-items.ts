@@ -36,7 +36,7 @@ async function saveLine(ctx: ServiceContext, input: SaveLineInput) {
       if (isLocked(doc.status as DocStatus)) throw new ConflictError("Document is locked.");
     } else if (existing.billedDocumentId) throw new ConflictError("Billed tracked line cannot be edited.");
     await ctx.db.transaction(async (tx) => {
-      await tx.update(lineItems).set({ kind: input.kind, description: row.description, quantity: row.quantity, unit: row.unit, unitCost: input.unitCost ?? null, unitPrice: row.unitPrice, lineTotal: row.lineTotal }).where(and(eq(lineItems.id, input.id!), eq(lineItems.contractorId, ctx.contractorId)));
+      await tx.update(lineItems).set({ kind: input.kind, description: row.description, quantity: row.quantity, unit: row.unit, unitCost: input.unitCost ?? existing.unitCost, unitPrice: row.unitPrice, lineTotal: row.lineTotal }).where(and(eq(lineItems.id, input.id!), eq(lineItems.contractorId, ctx.contractorId)));
       if (existing.documentId) await recomputeDocumentTotals(tx, ctx.contractorId, existing.documentId);
       await touchJob(tx, ctx.contractorId, existing.jobId);
     });

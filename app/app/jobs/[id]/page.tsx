@@ -38,9 +38,9 @@ export default async function JobDetailPage({
         back={{ href: "/app/jobs", label: "Jobs" }}
         action={<JobDocumentActions jobId={job.id} />}
       />
-      {error === "nothing-to-bill" ? (
+      {error ? (
         <p className="text-sm text-accent" role="alert">
-          Add unbilled tracked lines before creating an invoice from them.
+          {error === "nothing-to-bill" ? "Add unbilled tracked lines before creating an invoice from them." : error}
         </p>
       ) : null}
       <div className="card grid gap-6 p-6 sm:grid-cols-2">

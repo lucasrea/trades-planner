@@ -5,8 +5,16 @@ import { isOverdue, type DocStatus, type DocType } from "@/lib/documents";
 import { calendarDateInTimeZone } from "@/lib/format";
 import { getDocument, getTrackedLines } from "@/lib/queries";
 
-export default async function DocumentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DocumentDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string | string[] }>;
+}) {
   const { id } = await params;
+  const raw = await searchParams;
+  const notice = Array.isArray(raw.error) ? raw.error[0] : raw.error;
   const document = await getDocument(id);
   if (!document) notFound();
   const contractor = await getContractor();
@@ -35,6 +43,7 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
       etransferNote={contractor.etransferNote}
       displayStatus={displayStatus}
       unbilledCount={unbilledCount}
+      notice={notice}
     />
   );
 }

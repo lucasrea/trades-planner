@@ -35,6 +35,7 @@ export function formatDisplayDate(
 
   if (typeof value === "number" && Number.isFinite(value)) {
     return new Date(value).toLocaleDateString("en-CA", {
+      timeZone: BUSINESS_TIME_ZONE,
       year: "numeric",
       month: options?.month ?? "short",
       day: "numeric",
@@ -42,19 +43,6 @@ export function formatDisplayDate(
   }
 
   return "—";
-}
-
-export function formatTaxRateLabel(
-  taxLabel: string,
-  subtotal: number,
-  tax: number,
-  fallbackRate: number,
-) {
-  if (subtotal > 0 && tax >= 0) {
-    const pct = Math.round((tax / subtotal) * 1000) / 10;
-    return `${taxLabel} (${pct}%)`;
-  }
-  return `${taxLabel} (${Math.round(fallbackRate * 1000) / 10}%)`;
 }
 
 export function previewText(value: string | null | undefined, max = 120) {

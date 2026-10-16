@@ -14,8 +14,8 @@ import {
   setDocumentStatusAction,
 } from "@/lib/actions/documents";
 import { FormSubmitButton } from "@/components/form-submit";
-import { buildMailto, type DocType } from "@/lib/documents";
-import { formatDisplayDate, formatTaxRateLabel } from "@/lib/format";
+import { buildMailto, documentActions, type DocStatus, type DocType } from "@/lib/documents";
+import { formatDisplayDate } from "@/lib/format";
 import { cad, type LineKind } from "@/lib/money";
 
 const kindLabel: Record<string, string> = {
@@ -119,6 +119,7 @@ export function DocumentView({
   etransferNote,
   displayStatus,
   unbilledCount,
+  notice,
 }: {
   document: DocumentViewData;
   taxLabel: string;
@@ -129,13 +130,14 @@ export function DocumentView({
   etransferNote: string;
   displayStatus: string;
   unbilledCount: number;
+  notice?: string;
 }) {
   const isQuote = document.type === "quote";
   const typeLabel = isQuote ? "Quote" : "Invoice";
   const draft = document.status === "draft";
   const dateLabel = isQuote ? "Valid until" : "Due date";
   const dateValue = isQuote ? document.validUntil : document.dueDate;
-  const showTax = taxRate > 0;
+  const taxPercent = taxRate > 0 ? Math.round(taxRate * 1000) / 10 : null;
   const clientEmail = document.client?.email.trim() ?? "";
   const etransferInstructions = etransferEmail.trim()
     ? `Pay by e-transfer to ${etransferEmail.trim()}${etransferNote.trim() ? `. ${etransferNote.trim()}` : "."}`
@@ -150,10 +152,18 @@ export function DocumentView({
         dueOrValid: dateValue,
         etransferInstructions,
       })
-    : null;
+      : null;
+  const actions = new Set(
+    documentActions({
+      type: (isQuote ? "quote" : "invoice") as DocType,
+      status: document.status as DocStatus,
+      unbilledCount,
+      hasClientEmail: Boolean(clientEmail),
+    }),
+  );
 
   return (
-    <div>
+    <div className="min-w-0">
       <PageHeader
         title={document.number}
         subtitle={typeLabel}
@@ -161,21 +171,29 @@ export function DocumentView({
         action={<StatusBadge status={displayStatus} />}
       />
 
+      {notice ? (
+        <p className="mb-4 text-sm text-accent" role="alert">
+          {notice}
+        </p>
+      ) : null}
+
       <div className="mb-6 flex flex-wrap gap-2">
-        {draft ? <StatusButton documentId={document.id} next="sent" label="Mark sent" className="btn btn-navy" /> : null}
-        {isQuote && document.status === "sent" ? (
-          <>
-            <StatusButton documentId={document.id} next="approved" label="Approve" className="btn btn-primary" />
-            <StatusButton documentId={document.id} next="declined" label="Decline" className="btn btn-ghost" />
-          </>
+        {actions.has("mark-sent") ? (
+          <StatusButton documentId={document.id} next="sent" label="Mark sent" className="btn btn-navy" />
         ) : null}
-        {isQuote && document.status === "approved" ? (
+        {actions.has("approve") ? (
+          <StatusButton documentId={document.id} next="approved" label="Approve" className="btn btn-primary" />
+        ) : null}
+        {actions.has("decline") ? (
+          <StatusButton documentId={document.id} next="declined" label="Decline" className="btn btn-ghost" />
+        ) : null}
+        {actions.has("create-invoice") ? (
           <form action={createInvoiceFromQuoteAction}>
             <input type="hidden" name="quoteId" value={document.id} />
             <FormSubmitButton label="Create invoice" pendingLabel="Creating…" className="btn btn-primary" />
           </form>
         ) : null}
-        {!isQuote && draft && unbilledCount > 0 ? (
+        {actions.has("add-unbilled") ? (
           <form action={addTrackedLinesToInvoiceAction}>
             <input type="hidden" name="documentId" value={document.id} />
             <FormSubmitButton
@@ -185,10 +203,10 @@ export function DocumentView({
             />
           </form>
         ) : null}
-        {!isQuote && document.status === "sent" ? (
+        {actions.has("mark-paid") ? (
           <StatusButton documentId={document.id} next="paid" label="Mark paid" className="btn btn-primary" />
         ) : null}
-        {draft ? (
+        {actions.has("delete-draft") ? (
           <form action={deleteDraftDocumentAction}>
             <input type="hidden" name="documentId" value={document.id} />
             <FormSubmitButton label="Delete draft" pendingLabel="Deleting…" className="btn btn-ghost" />
@@ -288,9 +306,12 @@ export function DocumentView({
               <dt>Subtotal</dt>
               <dd className="tabular-nums">{cad(document.subtotal)}</dd>
             </div>
-            {showTax ? (
+            {document.tax !== 0 ? (
               <div className="flex justify-between text-muted">
-                <dt>{formatTaxRateLabel(taxLabel, document.subtotal, document.tax, taxRate)}</dt>
+                <dt>
+                  {taxLabel}
+                  {taxPercent != null ? ` (${taxPercent}%)` : ""}
+                </dt>
                 <dd className="tabular-nums">{cad(document.tax)}</dd>
               </div>
             ) : null}

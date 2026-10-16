@@ -188,7 +188,7 @@ function LockedLineRow({ line }: { line: DraftLine }) {
       <td className="px-3 py-2">{line.unit}</td>
       <td className="px-3 py-2 tabular-nums">{cad(line.unitPrice)}</td>
       <td className="px-3 py-2 font-medium tabular-nums">{cad(lineTotal(line))}</td>
-      <td className="px-3 py-2 text-xs">Billed</td>
+      <td className="sticky right-0 bg-card px-3 py-2 text-xs shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.35)]">Billed</td>
     </tr>
   );
 }
@@ -221,8 +221,8 @@ function PersistLineEditor({
   const subtotalLabel = documentId ? "Subtotal" : "Unbilled subtotal";
 
   return (
-    <div className="space-y-3">
-      <div className="overflow-x-auto rounded-xl border border-line">
+    <div className="min-w-0 space-y-3">
+      <div className="min-w-0 max-w-full overflow-x-auto rounded-xl border border-line">
         <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-paper text-left text-muted">
             <tr>
@@ -282,22 +282,31 @@ function PersistLineEditor({
         </button>
       </div>
       <dl className="ml-auto w-full max-w-xs space-y-1 text-sm">
-        <div className="flex justify-between">
-          <dt>{subtotalLabel}</dt>
-          <dd>{cad(totals.subtotal)}</dd>
-        </div>
-        {showTax ? (
-          <div className="flex justify-between text-muted">
-            <dt>
-              {taxLabel} ({Math.round(taxRate * 1000) / 10}%)
-            </dt>
-            <dd>{cad(totals.tax)}</dd>
+        {documentId ? (
+          <>
+            <div className="flex justify-between">
+              <dt>{subtotalLabel}</dt>
+              <dd>{cad(totals.subtotal)}</dd>
+            </div>
+            {showTax ? (
+              <div className="flex justify-between text-muted">
+                <dt>
+                  {taxLabel} ({Math.round(taxRate * 1000) / 10}%)
+                </dt>
+                <dd>{cad(totals.tax)}</dd>
+              </div>
+            ) : null}
+            <div className="flex justify-between border-t border-line pt-2 text-base font-semibold">
+              <dt>Total</dt>
+              <dd>{cad(totals.total)}</dd>
+            </div>
+          </>
+        ) : (
+          <div className="flex justify-between border-t border-line pt-2 text-base font-semibold">
+            <dt>Unbilled</dt>
+            <dd>{cad(totals.subtotal)}</dd>
           </div>
-        ) : null}
-        <div className="flex justify-between border-t border-line pt-2 text-base font-semibold">
-          <dt>{documentId ? "Total" : "Unbilled total"}</dt>
-          <dd>{cad(totals.total)}</dd>
-        </div>
+        )}
       </dl>
     </div>
   );

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { formOptionalText, formText } from "@/lib/actions/form-data";
 import { saveLineItemSchema } from "@/lib/actions/schemas";
@@ -44,11 +45,17 @@ export async function saveLineItemAction(_: unknown, formData: FormData) {
 export async function deleteLineItemAction(formData: FormData) {
   const parsed = deleteLineItemSchema.safeParse({ id: formText(formData, "id"), jobId: formText(formData, "jobId"), documentId: formText(formData, "documentId") || undefined });
   if (!parsed.success) return;
+  const returnPath = parsed.data.documentId
+    ? `/app/documents/${parsed.data.documentId}`
+    : `/app/jobs/${parsed.data.jobId}`;
   try {
     await deleteLine(await ctx(), parsed.data.id);
-    revalidatePath(`/app/jobs/${parsed.data.jobId}`);
-    if (parsed.data.documentId) revalidatePath(`/app/documents/${parsed.data.documentId}`);
-  } catch {
-    return;
+  } catch (error) {
+    if (error instanceof NotFoundError || error instanceof ValidationError || error instanceof ConflictError) {
+      redirect(`${returnPath}?error=${encodeURIComponent(error.message)}`);
+    }
+    throw error;
   }
+  revalidatePath(`/app/jobs/${parsed.data.jobId}`);
+  if (parsed.data.documentId) revalidatePath(`/app/documents/${parsed.data.documentId}`);
 }

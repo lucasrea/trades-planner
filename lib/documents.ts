@@ -56,6 +56,37 @@ export function documentNumber(type: DocType, n: number): string {
   return padNumber(n, type === "quote" ? "Q" : "INV");
 }
 
+export type DocumentAction =
+  | "mark-sent"
+  | "approve"
+  | "decline"
+  | "create-invoice"
+  | "add-unbilled"
+  | "mark-paid"
+  | "delete-draft"
+  | "email"
+  | "print";
+
+export function documentActions(doc: {
+  type: DocType;
+  status: DocStatus;
+  unbilledCount?: number;
+  hasClientEmail?: boolean;
+}): DocumentAction[] {
+  const actions: DocumentAction[] = [];
+  if (doc.status === "draft") actions.push("mark-sent");
+  if (doc.type === "quote" && doc.status === "sent") actions.push("approve", "decline");
+  if (doc.type === "quote" && doc.status === "approved") actions.push("create-invoice");
+  if (doc.type === "invoice" && doc.status === "draft" && (doc.unbilledCount ?? 0) > 0) {
+    actions.push("add-unbilled");
+  }
+  if (doc.type === "invoice" && doc.status === "sent") actions.push("mark-paid");
+  if (doc.status === "draft") actions.push("delete-draft");
+  if (doc.hasClientEmail) actions.push("email");
+  actions.push("print");
+  return actions;
+}
+
 export function buildMailto(input: {
   businessName: string;
   type: DocType;

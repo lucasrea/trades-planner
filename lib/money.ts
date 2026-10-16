@@ -63,3 +63,4 @@ export function applyMarkup(cost: number, markupPct: number) {
 export function padNumber(n: number, prefix: string) {
   return `${prefix}-${String(n).padStart(4, "0")}`;
 }
+

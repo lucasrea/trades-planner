@@ -203,7 +203,7 @@ export function Field({
 export function TableCard({ children }: { children: React.ReactNode }) {
   return (
     <div className="card overflow-hidden">
-      <div className="overflow-x-auto">{children}</div>
+      <div className="min-w-0 max-w-full overflow-x-auto">{children}</div>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { ConflictError, NotFoundError, ValidationError } from "@/lib/services/co
 import { getClient, saveClient } from "@/lib/services/clients";
 import { createDraftDocument, createInvoiceFromQuote, createInvoiceFromTrackedLines, deleteDraftDocument, setDocumentStatus } from "@/lib/services/documents";
 import { createJobWithClient } from "@/lib/services/jobs";
-import { saveDocumentLine, saveTrackedLine } from "@/lib/services/line-items";
+import { deleteLine, saveDocumentLine, saveTrackedLine } from "@/lib/services/line-items";
 import { getTestDb } from "../helpers/db";
 import { seedTenant, seedTwoContractors } from "../helpers/seed";
 
@@ -61,19 +61,41 @@ describe("services", () => {
   });
 
   it("rejects document line with mismatched job", async () => {
-    const { a, b } = await seedTwoContractors();
+    const tenant = await seedTenant("mismatch");
     const db = getTestDb();
-    const ctxA = { db, contractorId: a.contractorId };
-    const { id: quoteId } = await createDraftDocument(ctxA, a.jobId, "quote");
+    const ctx = { db, contractorId: tenant.contractorId };
+    const otherJobId = await createJobWithClient(ctx, { title: "Other site", client: { id: tenant.clientId } });
+    const { id: quoteId } = await createDraftDocument(ctx, tenant.jobId, "quote");
     await expect(
-      saveDocumentLine(ctxA, {
-        jobId: b.jobId,
+      saveDocumentLine(ctx, {
+        jobId: otherJobId,
         documentId: quoteId,
         kind: "material",
         description: "X",
         quantity: 1,
         unit: "ea",
         unitPrice: 1,
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    const lineId = await saveDocumentLine(ctx, {
+      jobId: tenant.jobId,
+      documentId: quoteId,
+      kind: "material",
+      description: "On doc job",
+      quantity: 1,
+      unit: "ea",
+      unitPrice: 2,
+    });
+    await expect(
+      saveDocumentLine(ctx, {
+        id: lineId,
+        jobId: otherJobId,
+        documentId: quoteId,
+        kind: "material",
+        description: "Wrong job",
+        quantity: 1,
+        unit: "ea",
+        unitPrice: 2,
       }),
     ).rejects.toBeInstanceOf(ValidationError);
   });
@@ -125,7 +147,17 @@ describe("services", () => {
       unitPrice: 1,
     });
     await setDocumentStatus(ctx, id, "sent");
-    const { deleteLine } = await import("@/lib/services/line-items");
     await expect(deleteLine(ctx, lineId)).rejects.toBeInstanceOf(ConflictError);
+    await expect(
+      saveDocumentLine(ctx, {
+        jobId: tenant.jobId,
+        documentId: id,
+        kind: "labour",
+        description: "Y",
+        quantity: 1,
+        unit: "hr",
+        unitPrice: 1,
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
   });
 });

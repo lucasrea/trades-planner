@@ -13,4 +13,10 @@ describe("format", () => {
     const morningUtc = new Date("2026-01-16T12:00:00.000Z");
     expect(calendarDateInTimeZone("America/Toronto", morningUtc)).toBe("2026-01-16");
   });
+
+  it("formats timestamps on the Toronto calendar", () => {
+    expect(formatDisplayDate(Date.parse("2026-08-28T02:00:00.000Z"), { month: "long" })).toBe(
+      "August 27, 2026",
+    );
+  });
 });

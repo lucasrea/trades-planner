@@ -1,4 +1,4 @@
-import { formatDisplayDate, formatTaxRateLabel } from "@/lib/format";
+import { formatDisplayDate } from "@/lib/format";
 import { cad, computeTotals, lineTotal, type DraftLine, type LineKind } from "@/lib/money";
 
 type Party = {
@@ -89,6 +89,10 @@ export function PrintDocument({
 }) {
   const computed = computeTotals(lines, contractor.taxRate);
   const totals = storedTotals ?? computed;
+  const usingStored = Boolean(storedTotals);
+  const taxPercent = Math.round(contractor.taxRate * 1000) / 10;
+  const taxCaption = taxPercent == null ? contractor.taxLabel : `${contractor.taxLabel} (${taxPercent}%)`;
+  const showTax = usingStored ? totals.tax !== 0 : true;
   const issuedRaw = formatDisplayDate(issueDate, { month: "long" });
   const issued = issuedRaw === "—" ? null : issuedRaw;
   const secondaryRaw = formatDisplayDate(dateValue, { month: "long" });
@@ -218,17 +222,12 @@ export function PrintDocument({
             <span>Subtotal</span>
             <span className="tabular-nums text-stone-900">{cad(totals.subtotal)}</span>
           </div>
-          <div className="flex justify-between text-stone-600">
-            <span>
-              {formatTaxRateLabel(
-                contractor.taxLabel,
-                totals.subtotal,
-                totals.tax,
-                contractor.taxRate,
-              )}
-            </span>
-            <span className="tabular-nums text-stone-900">{cad(totals.tax)}</span>
-          </div>
+          {showTax ? (
+            <div className="flex justify-between text-stone-600">
+              <span>{taxCaption}</span>
+              <span className="tabular-nums text-stone-900">{cad(totals.tax)}</span>
+            </div>
+          ) : null}
           <div className="flex justify-between border-t border-stone-900 pt-2 text-base font-semibold text-stone-900">
             <span>Total (CAD)</span>
             <span className="tabular-nums">{cad(totals.total)}</span>
