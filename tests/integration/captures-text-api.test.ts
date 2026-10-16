@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/captures/text/route";
 import * as auth from "@/lib/auth";
-import { captures, contractors } from "@/lib/db/schema";
+import { captures } from "@/lib/db/schema";
 import { getTestDb } from "../helpers/db";
 import { seedTenant, seedTwoContractors } from "../helpers/seed";
 import { newId } from "@/lib/id";
@@ -38,12 +38,9 @@ describe("POST /api/captures/text", () => {
 
   it("returns 403 for cross-site requests", async () => {
     const tenant = await seedTenant("api403");
-    const db = getTestDb();
-    const [contractor] = await db.select().from(contractors).where(eq(contractors.id, tenant.contractorId)).limit(1);
     vi.spyOn(auth, "getSession").mockResolvedValue({ userId: tenant.userId, contractorId: tenant.contractorId });
     const res = await post({ text: "hello" }, { "sec-fetch-site": "cross-site" });
     expect(res.status).toBe(403);
-    expect(contractor?.id).toBe(tenant.contractorId);
   });
 
   it("creates needs_review capture with ledger fields", async () => {

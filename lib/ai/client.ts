@@ -4,7 +4,7 @@ import { ProviderError } from "@/lib/ai/provider";
 export function getOpenAIClient() {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) throw new ProviderError("OPENAI_API_KEY is required for live extraction.");
-  return new OpenAI({ apiKey });
+  return new OpenAI({ apiKey, maxRetries: 0 });
 }
 
 export function readExtractionModel() {

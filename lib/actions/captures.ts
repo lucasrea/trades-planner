@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getContractor } from "@/lib/auth";
 import { ensureDb } from "@/lib/db";
+import { ZodError } from "zod";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/services/context";
 import { confirmCapture, discardCapture, type ConfirmCaptureInput } from "@/lib/services/captures";
 
@@ -22,7 +23,12 @@ export async function confirmCaptureAction(input: ConfirmCaptureInput) {
     if (result.jobIds.length === 1) redirect(`/app/jobs/${result.jobIds[0]}`);
     redirect(`/app/jobs?capture=${input.captureId}`);
   } catch (error) {
-    if (error instanceof NotFoundError || error instanceof ValidationError || error instanceof ConflictError) {
+    if (
+      error instanceof NotFoundError ||
+      error instanceof ValidationError ||
+      error instanceof ConflictError ||
+      error instanceof ZodError
+    ) {
       redirect(`/app/captures/${input.captureId}?error=invalid`);
     }
     throw error;

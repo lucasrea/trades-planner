@@ -1,4 +1,4 @@
-import { createFakeExtractionProvider } from "@/lib/ai/fake";
+import { assertLiveProviderAllowed, createFakeExtractionProvider } from "@/lib/ai/fake";
 import { extractDescribeLive, type DescribeRunResult } from "@/lib/ai/extract-describe";
 import { DescribeExtractionSchema } from "@/lib/ai/schemas";
 import { DESCRIBE_PROMPT_VERSION } from "@/lib/ai/prompts";
@@ -8,6 +8,7 @@ export async function runDescribeExtraction(input: { text: string; context: Desc
   const providerMode = process.env.AI_PROVIDER ?? (process.env.NODE_ENV === "production" ? "live" : "fake");
   const started = Date.now();
   if (providerMode === "live") {
+    assertLiveProviderAllowed();
     return extractDescribeLive(input);
   }
   const fake = createFakeExtractionProvider();

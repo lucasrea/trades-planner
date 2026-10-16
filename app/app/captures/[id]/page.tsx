@@ -4,7 +4,8 @@ import { CaptureReview } from "@/components/capture-review";
 import { actionErrorNotice } from "@/lib/action-errors";
 import { parseDescribeExtraction, parseReceiptExtraction } from "@/lib/ai/extraction-types";
 import { getContractor } from "@/lib/auth";
-import { receiptToDraft } from "@/lib/line-items";
+import { receiptToDraft, receiptWarnings } from "@/lib/line-items";
+import { captureProcessingIsStale } from "@/lib/captures-display";
 import { getCapture, getClients, getJobs } from "@/lib/queries";
 
 export default async function CaptureReviewPage({
@@ -49,6 +50,40 @@ export default async function CaptureReviewPage({
     );
   }
 
+  if (capture.status === "processing") {
+    // Request-time check (server component); not cached static render.
+    const nowMs = Date.now(); // eslint-disable-line react-hooks/purity -- capture staleness at request time
+    const stale = captureProcessingIsStale(capture.createdAt, nowMs);
+    if (!stale) {
+      return (
+        <div className="card space-y-3 p-6 text-sm">
+          <p>Reading your description…</p>
+          <p className="text-muted">This usually takes a few seconds. Refresh if it stays here too long.</p>
+          <a href={`/app/captures/${capture.id}`} className="btn btn-ghost btn-sm">
+            Refresh
+          </a>
+        </div>
+      );
+    }
+    return (
+      <>
+        <CaptureReview
+          capture={{
+            id: capture.id,
+            type: capture.type,
+            status: "failed",
+            jobId: capture.jobId,
+            transcript: capture.transcript,
+            imagePath: capture.imagePath,
+            extraction: capture.extraction,
+            error: "This took too long. Add lines manually or try again.",
+          }}
+          manualHref={manualHref}
+        />
+      </>
+    );
+  }
+
   if (capture.status !== "needs_review") {
     return (
       <div className="card p-6 text-sm">
@@ -69,6 +104,7 @@ export default async function CaptureReviewPage({
           jobId: capture.jobId ?? undefined,
         }))
       : undefined;
+  const receiptWarningMessages = receipt ? receiptWarnings(receipt) : [];
 
   return (
     <div>
@@ -89,6 +125,7 @@ export default async function CaptureReviewPage({
         taxLabel={contractor.taxLabel}
         defaultJobId={capture.jobId}
         initialLines={receiptLines}
+        warningMessages={receiptWarningMessages}
       />
     </div>
   );

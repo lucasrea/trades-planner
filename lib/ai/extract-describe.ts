@@ -7,7 +7,8 @@ import { DescribeExtractionSchema } from "@/lib/ai/schemas";
 import { ProviderError, type DescribeContext } from "@/lib/ai/provider";
 
 const RESPONSE_NAME = "extract_describe";
-const TIMEOUT_MS = 45_000;
+/** Two attempts + jitter must stay under the text route maxDuration (60s). */
+const TIMEOUT_MS = 25_000;
 
 export type DescribeRunResult = {
   extraction: DescribeExtraction;

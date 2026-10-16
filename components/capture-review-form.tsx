@@ -1,14 +1,47 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Plus, Trash2 } from "lucide-react";
 import { confirmCaptureAction, discardCaptureAction } from "@/lib/actions/captures";
 import type { DescribeExtraction } from "@/lib/ai/extraction-types";
+import { LineEditor } from "@/components/line-editor";
 import { describeToDraft, fuzzyMatchClient, fuzzyMatchJob, type DescribeDraftLine } from "@/lib/line-items";
-import { cad, computeTotals, type LineKind } from "@/lib/money";
+import { cad, computeTotals, type DraftLine } from "@/lib/money";
 
 type ClientOption = { id: string; name: string };
 type JobOption = { id: string; title: string; clientId: string };
+
+type CaptureLine = DescribeDraftLine & { id: string; jobId?: string };
+
+function seedCaptureLines(
+  initialLines: Array<DescribeDraftLine & { jobId?: string }> | undefined,
+  extraction: DescribeExtraction | null,
+  labourRate: number,
+): CaptureLine[] {
+  const base = initialLines?.length ? initialLines : extraction ? describeToDraft(extraction, { labourRate }) : [];
+  return base.map((row) => ({ ...row, id: crypto.randomUUID() }));
+}
+
+function toDraftLine(line: CaptureLine): DraftLine {
+  return {
+    id: line.id,
+    kind: line.kind,
+    description: line.description,
+    quantity: line.quantity,
+    unit: line.unit,
+    unitPrice: line.unitPrice ?? 0,
+    ...(line.unitCost != null ? { cost: line.unitCost } : {}),
+  };
+}
+
+function lineNeedsAttention(line: CaptureLine, extraction: DescribeExtraction | null, index: number) {
+  if (line.unitPrice == null || line.unitPrice < 0) return true;
+  const ext = extraction?.lines[index];
+  if (ext?.uncertain) return true;
+  if (ext?.unit_price == null && line.kind !== "labour" && line.unitPrice === 0) return true;
+  return false;
+}
 
 export function CaptureReviewForm({
   captureId,
@@ -22,6 +55,7 @@ export function CaptureReviewForm({
   taxLabel,
   defaultJobId,
   initialLines,
+  warningMessages = [],
 }: {
   captureId: string;
   captureType: string;
@@ -34,6 +68,7 @@ export function CaptureReviewForm({
   taxLabel: string;
   defaultJobId: string | null;
   initialLines?: Array<DescribeDraftLine & { jobId?: string }>;
+  warningMessages?: string[];
 }) {
   const isReceipt = captureType === "receipt";
   const initialCreateAs =
@@ -50,7 +85,7 @@ export function CaptureReviewForm({
   const [clientName, setClientName] = useState(extraction?.client_name?.trim() ?? "");
   const [jobMode, setJobMode] = useState<"existing" | "new">(() => {
     const title = extraction?.job_title?.trim();
-    if (!title) return defaultJobId ? "existing" : "existing";
+    if (!title) return "existing";
     return fuzzyMatchJob(title, jobs) ? "existing" : "new";
   });
   const [jobId, setJobId] = useState(
@@ -59,38 +94,108 @@ export function CaptureReviewForm({
   const [jobTitle, setJobTitle] = useState(extraction?.job_title?.trim() ?? "");
   const [siteAddress, setSiteAddress] = useState(extraction?.site_address?.trim() ?? "");
   const [notes, setNotes] = useState(extraction?.scope_notes?.trim() ?? "");
-  const [lines, setLines] = useState<Array<DescribeDraftLine & { jobId?: string }>>(() =>
-    initialLines?.length ? initialLines : extraction ? describeToDraft(extraction, { labourRate }) : [],
-  );
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const [captureLines, setCaptureLines] = useState<CaptureLine[]>(() => seedCaptureLines(initialLines, extraction, labourRate));
+  const [selectedReceiptLines, setSelectedReceiptLines] = useState<Set<string>>(() => new Set());
+  const [bulkJobId, setBulkJobId] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const openJobs = useMemo(
     () => jobs.filter((job) => job.clientId === clientId || !clientId),
     [jobs, clientId],
   );
 
+  const receiptLinesSorted = useMemo(() => {
+    if (!isReceipt) return captureLines;
+    return [...captureLines].sort((a, b) => Number(Boolean(a.jobId)) - Number(Boolean(b.jobId)));
+  }, [captureLines, isReceipt]);
+
   const canConfirm = useMemo(() => {
-    if (!lines.length) return false;
-    if (lines.some((line) => line.unitPrice == null || line.unitPrice < 0 || !(line.quantity > 0) || !line.description.trim())) {
+    if (!captureLines.length) return false;
+    if (
+      captureLines.some(
+        (line) =>
+          line.unitPrice == null ||
+          line.unitPrice < 0 ||
+          !(line.quantity > 0) ||
+          !line.description.trim(),
+      )
+    ) {
       return false;
     }
-    if (isReceipt) return lines.every((line) => Boolean((line as DescribeDraftLine & { jobId?: string }).jobId));
+    if (isReceipt) return captureLines.every((line) => Boolean(line.jobId));
     if (clientMode === "existing" ? !clientId : !clientName.trim()) return false;
     if (jobMode === "existing" ? !jobId : !jobTitle.trim()) return false;
+    if (jobMode === "existing" && jobId && !openJobs.some((job) => job.id === jobId)) return false;
     return true;
-  }, [lines, isReceipt, clientMode, clientId, clientName, jobMode, jobId, jobTitle]);
+  }, [captureLines, isReceipt, clientMode, clientId, clientName, jobMode, jobId, jobTitle, openJobs]);
 
-  const totals = useMemo(() => computeTotals(lines.map((l) => ({ ...l, id: "x", unitPrice: l.unitPrice ?? 0 })), taxRate), [lines, taxRate]);
+  const draftLines = useMemo(() => captureLines.map(toDraftLine), [captureLines]);
+  const totals = useMemo(() => computeTotals(draftLines, taxRate), [draftLines, taxRate]);
 
-  function updateLine(index: number, patch: Partial<DescribeDraftLine & { jobId?: string }>) {
-    setLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
+  function updateCaptureLine(id: string, patch: Partial<CaptureLine>) {
+    setCaptureLines((prev) => prev.map((line) => (line.id === id ? { ...line, ...patch } : line)));
   }
 
-  function onConfirm() {
-    setError(null);
-    startTransition(() => {
-      void confirmCaptureAction({
+  function onDraftLinesChange(next: DraftLine[]) {
+    setCaptureLines((prev) =>
+      next.map((draft) => {
+        const existing = prev.find((row) => row.id === draft.id);
+        return {
+          id: draft.id,
+          kind: draft.kind,
+          description: draft.description,
+          quantity: draft.quantity,
+          unit: draft.unit,
+          unitPrice: draft.unitPrice,
+          unitCost: draft.cost ?? existing?.unitCost ?? null,
+          defaultRate: existing?.defaultRate,
+          jobId: existing?.jobId,
+        };
+      }),
+    );
+  }
+
+  function toggleReceiptLine(id: string) {
+    setSelectedReceiptLines((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function assignBulkJob() {
+    if (!bulkJobId) return;
+    setCaptureLines((prev) =>
+      prev.map((line) => (selectedReceiptLines.has(line.id) ? { ...line, jobId: bulkJobId } : line)),
+    );
+    setSelectedReceiptLines(new Set());
+  }
+
+  function addReceiptLine() {
+    setCaptureLines((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        kind: "material",
+        description: "",
+        quantity: 1,
+        unit: "ea",
+        unitPrice: null,
+        unitCost: null,
+        jobId: defaultJobId ?? undefined,
+      },
+    ]);
+  }
+
+  function removeReceiptLine(id: string) {
+    setCaptureLines((prev) => prev.filter((line) => line.id !== id));
+  }
+
+  async function onConfirm() {
+    setIsSubmitting(true);
+    try {
+      await confirmCaptureAction({
         captureId,
         createAs,
         notes,
@@ -104,7 +209,7 @@ export function CaptureReviewForm({
           : jobMode === "existing"
             ? { id: jobId }
             : { title: jobTitle, siteAddress },
-        lines: lines.map((line) => ({
+        lines: captureLines.map((line) => ({
           kind: line.kind,
           description: line.description,
           quantity: line.quantity,
@@ -114,8 +219,21 @@ export function CaptureReviewForm({
           jobId: line.jobId,
         })),
       });
-    });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
+
+  async function onDiscard() {
+    setIsSubmitting(true);
+    try {
+      await discardCaptureAction(captureId);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  const allWarnings = [...warningMessages, ...(extraction?.warnings ?? [])];
 
   return (
     <div className="space-y-6">
@@ -126,9 +244,23 @@ export function CaptureReviewForm({
         </div>
       ) : null}
 
+      {allWarnings.length ? (
+        <div className="card border-accent/30 bg-accent/5 p-4 text-sm" role="status">
+          <p className="font-medium text-accent">Warnings</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
+            {allWarnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {!isReceipt ? (
         <div className="card space-y-4 p-6">
           <p className="text-sm font-semibold">Create as</p>
+          <p className="text-xs text-muted">
+            Suggested from your description — change if you meant a quote, invoice, or job log.
+          </p>
           <div className="flex flex-wrap gap-2">
             {(["quote", "invoice", "log"] as const).map((value) => (
               <button
@@ -201,102 +333,135 @@ export function CaptureReviewForm({
         </div>
       ) : null}
 
-      <div className="card overflow-x-auto p-4">
-        <table className="w-full min-w-[720px] text-sm">
-          <thead className="text-left text-muted">
-            <tr>
-              <th className="px-2 py-2">Type</th>
-              <th className="px-2 py-2">Description</th>
-              <th className="px-2 py-2">Qty</th>
-              <th className="px-2 py-2">Unit</th>
-              <th className="px-2 py-2">Price</th>
-              {isReceipt ? <th className="px-2 py-2">Job</th> : null}
-            </tr>
-          </thead>
-          <tbody>
-            {lines.map((line, index) => (
-              <tr key={index} className="border-t border-line">
-                <td className="px-2 py-2">
-                  <select
-                    className="input"
-                    value={line.kind}
-                    onChange={(e) => updateLine(index, { kind: e.target.value as LineKind })}
+      {!isReceipt ? (
+        <div>
+          <LineEditor
+            lines={draftLines}
+            onChange={onDraftLinesChange}
+            taxRate={taxRate}
+            taxLabel={taxLabel}
+            labourRate={labourRate}
+          />
+          {createAs !== "log" ? (
+            <p className="mt-3 text-sm text-muted">
+              Preview total: {cad(totals.total)} ({taxLabel})
+            </p>
+          ) : null}
+          {captureLines.some((line, index) => lineNeedsAttention(line, extraction, index)) ? (
+            <p className="mt-2 text-sm text-accent">Fix highlighted prices or quantities before confirming.</p>
+          ) : null}
+        </div>
+      ) : (
+        <div className="card space-y-3 p-4">
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="text-sm">
+              <span className="text-muted">Assign to…</span>
+              <select className="input mt-1" value={bulkJobId} onChange={(e) => setBulkJobId(e.target.value)}>
+                <option value="">Pick job</option>
+                {jobs.map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="btn btn-ghost btn-sm" disabled={!bulkJobId || selectedReceiptLines.size === 0} onClick={assignBulkJob}>
+              Apply to selected
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={addReceiptLine}>
+              <Plus className="mr-1 inline h-4 w-4" aria-hidden />
+              Add line
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead className="text-left text-muted">
+                <tr>
+                  <th className="px-2 py-2" />
+                  <th className="px-2 py-2">Description</th>
+                  <th className="px-2 py-2">Qty</th>
+                  <th className="px-2 py-2">Price</th>
+                  <th className="px-2 py-2">Job</th>
+                  <th className="px-2 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {receiptLinesSorted.map((line) => (
+                  <tr
+                    key={line.id}
+                    className={`border-t border-line ${!line.jobId || line.unitPrice == null ? "bg-accent/5" : ""}`}
                   >
-                    <option value="material">Material</option>
-                    <option value="labour">Labour</option>
-                    <option value="other">Other</option>
-                  </select>
-                </td>
-                <td className="px-2 py-2">
-                  <input className="input" value={line.description} onChange={(e) => updateLine(index, { description: e.target.value })} />
-                </td>
-                <td className="px-2 py-2">
-                  <input
-                    className="input w-20"
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={line.quantity}
-                    onChange={(e) => updateLine(index, { quantity: Number(e.target.value) })}
-                  />
-                </td>
-                <td className="px-2 py-2">
-                  <input className="input w-20" value={line.unit} onChange={(e) => updateLine(index, { unit: e.target.value })} />
-                </td>
-                <td className="px-2 py-2">
-                  <input
-                    className="input w-24"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={line.unitPrice ?? ""}
-                    onChange={(e) => updateLine(index, { unitPrice: Number(e.target.value) })}
-                  />
-                  {line.defaultRate ? <span className="ml-1 text-xs text-muted">default rate</span> : null}
-                </td>
-                {isReceipt ? (
-                  <td className="px-2 py-2">
-                    <select
-                      className="input"
-                      value={(line as DescribeDraftLine & { jobId?: string }).jobId ?? ""}
-                      onChange={(e) => updateLine(index, { jobId: e.target.value })}
-                    >
-                      <option value="">Assign job</option>
-                      {jobs.map((j) => (
-                        <option key={j.id} value={j.id}>
-                          {j.title}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                ) : null}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {createAs !== "log" && !isReceipt ? (
-          <p className="mt-3 text-sm text-muted">
-            Preview total: {cad(totals.total)} ({taxLabel})
-          </p>
-        ) : null}
-      </div>
-
-      {error ? (
-        <p className="text-sm text-accent" role="alert">
-          {error}
-        </p>
-      ) : null}
+                    <td className="px-2 py-2">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${line.description || "line"}`}
+                        checked={selectedReceiptLines.has(line.id)}
+                        onChange={() => toggleReceiptLine(line.id)}
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <input
+                        className="input"
+                        value={line.description}
+                        onChange={(e) => updateCaptureLine(line.id, { description: e.target.value })}
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <input
+                        className="input w-20"
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={line.quantity}
+                        onChange={(e) => updateCaptureLine(line.id, { quantity: Number(e.target.value) })}
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <input
+                        className="input w-24"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={line.unitPrice ?? ""}
+                        onChange={(e) =>
+                          updateCaptureLine(line.id, {
+                            unitPrice: e.target.value === "" ? null : Number(e.target.value),
+                          })
+                        }
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <select
+                        className="input"
+                        value={line.jobId ?? ""}
+                        onChange={(e) => updateCaptureLine(line.id, { jobId: e.target.value || undefined })}
+                      >
+                        <option value="">Assign job</option>
+                        {jobs.map((j) => (
+                          <option key={j.id} value={j.id}>
+                            {j.title}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-2 py-2">
+                      <button type="button" className="btn btn-ghost btn-sm" aria-label="Remove line" onClick={() => removeReceiptLine(line.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-primary" disabled={!canConfirm || pending} onClick={onConfirm}>
-          {pending ? "Confirming…" : "Confirm"}
+        <button type="button" className="btn btn-primary" disabled={!canConfirm || isSubmitting} onClick={() => void onConfirm()}>
+          {isSubmitting ? "Confirming…" : "Confirm"}
         </button>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          disabled={pending}
-          onClick={() => startTransition(() => discardCaptureAction(captureId))}
-        >
+        <button type="button" className="btn btn-ghost" disabled={isSubmitting} onClick={() => void onDiscard()}>
           Discard
         </button>
         <Link href="/app/jobs" className="btn btn-ghost">

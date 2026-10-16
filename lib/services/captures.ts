@@ -1,4 +1,4 @@
-import { and, eq, isNull, max } from "drizzle-orm";
+import { and, eq, inArray, isNull, max } from "drizzle-orm";
 import {
   defaultDueDate,
   defaultValidUntil,
@@ -8,6 +8,7 @@ import {
 import { captures, clients, contractors, documents, jobs, lineItems } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
 import { toLineRow, validateLine, type LineInput } from "@/lib/line-items";
+import { confirmCaptureSchema } from "@/lib/services/capture-schemas";
 import { ConflictError, NotFoundError, ValidationError, type ServiceContext } from "@/lib/services/context";
 import {
   lockContractorForNumbering,
@@ -231,74 +232,99 @@ async function insertTrackedLines(
   return [...jobIds];
 }
 
-export async function confirmCapture(ctx: ServiceContext, input: ConfirmCaptureInput): Promise<ConfirmCaptureResult> {
-  validateConfirmLines(input.lines);
-  const [capture] = await ctx.db
-    .select()
-    .from(captures)
-    .where(and(eq(captures.id, input.captureId), eq(captures.contractorId, ctx.contractorId)))
-    .limit(1);
-  if (!capture) throw new NotFoundError("Capture not found.");
-  if (capture.status === "confirmed") {
-    const existing = await findExistingConfirmResult(ctx.db, ctx.contractorId, capture.id);
-    if (existing) return existing;
-    throw new ConflictError("Capture is already confirmed.");
-  }
-  if (capture.status !== "needs_review") throw new ConflictError("Capture cannot be confirmed.");
+function parseConfirmInput(input: ConfirmCaptureInput): ConfirmCaptureInput {
+  return confirmCaptureSchema.parse(input);
+}
 
-  const isReceipt = capture.type === "receipt";
-  if (isReceipt && input.createAs !== "log") throw new ValidationError("Receipts can only be added to jobs.");
+async function markCaptureConfirmed(tx: Tx, ctx: ServiceContext, captureId: string) {
+  const [updated] = await tx
+    .update(captures)
+    .set({ status: "confirmed", confirmedAt: Date.now() })
+    .where(
+      and(
+        eq(captures.id, captureId),
+        eq(captures.contractorId, ctx.contractorId),
+        eq(captures.status, "needs_review"),
+      ),
+    )
+    .returning({ id: captures.id });
+  if (!updated) throw new ConflictError("Capture was already confirmed or discarded.");
+}
+
+export async function confirmCapture(ctx: ServiceContext, input: ConfirmCaptureInput): Promise<ConfirmCaptureResult> {
+  const parsed = parseConfirmInput(input);
+  validateConfirmLines(parsed.lines);
 
   return ctx.db.transaction(async (tx) => {
+    const [capture] = await tx
+      .select()
+      .from(captures)
+      .where(and(eq(captures.id, parsed.captureId), eq(captures.contractorId, ctx.contractorId)))
+      .for("update")
+      .limit(1);
+    if (!capture) throw new NotFoundError("Capture not found.");
+    if (capture.status === "confirmed") {
+      const existing = await findExistingConfirmResult(tx, ctx.contractorId, capture.id);
+      if (existing) return existing;
+      throw new ConflictError("Capture is already confirmed.");
+    }
+    if (capture.status !== "needs_review") throw new ConflictError("Capture cannot be confirmed.");
+
+    const isReceipt = capture.type === "receipt";
+    if (isReceipt && parsed.createAs !== "log") throw new ValidationError("Receipts can only be added to jobs.");
+
     if (isReceipt) {
-      const jobIds = await insertTrackedLines(tx, ctx, { captureId: capture.id, lines: input.lines });
-      await tx
-        .update(captures)
-        .set({ status: "confirmed", confirmedAt: Date.now() })
-        .where(and(eq(captures.id, capture.id), eq(captures.contractorId, ctx.contractorId)));
+      const jobIds = await insertTrackedLines(tx, ctx, { captureId: capture.id, lines: parsed.lines });
+      await markCaptureConfirmed(tx, ctx, capture.id);
       return { kind: "log", jobIds };
     }
 
-    if (!input.client || !input.job) throw new ValidationError("Client and job are required.");
-    const clientId = await resolveClientId(tx, ctx, input.client);
-    const jobId = await resolveJobId(tx, ctx, { clientId, job: input.job, createAs: input.createAs });
-    const lines = input.lines.map((line) => ({ ...line, jobId }));
+    if (!parsed.client || !parsed.job) throw new ValidationError("Client and job are required.");
+    const clientId = await resolveClientId(tx, ctx, parsed.client);
+    const jobId = await resolveJobId(tx, ctx, { clientId, job: parsed.job, createAs: parsed.createAs });
+    const lines = parsed.lines.map((line) => ({ ...line, jobId }));
 
-    if (input.createAs === "log") {
+    if (parsed.createAs === "log") {
       const jobIds = await insertTrackedLines(tx, ctx, { captureId: capture.id, lines });
-      await tx
-        .update(captures)
-        .set({ status: "confirmed", confirmedAt: Date.now() })
-        .where(and(eq(captures.id, capture.id), eq(captures.contractorId, ctx.contractorId)));
+      await markCaptureConfirmed(tx, ctx, capture.id);
       return { kind: "log", jobIds };
     }
 
     const documentId = await insertDocumentWithLines(tx, ctx, {
       jobId,
-      type: input.createAs,
-      notes: input.notes ?? "",
+      type: parsed.createAs,
+      notes: parsed.notes ?? "",
       captureId: capture.id,
       lines,
     });
-    await tx
-      .update(captures)
-      .set({ status: "confirmed", confirmedAt: Date.now() })
-      .where(and(eq(captures.id, capture.id), eq(captures.contractorId, ctx.contractorId)));
+    await markCaptureConfirmed(tx, ctx, capture.id);
     return { kind: "document", documentId };
   });
 }
 
 export async function discardCapture(ctx: ServiceContext, captureId: string) {
-  const [capture] = await ctx.db
-    .select()
-    .from(captures)
-    .where(and(eq(captures.id, captureId), eq(captures.contractorId, ctx.contractorId)))
-    .limit(1);
-  if (!capture) throw new NotFoundError("Capture not found.");
-  if (capture.status === "confirmed") throw new ConflictError("Confirmed captures cannot be discarded.");
-  if (capture.status === "discarded") return;
-  await ctx.db
-    .update(captures)
-    .set({ status: "discarded" })
-    .where(and(eq(captures.id, captureId), eq(captures.contractorId, ctx.contractorId)));
+  if (!captureId.trim()) throw new ValidationError("Capture id is required.");
+  await ctx.db.transaction(async (tx) => {
+    const [capture] = await tx
+      .select()
+      .from(captures)
+      .where(and(eq(captures.id, captureId), eq(captures.contractorId, ctx.contractorId)))
+      .for("update")
+      .limit(1);
+    if (!capture) throw new NotFoundError("Capture not found.");
+    if (capture.status === "confirmed") throw new ConflictError("Confirmed captures cannot be discarded.");
+    if (capture.status === "discarded") return;
+    const [updated] = await tx
+      .update(captures)
+      .set({ status: "discarded" })
+      .where(
+        and(
+          eq(captures.id, captureId),
+          eq(captures.contractorId, ctx.contractorId),
+          inArray(captures.status, ["needs_review", "failed", "processing"]),
+        ),
+      )
+      .returning({ id: captures.id });
+    if (!updated) throw new ConflictError("Capture cannot be discarded.");
+  });
 }

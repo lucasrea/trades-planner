@@ -4,12 +4,17 @@ import { getSession } from "@/lib/auth";
 import { ensureDb } from "@/lib/db";
 import { captures, clients, contractors, jobs } from "@/lib/db/schema";
 import { assertSameOrigin } from "@/lib/http/assert-same-origin";
+import { jsonError } from "@/lib/http/json-error";
 import { newId } from "@/lib/id";
+import { textCaptureBodySchema } from "@/lib/services/capture-schemas";
 import { assertCaptureRateLimit } from "@/lib/services/capture-rate-limit";
+import { RateLimitError } from "@/lib/services/context";
 import { requireJob } from "@/lib/services/internal";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+const EXTRACTION_FAILED_MESSAGE = "We couldn't read that. You can add lines manually on the review screen.";
 
 function json(data: unknown, status = 200) {
   return Response.json(data, { status });
@@ -24,7 +29,7 @@ export async function POST(request: Request) {
 
   const session = await getSession();
   if (!session) {
-    return json({ error: { code: "unauthorized", message: "Sign in required." } }, 401);
+    return jsonError("unauthorized", "Sign in required.", 401);
   }
 
   const db = await ensureDb();
@@ -34,31 +39,37 @@ export async function POST(request: Request) {
     .where(eq(contractors.id, session.contractorId))
     .limit(1);
   if (!contractor) {
-    return json({ error: { code: "unauthorized", message: "Sign in required." } }, 401);
-  }
-  try {
-    await assertCaptureRateLimit(db, contractor.id);
-  } catch (response) {
-    return response as Response;
+    return jsonError("unauthorized", "Sign in required.", 401);
   }
 
-  let body: { text?: string; jobId?: string };
+  let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return json({ error: { code: "invalid", message: "Invalid JSON body." } }, 400);
+    return jsonError("invalid", "Invalid JSON body.", 400);
   }
 
-  const text = body.text?.trim() ?? "";
-  if (text.length < 1 || text.length > 4000) {
-    return json({ error: { code: "invalid", message: "Text must be 1–4000 characters." } }, 400);
+  const parsedBody = textCaptureBodySchema.safeParse(body);
+  if (!parsedBody.success) {
+    return jsonError("invalid", "Text must be 1–4000 characters.", 400);
   }
 
-  if (body.jobId) {
+  try {
+    await assertCaptureRateLimit(db, contractor.id);
+  } catch (error) {
+    if (error instanceof RateLimitError) {
+      return jsonError("rate_limited", error.message, 429);
+    }
+    throw error;
+  }
+
+  const { text, jobId } = parsedBody.data;
+
+  if (jobId) {
     try {
-      await requireJob(db, contractor.id, body.jobId);
+      await requireJob(db, contractor.id, jobId);
     } catch {
-      return json({ error: { code: "not_found", message: "Job not found." } }, 404);
+      return jsonError("not_found", "Job not found.", 404);
     }
   }
 
@@ -67,7 +78,7 @@ export async function POST(request: Request) {
   await db.insert(captures).values({
     id: captureId,
     contractorId: contractor.id,
-    jobId: body.jobId ?? null,
+    jobId: jobId ?? null,
     type: "text",
     status: "processing",
     transcript: text,
@@ -109,9 +120,9 @@ export async function POST(request: Request) {
     inputTokens = result.inputTokens;
     outputTokens = result.outputTokens;
     promptVersion = result.promptVersion;
-  } catch (cause) {
+  } catch {
     status = "failed";
-    error = cause instanceof Error ? cause.message : "Extraction failed.";
+    error = EXTRACTION_FAILED_MESSAGE;
   }
 
   await db
