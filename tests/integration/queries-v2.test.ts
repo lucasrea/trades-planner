@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { documents } from "@/lib/db/schema";
-import { getDocumentsForContractor, getHomeForContractor } from "@/lib/queries";
+import { getDocumentsForContractor, getHomeForContractor } from "@/lib/queries-v2";
 import { createDraftDocument } from "@/lib/services/documents";
 import { saveTrackedLine } from "@/lib/services/line-items";
 import { getTestDb } from "../helpers/db";
