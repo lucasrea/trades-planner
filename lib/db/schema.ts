@@ -1,7 +1,9 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   doublePrecision,
   integer,
+  jsonb,
   pgTable,
   text,
 } from "drizzle-orm/pg-core";
@@ -58,6 +60,63 @@ export const jobs = pgTable("jobs", {
   notes: text("notes").notNull().default(""),
   targetDate: text("target_date"),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  updatedAt: bigint("updated_at", { mode: "number" })
+    .notNull()
+    .default(sql`(extract(epoch from now()) * 1000)::bigint`),
+});
+
+export const documents = pgTable("documents", {
+  id: text("id").primaryKey(),
+  contractorId: text("contractor_id").notNull(),
+  clientId: text("client_id").notNull(),
+  jobId: text("job_id").notNull(),
+  type: text("type").notNull(),
+  number: text("number").notNull(),
+  status: text("status").notNull().default("draft"),
+  notes: text("notes").notNull().default(""),
+  validUntil: text("valid_until"),
+  dueDate: text("due_date"),
+  sourceQuoteId: text("source_quote_id"),
+  subtotal: doublePrecision("subtotal").notNull().default(0),
+  tax: doublePrecision("tax").notNull().default(0),
+  total: doublePrecision("total").notNull().default(0),
+  sentAt: bigint("sent_at", { mode: "number" }),
+  closedAt: bigint("closed_at", { mode: "number" }),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
+});
+
+export const lineItems = pgTable("line_items", {
+  id: text("id").primaryKey(),
+  contractorId: text("contractor_id").notNull(),
+  jobId: text("job_id").notNull(),
+  documentId: text("document_id"),
+  billedDocumentId: text("billed_document_id"),
+  captureId: text("capture_id"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  kind: text("kind").notNull().default("material"),
+  description: text("description").notNull().default(""),
+  quantity: doublePrecision("quantity").notNull().default(1),
+  unit: text("unit").notNull().default("ea"),
+  unitCost: doublePrecision("unit_cost"),
+  unitPrice: doublePrecision("unit_price").notNull().default(0),
+  lineTotal: doublePrecision("line_total").notNull().default(0),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+});
+
+export const captures = pgTable("captures", {
+  id: text("id").primaryKey(),
+  contractorId: text("contractor_id").notNull(),
+  jobId: text("job_id"),
+  type: text("type").notNull(),
+  status: text("status").notNull().default("processing"),
+  imagePath: text("image_path"),
+  transcript: text("transcript"),
+  extraction: jsonb("extraction"),
+  model: text("model"),
+  error: text("error"),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  confirmedAt: bigint("confirmed_at", { mode: "number" }),
 });
 
 export const jobReceipts = pgTable("job_receipts", {
