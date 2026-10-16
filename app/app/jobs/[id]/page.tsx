@@ -1,28 +1,35 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader, RelatedList } from "@/components/app-shell";
-import { JobCostsForm } from "@/components/job-costs-form";
-import { JobForm } from "@/components/job-form";
-import { invoiceFromJobAction } from "@/lib/actions/data";
+import { JobEditForm, JobStatusForm } from "@/components/job-form";
+import { LineEditor } from "@/components/line-editor";
+import { JobDocumentActions } from "@/components/job-document-actions";
+import { actionErrorNotice } from "@/lib/action-errors";
 import { getContractor } from "@/lib/auth";
-import { getClients, getJob, getJobCosts, getLegacyJobDocuments } from "@/lib/queries";
+import { type LineKind } from "@/lib/money";
+import { getClients, getJob, getJobDocuments, getTrackedLines } from "@/lib/queries";
+
+function asKind(kind: string): LineKind {
+  if (kind === "labour" || kind === "other") return kind;
+  return "material";
+}
 
 export default async function JobDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string | string[] }>;
 }) {
   const { id } = await params;
-  const { error } = await searchParams;
+  const raw = await searchParams;
+  const notice = actionErrorNotice(Array.isArray(raw.error) ? raw.error[0] : raw.error);
   const job = await getJob(id);
   if (!job) notFound();
-  const [contractor, clients, docs, costs] = await Promise.all([
+  const [contractor, tracked, docs, clients] = await Promise.all([
     getContractor(),
+    getTrackedLines(id),
+    getJobDocuments(id),
     getClients(),
-    getLegacyJobDocuments(id),
-    getJobCosts(id),
   ]);
 
   return (
@@ -31,43 +38,55 @@ export default async function JobDetailPage({
         title={job.title}
         subtitle={job.client?.name}
         back={{ href: "/app/jobs", label: "Jobs" }}
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <form action={invoiceFromJobAction}>
-              <input type="hidden" name="jobId" value={job.id} />
-              <button className="btn btn-navy">Create invoice</button>
-            </form>
-            <Link
-              href={`/app/quotes/new?clientId=${job.clientId}&jobId=${job.id}`}
-              className="btn btn-primary"
-            >
-              New quote
-            </Link>
-          </div>
-        }
+        action={<JobDocumentActions jobId={job.id} />}
       />
-      {error === "costs" ? (
-        <p className="mb-0 text-sm text-accent" role="alert">
-          Add a material, expense, or labour line before creating an invoice.
+      {notice ? (
+        <p className="text-sm text-accent" role="alert">
+          {notice}
         </p>
       ) : null}
-      <JobForm clients={clients} initial={job} />
-      <JobCostsForm
-        jobId={job.id}
-        costs={costs}
-        labourRate={contractor.labourRateHourly}
-        markupPct={contractor.defaultMarkupPct}
-      />
-      <div className="grid gap-4 md:grid-cols-2">
-        <RelatedList
-          title="Quotes"
-          items={docs.quotes.map((q) => ({ href: `/app/quotes/${q.id}`, label: q.quoteNumber }))}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_240px]">
+        <JobEditForm
+          job={{
+            id: job.id,
+            title: job.title,
+            clientId: job.clientId,
+            siteAddress: job.siteAddress,
+            notes: job.notes,
+          }}
+          clients={clients}
         />
-        <RelatedList
-          title="Invoices"
-          items={docs.invoices.map((i) => ({ href: `/app/invoices/${i.id}`, label: i.invoiceNumber }))}
-        />
+        <div className="card p-6">
+          <JobStatusForm jobId={job.id} status={job.status} />
+        </div>
       </div>
+      <section>
+        <h2 className="mb-3 text-lg font-semibold">Tracked lines</h2>
+        <LineEditor
+          lines={tracked.map((line) => ({
+            id: line.id,
+            kind: asKind(line.kind),
+            description: line.description,
+            quantity: line.quantity,
+            unit: line.unit,
+            unitPrice: line.unitPrice,
+          }))}
+          taxRate={contractor.taxRate}
+          taxLabel={contractor.taxLabel}
+          labourRate={contractor.labourRateHourly}
+          persist={{
+            jobId: job.id,
+            lockedIds: tracked.filter((line) => line.billedDocumentId).map((line) => line.id),
+          }}
+        />
+      </section>
+      <RelatedList
+        title="Documents"
+        items={docs.map((doc) => ({
+          href: `/app/documents/${doc.id}`,
+          label: `${doc.type === "quote" ? "Quote" : "Invoice"} ${doc.number}`,
+        }))}
+      />
     </div>
   );
 }

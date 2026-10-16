@@ -63,3 +63,27 @@ export function applyMarkup(cost: number, markupPct: number) {
 export function padNumber(n: number, prefix: string) {
   return `${prefix}-${String(n).padStart(4, "0")}`;
 }
+
+/** Percent implied by stored document tax. Null when subtotal cannot support it. */
+export function storedTaxPercent(subtotal: number, tax: number): number | null {
+  if (!(subtotal > 0) || !Number.isFinite(tax)) return null;
+  return Math.round((tax / subtotal) * 1000) / 10;
+}
+
+export function contractorTaxPercent(taxRate: number): number | null {
+  if (!(taxRate > 0)) return null;
+  return Math.round(taxRate * 1000) / 10;
+}
+
+/** Show a tax percent only when stored totals match the contractor's current rate. */
+export function matchingTaxPercentCaption(
+  taxRate: number,
+  subtotal: number,
+  tax: number,
+): string | null {
+  const contractor = contractorTaxPercent(taxRate);
+  const stored = storedTaxPercent(subtotal, tax);
+  if (contractor == null || stored == null || contractor !== stored) return null;
+  return `${contractor}%`;
+}
+

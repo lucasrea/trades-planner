@@ -1,11 +1,11 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { lineItems } from "@/lib/db/schema";
-import { NotFoundError } from "@/lib/services/context";
+import { documents, jobs, lineItems } from "@/lib/db/schema";
+import { ConflictError, NotFoundError, ValidationError } from "@/lib/services/context";
 import { getClient, saveClient } from "@/lib/services/clients";
 import { createDraftDocument, createInvoiceFromQuote, createInvoiceFromTrackedLines, deleteDraftDocument, setDocumentStatus } from "@/lib/services/documents";
-import { createJobWithClient } from "@/lib/services/jobs";
-import { saveDocumentLine, saveTrackedLine } from "@/lib/services/line-items";
+import { createJobWithClient, updateJob } from "@/lib/services/jobs";
+import { deleteLine, saveDocumentLine, saveTrackedLine } from "@/lib/services/line-items";
 import { getTestDb } from "../helpers/db";
 import { seedTenant, seedTwoContractors } from "../helpers/seed";
 
@@ -58,5 +58,152 @@ describe("services", () => {
     const ctx = { db: getTestDb(), contractorId: tenant.contractorId };
     await createJobWithClient(ctx, { title: "New", client: { name: "Inline" } });
     expect(await createJobWithClient(ctx, { title: "Again", client: { id: tenant.clientId } })).toBeTruthy();
+  });
+
+  it("rejects document line with mismatched job", async () => {
+    const tenant = await seedTenant("mismatch");
+    const db = getTestDb();
+    const ctx = { db, contractorId: tenant.contractorId };
+    const otherJobId = await createJobWithClient(ctx, { title: "Other site", client: { id: tenant.clientId } });
+    const { id: quoteId } = await createDraftDocument(ctx, tenant.jobId, "quote");
+    await expect(
+      saveDocumentLine(ctx, {
+        jobId: otherJobId,
+        documentId: quoteId,
+        kind: "material",
+        description: "X",
+        quantity: 1,
+        unit: "ea",
+        unitPrice: 1,
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    const lineId = await saveDocumentLine(ctx, {
+      jobId: tenant.jobId,
+      documentId: quoteId,
+      kind: "material",
+      description: "On doc job",
+      quantity: 1,
+      unit: "ea",
+      unitPrice: 2,
+    });
+    await expect(
+      saveDocumentLine(ctx, {
+        id: lineId,
+        jobId: otherJobId,
+        documentId: quoteId,
+        kind: "material",
+        description: "Wrong job",
+        quantity: 1,
+        unit: "ea",
+        unitPrice: 2,
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("createInvoiceFromQuote is idempotent under parallel calls", async () => {
+    const tenant = await seedTenant("pq");
+    const ctx = { db: getTestDb(), contractorId: tenant.contractorId };
+    const { id: quoteId } = await createDraftDocument(ctx, tenant.jobId, "quote");
+    await saveDocumentLine(ctx, {
+      jobId: tenant.jobId,
+      documentId: quoteId,
+      kind: "labour",
+      description: "Work",
+      quantity: 1,
+      unit: "hr",
+      unitPrice: 50,
+    });
+    await setDocumentStatus(ctx, quoteId, "sent");
+    await setDocumentStatus(ctx, quoteId, "approved");
+    const ids = await Promise.all([
+      createInvoiceFromQuote(ctx, quoteId),
+      createInvoiceFromQuote(ctx, quoteId),
+    ]);
+    expect(ids[0]).toBe(ids[1]);
+    const invoices = await ctx.db
+      .select({ id: documents.id })
+      .from(documents)
+      .where(
+        and(
+          eq(documents.sourceQuoteId, quoteId),
+          eq(documents.contractorId, ctx.contractorId),
+          eq(documents.type, "invoice"),
+        ),
+      );
+    expect(invoices).toHaveLength(1);
+  });
+
+  it("deleteLine rejects locked documents", async () => {
+    const tenant = await seedTenant("dl");
+    const ctx = { db: getTestDb(), contractorId: tenant.contractorId };
+    const { id } = await createDraftDocument(ctx, tenant.jobId, "quote");
+    const lineId = await saveDocumentLine(ctx, {
+      jobId: tenant.jobId,
+      documentId: id,
+      kind: "labour",
+      description: "X",
+      quantity: 1,
+      unit: "hr",
+      unitPrice: 1,
+    });
+    await setDocumentStatus(ctx, id, "sent");
+    await expect(deleteLine(ctx, lineId)).rejects.toBeInstanceOf(ConflictError);
+    await expect(
+      saveDocumentLine(ctx, {
+        jobId: tenant.jobId,
+        documentId: id,
+        kind: "labour",
+        description: "Y",
+        quantity: 1,
+        unit: "hr",
+        unitPrice: 1,
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it("preserves unitCost when a line update omits cost", async () => {
+    const tenant = await seedTenant("uc");
+    const ctx = { db: getTestDb(), contractorId: tenant.contractorId };
+    const { id: quoteId } = await createDraftDocument(ctx, tenant.jobId, "quote");
+    const lineId = await saveDocumentLine(ctx, {
+      jobId: tenant.jobId,
+      documentId: quoteId,
+      kind: "material",
+      description: "Part",
+      quantity: 1,
+      unit: "ea",
+      unitCost: 4,
+      unitPrice: 10,
+    });
+    await saveDocumentLine(ctx, {
+      id: lineId,
+      jobId: tenant.jobId,
+      documentId: quoteId,
+      kind: "material",
+      description: "Part updated",
+      quantity: 2,
+      unit: "ea",
+      unitPrice: 10,
+    });
+    const [row] = await ctx.db
+      .select({ unitCost: lineItems.unitCost })
+      .from(lineItems)
+      .where(eq(lineItems.id, lineId))
+      .limit(1);
+    expect(row?.unitCost).toBe(4);
+  });
+
+  it("updates job fields for the owning contractor", async () => {
+    const tenant = await seedTenant("ju");
+    const ctx = { db: getTestDb(), contractorId: tenant.contractorId };
+    await updateJob(ctx, tenant.jobId, {
+      title: "Renamed job",
+      siteAddress: "123 Main",
+      notes: "Note",
+      clientId: tenant.clientId,
+    });
+    const [row] = await ctx.db.select().from(jobs).where(eq(jobs.id, tenant.jobId)).limit(1);
+    expect(row?.title).toBe("Renamed job");
+    expect(row?.siteAddress).toBe("123 Main");
   });
 });

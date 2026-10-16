@@ -129,17 +129,63 @@ async function copyTrackedLinesToInvoice(tx: Tx, ctx: ServiceContext, invoiceId:
 }
 
 export async function createInvoiceFromQuote(ctx: ServiceContext, quoteId: string) {
-  const quote = await requireDocument(ctx.db, ctx.contractorId, quoteId);
-  if (quote.type !== "quote") throw new ValidationError("Document is not a quote.");
-  if (quote.status !== "approved") throw new ValidationError("Quote must be approved.");
-  const [existing] = await ctx.db.select({ id: documents.id }).from(documents).where(and(eq(documents.sourceQuoteId, quoteId), eq(documents.contractorId, ctx.contractorId), eq(documents.type, "invoice"))).limit(1);
-  if (existing) return existing.id;
-  const quoteLines = await ctx.db.select().from(lineItems).where(and(eq(lineItems.documentId, quoteId), eq(lineItems.contractorId, ctx.contractorId)));
   return ctx.db.transaction(async (tx) => {
-    const { id: invoiceId } = await insertDraft(tx, ctx, quote.jobId, "invoice", { notes: quote.notes, dueDate: defaultDueDate(new Date()), sourceQuoteId: quote.id, subtotal: quote.subtotal, tax: quote.tax, total: quote.total });
+    const [quote] = await tx
+      .select()
+      .from(documents)
+      .where(and(eq(documents.id, quoteId), eq(documents.contractorId, ctx.contractorId)))
+      .for("update");
+    if (!quote) throw new NotFoundError("Document not found.");
+    if (quote.type !== "quote") throw new ValidationError("Document is not a quote.");
+    if (quote.status !== "approved") throw new ValidationError("Quote must be approved.");
+    const [existing] = await tx
+      .select({ id: documents.id })
+      .from(documents)
+      .where(
+        and(
+          eq(documents.sourceQuoteId, quoteId),
+          eq(documents.contractorId, ctx.contractorId),
+          eq(documents.type, "invoice"),
+        ),
+      )
+      .limit(1);
+    if (existing) return existing.id;
+    const quoteLines = await tx
+      .select()
+      .from(lineItems)
+      .where(and(eq(lineItems.documentId, quoteId), eq(lineItems.contractorId, ctx.contractorId)));
+    const { id: invoiceId } = await insertDraft(tx, ctx, quote.jobId, "invoice", {
+      notes: quote.notes,
+      dueDate: defaultDueDate(new Date()),
+      sourceQuoteId: quote.id,
+      subtotal: quote.subtotal,
+      tax: quote.tax,
+      total: quote.total,
+    });
     if (quoteLines.length) {
       const now = Date.now();
-      await tx.insert(lineItems).values(quoteLines.slice().sort((a, b) => a.sortOrder - b.sortOrder).map((line, index) => ({ id: newId(), contractorId: ctx.contractorId, jobId: quote.jobId, documentId: invoiceId, billedDocumentId: null, captureId: null, sortOrder: index, kind: line.kind, description: line.description, quantity: line.quantity, unit: line.unit, unitCost: line.unitCost, unitPrice: line.unitPrice, lineTotal: line.lineTotal, createdAt: now })));
+      await tx.insert(lineItems).values(
+        quoteLines
+          .slice()
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((line, index) => ({
+            id: newId(),
+            contractorId: ctx.contractorId,
+            jobId: quote.jobId,
+            documentId: invoiceId,
+            billedDocumentId: null,
+            captureId: null,
+            sortOrder: index,
+            kind: line.kind,
+            description: line.description,
+            quantity: line.quantity,
+            unit: line.unit,
+            unitCost: line.unitCost,
+            unitPrice: line.unitPrice,
+            lineTotal: line.lineTotal,
+            createdAt: now,
+          })),
+      );
     }
     return invoiceId;
   });

@@ -8,6 +8,7 @@ import { getContractor } from "@/lib/auth";
 import { ensureDb } from "@/lib/db";
 import type { DocStatus, DocType } from "@/lib/documents";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/services/context";
+import { codeFromServiceError, type ActionErrorCode } from "@/lib/action-errors";
 import {
   addTrackedLinesToInvoice,
   createDraftDocument,
@@ -21,6 +22,10 @@ import {
 async function ctx() {
   const contractor = await getContractor();
   return { db: await ensureDb(), contractorId: contractor.id };
+}
+
+function redirectWithError(path: string, code: ActionErrorCode): never {
+  redirect(`${path}?error=${code}`);
 }
 
 export async function createDraftDocumentAction(formData: FormData) {
@@ -48,41 +53,82 @@ export async function setDocumentStatusAction(formData: FormData) {
   const documentId = formText(formData, "documentId");
   const next = formText(formData, "next");
   if (!documentId || !next) throw new Error("Invalid input.");
-  await setDocumentStatus(await ctx(), documentId, next as DocStatus);
+  try {
+    await setDocumentStatus(await ctx(), documentId, next as DocStatus);
+  } catch (error) {
+    if (error instanceof NotFoundError) redirectWithError("/app/documents", codeFromServiceError(error));
+    if (error instanceof ValidationError || error instanceof ConflictError) {
+      redirectWithError(`/app/documents/${documentId}`, codeFromServiceError(error));
+    }
+    throw error;
+  }
   revalidatePath(`/app/documents/${documentId}`);
+  revalidatePath("/app/documents");
+  redirect(`/app/documents/${documentId}`);
 }
 
 export async function createInvoiceFromQuoteAction(formData: FormData) {
   const quoteId = formText(formData, "quoteId");
   if (!quoteId) throw new Error("Invalid input.");
-  redirect(`/app/documents/${await createInvoiceFromQuote(await ctx(), quoteId)}`);
+  let invoiceId = "";
+  try {
+    invoiceId = await createInvoiceFromQuote(await ctx(), quoteId);
+  } catch (error) {
+    if (error instanceof NotFoundError) redirectWithError("/app/documents", codeFromServiceError(error));
+    if (error instanceof ValidationError || error instanceof ConflictError) {
+      redirectWithError(`/app/documents/${quoteId}`, codeFromServiceError(error));
+    }
+    throw error;
+  }
+  revalidatePath("/app/documents");
+  revalidatePath(`/app/documents/${quoteId}`);
+  redirect(`/app/documents/${invoiceId}`);
 }
 
 export async function createInvoiceFromTrackedLinesAction(formData: FormData) {
   const jobId = formText(formData, "jobId");
   if (!jobId) throw new Error("Invalid input.");
+  let invoiceId = "";
   try {
-    redirect(`/app/documents/${await createInvoiceFromTrackedLines(await ctx(), jobId)}`);
+    invoiceId = await createInvoiceFromTrackedLines(await ctx(), jobId);
   } catch (error) {
-    if (error instanceof ValidationError) redirect(`/app/jobs/${jobId}?error=nothing-to-bill`);
+    if (error instanceof ValidationError || error instanceof ConflictError || error instanceof NotFoundError) {
+      redirectWithError(`/app/jobs/${jobId}`, codeFromServiceError(error));
+    }
     throw error;
   }
+  revalidatePath("/app/documents");
+  revalidatePath(`/app/jobs/${jobId}`);
+  redirect(`/app/documents/${invoiceId}`);
 }
 
 export async function addTrackedLinesToInvoiceAction(formData: FormData) {
   const documentId = formText(formData, "documentId");
   if (!documentId) throw new Error("Invalid input.");
-  await addTrackedLinesToInvoice(await ctx(), documentId);
+  try {
+    await addTrackedLinesToInvoice(await ctx(), documentId);
+  } catch (error) {
+    if (error instanceof NotFoundError) redirectWithError("/app/documents", codeFromServiceError(error));
+    if (error instanceof ValidationError || error instanceof ConflictError) {
+      redirectWithError(`/app/documents/${documentId}`, codeFromServiceError(error));
+    }
+    throw error;
+  }
+  revalidatePath(`/app/documents/${documentId}`);
   redirect(`/app/documents/${documentId}`);
 }
 
 export async function deleteDraftDocumentAction(formData: FormData) {
   const documentId = formText(formData, "documentId");
-  if (!documentId) return;
+  if (!documentId) redirectWithError("/app/documents", "missing-document");
   try {
     await deleteDraftDocument(await ctx(), documentId);
-    redirect("/app/documents");
-  } catch {
-    return;
+  } catch (error) {
+    if (error instanceof NotFoundError) redirectWithError("/app/documents", codeFromServiceError(error));
+    if (error instanceof ConflictError) redirectWithError(`/app/documents/${documentId}`, codeFromServiceError(error));
+    throw error;
   }
+  revalidatePath("/app/documents");
+  revalidatePath(`/app/documents/${documentId}`);
+  redirect("/app/documents");
 }
