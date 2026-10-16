@@ -85,17 +85,6 @@ export async function POST(request: Request) {
     createdAt: now,
   });
 
-  const [clientRows, jobRows] = await Promise.all([
-    db.select({ id: clients.id, name: clients.name }).from(clients).where(eq(clients.contractorId, contractor.id)).orderBy(desc(clients.createdAt)).limit(50),
-    db
-      .select({ id: jobs.id, title: jobs.title, clientName: clients.name })
-      .from(jobs)
-      .leftJoin(clients, and(eq(clients.id, jobs.clientId), eq(clients.contractorId, contractor.id)))
-      .where(eq(jobs.contractorId, contractor.id))
-      .orderBy(desc(jobs.updatedAt))
-      .limit(50),
-  ]);
-
   let status: "needs_review" | "failed" = "needs_review";
   let error: string | null = null;
   let extraction: unknown = null;
@@ -106,6 +95,16 @@ export async function POST(request: Request) {
   let promptVersion: string | null = null;
 
   try {
+    const [clientRows, jobRows] = await Promise.all([
+      db.select({ id: clients.id, name: clients.name }).from(clients).where(eq(clients.contractorId, contractor.id)).orderBy(desc(clients.createdAt)).limit(50),
+      db
+        .select({ id: jobs.id, title: jobs.title, clientName: clients.name })
+        .from(jobs)
+        .leftJoin(clients, and(eq(clients.id, jobs.clientId), eq(clients.contractorId, contractor.id)))
+        .where(eq(jobs.contractorId, contractor.id))
+        .orderBy(desc(jobs.updatedAt))
+        .limit(50),
+    ]);
     const result = await runDescribeExtraction({
       text,
       context: {
@@ -123,21 +122,21 @@ export async function POST(request: Request) {
   } catch {
     status = "failed";
     error = EXTRACTION_FAILED_MESSAGE;
+  } finally {
+    await db
+      .update(captures)
+      .set({
+        status,
+        extraction,
+        error,
+        model,
+        latencyMs,
+        inputTokens,
+        outputTokens,
+        promptVersion,
+      })
+      .where(and(eq(captures.id, captureId), eq(captures.contractorId, contractor.id)));
   }
-
-  await db
-    .update(captures)
-    .set({
-      status,
-      extraction,
-      error,
-      model,
-      latencyMs,
-      inputTokens,
-      outputTokens,
-      promptVersion,
-    })
-    .where(and(eq(captures.id, captureId), eq(captures.contractorId, contractor.id)));
 
   return json({
     captureId,

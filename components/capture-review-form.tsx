@@ -140,13 +140,19 @@ export function CaptureReviewForm({
     setCaptureLines((prev) =>
       next.map((draft) => {
         const existing = prev.find((row) => row.id === draft.id);
+        let unitPrice: number | null = draft.unitPrice;
+        if (existing?.unitPrice == null && draft.unitPrice === 0) {
+          unitPrice = null;
+        } else if (existing?.unitPrice == null && draft.unitPrice > 0) {
+          unitPrice = draft.unitPrice;
+        }
         return {
           id: draft.id,
           kind: draft.kind,
           description: draft.description,
           quantity: draft.quantity,
           unit: draft.unit,
-          unitPrice: draft.unitPrice,
+          unitPrice,
           unitCost: draft.cost ?? existing?.unitCost ?? null,
           defaultRate: existing?.defaultRate,
           jobId: existing?.jobId,
@@ -347,9 +353,25 @@ export function CaptureReviewForm({
               Preview total: {cad(totals.total)} ({taxLabel})
             </p>
           ) : null}
-          {captureLines.some((line, index) => lineNeedsAttention(line, extraction, index)) ? (
-            <p className="mt-2 text-sm text-accent">Fix highlighted prices or quantities before confirming.</p>
-          ) : null}
+          <ul className="mt-2 space-y-1 text-sm text-accent">
+            {captureLines.map((line, index) => {
+              if (line.defaultRate) {
+                return (
+                  <li key={line.id}>
+                    {line.description || `Line ${index + 1}`}: using your default labour rate ({cad(labourRate)}/hr)
+                  </li>
+                );
+              }
+              if (lineNeedsAttention(line, extraction, index)) {
+                return (
+                  <li key={line.id}>
+                    {line.description || `Line ${index + 1}`}: add a price before confirming
+                  </li>
+                );
+              }
+              return null;
+            })}
+          </ul>
         </div>
       ) : (
         <div className="card space-y-3 p-4">
