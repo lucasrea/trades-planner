@@ -1,5 +1,6 @@
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { postgresSslOption } from "@/lib/postgres-url";
 import * as schema from "./schema";
 
 export type Database = PostgresJsDatabase<typeof schema>;
@@ -19,7 +20,7 @@ function getSql() {
 
   sql = postgres(databaseUrl, {
     prepare: false,
-    ssl: databaseUrl.includes("localhost") ? false : "require",
+    ssl: postgresSslOption(databaseUrl),
   });
   return sql;
 }

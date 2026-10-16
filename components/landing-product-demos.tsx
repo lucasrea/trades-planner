@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, Check, FileText, Mic, Receipt } from "lucide-react";
+import { Camera, Check, Mic, Receipt } from "lucide-react";
 import { statusClass, statusLabel } from "@/lib/status";
 
 function Badge({ status }: { status: string }) {
