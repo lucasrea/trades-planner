@@ -2,23 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app-shell";
 import { DocumentForm } from "@/components/document-form";
-import { DuplicateButton } from "@/components/duplicate-button";
 import { StatusBadge } from "@/components/status-badge";
-import { UpgradeNotice } from "@/components/upgrade-notice";
-import { duplicateQuoteAction, invoiceFromQuoteAction } from "@/lib/actions/data";
+import { invoiceFromQuoteAction } from "@/lib/actions/data";
 import { getContractor } from "@/lib/auth";
-import { canUseFeature, planLimits } from "@/lib/entitlements";
 import { getClients, getJobs, getQuote } from "@/lib/queries";
 
-export default async function QuoteDetailPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ upgrade?: string }>;
-}) {
+export default async function QuoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { upgrade } = await searchParams;
   const quote = await getQuote(id);
   if (!quote) notFound();
   const [contractor, clients, jobs] = await Promise.all([getContractor(), getClients(), getJobs()]);
@@ -40,7 +30,6 @@ export default async function QuoteDetailPage({
             >
               View as PDF
             </Link>
-            <DuplicateButton action={duplicateQuoteAction} id={quote.id} />
             <form action={invoiceFromQuoteAction}>
               <input type="hidden" name="quoteId" value={quote.id} />
               <button className="btn btn-navy">Create invoice</button>
@@ -48,20 +37,12 @@ export default async function QuoteDetailPage({
           </div>
         }
       />
-      {upgrade === "duplicate" ? (
-        <UpgradeNotice>Duplicating quotes is on Solo. Upgrade to copy a quote as a starting point.</UpgradeNotice>
-      ) : upgrade ? (
-        <UpgradeNotice>
-          Free includes {planLimits.free.documentsPerMonth} quotes and invoices per month. Upgrade to
-          Solo for unlimited documents.
-        </UpgradeNotice>
-      ) : null}
       <DocumentForm
         kind="quote"
         taxRate={contractor.taxRate}
         taxLabel={contractor.taxLabel}
         labourRate={contractor.labourRateHourly}
-        markupPct={canUseFeature(contractor.plan, "material_markup") ? contractor.defaultMarkupPct : 0}
+        markupPct={contractor.defaultMarkupPct}
         clients={clients.map((c) => ({ id: c.id, label: c.name }))}
         jobs={jobs.map((j) => ({ id: j.id, label: `${j.title} · ${j.client?.name || ""}`, clientId: j.clientId }))}
         initial={{

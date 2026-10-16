@@ -6,19 +6,17 @@ import { useState } from "react";
 import {
   FileText,
   HardHat,
-  LayoutDashboard,
+  Home,
   Menu,
   Receipt,
   Settings,
-  Users,
   X,
 } from "lucide-react";
 import type { AuthUser } from "@/lib/auth";
 import { UserAvatar, UserMenu } from "@/components/user-menu";
 
 const links = [
-  { href: "/app", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/app/clients", label: "Clients", icon: Users },
+  { href: "/app", label: "Home", icon: Home },
   { href: "/app/jobs", label: "Jobs", icon: HardHat },
   { href: "/app/quotes", label: "Quotes", icon: FileText },
   { href: "/app/invoices", label: "Invoices", icon: Receipt },

@@ -4,7 +4,6 @@ import { PageHeader } from "@/components/app-shell";
 import { DocumentForm } from "@/components/document-form";
 import { StatusBadge } from "@/components/status-badge";
 import { getContractor } from "@/lib/auth";
-import { canUseFeature } from "@/lib/entitlements";
 import { getClients, getInvoice, getJobs } from "@/lib/queries";
 
 export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -38,7 +37,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         taxRate={contractor.taxRate}
         taxLabel={contractor.taxLabel}
         labourRate={contractor.labourRateHourly}
-        markupPct={canUseFeature(contractor.plan, "material_markup") ? contractor.defaultMarkupPct : 0}
+        markupPct={contractor.defaultMarkupPct}
         clients={clients.map((c) => ({ id: c.id, label: c.name }))}
         jobs={jobs.map((j) => ({ id: j.id, label: `${j.title} · ${j.client?.name || ""}`, clientId: j.clientId }))}
         initial={{

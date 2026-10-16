@@ -1,14 +1,8 @@
 import Link from "next/link";
 import { EmptyState, PageHeader, TableCard } from "@/components/app-shell";
-import { UpgradeNotice } from "@/components/upgrade-notice";
 import { getClients } from "@/lib/queries";
 
-export default async function ClientsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ upgrade?: string }>;
-}) {
-  const { upgrade } = await searchParams;
+export default async function ClientsPage() {
   const rows = await getClients();
 
   return (
@@ -17,21 +11,11 @@ export default async function ClientsPage({
         title="Clients"
         subtitle="People you quote and invoice."
         action={
-          <>
-            {rows.length > 0 ? (
-              <a href="/api/clients/export" className="btn btn-ghost">
-                Export CSV
-              </a>
-            ) : null}
-            <Link href="/app/clients/new" className="btn btn-primary">
-              Add client
-            </Link>
-          </>
+          <Link href="/app/clients/new" className="btn btn-primary">
+            Add client
+          </Link>
         }
       />
-      {upgrade === "export" ? (
-        <UpgradeNotice>Client CSV export is on Solo. Upgrade to download your list.</UpgradeNotice>
-      ) : null}
       {rows.length === 0 ? (
         <EmptyState
           title="Add your first client"

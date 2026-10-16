@@ -8,7 +8,7 @@ export default auth((request) => {
   const { pathname } = request.nextUrl;
   const session = request.auth;
   const isAuthPage = pathname === "/login" || pathname === "/signup";
-  const isApp = pathname.startsWith("/app") || pathname === "/onboarding" || pathname === "/account";
+  const isApp = pathname.startsWith("/app") || pathname === "/onboarding";
 
   if (isApp && !session?.user) {
     const url = request.nextUrl.clone();
@@ -27,5 +27,5 @@ export default auth((request) => {
 });
 
 export const config = {
-  matcher: ["/app/:path*", "/onboarding", "/account", "/login", "/signup"],
+  matcher: ["/app/:path*", "/onboarding", "/login", "/signup"],
 };

@@ -1,13 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader, RelatedList } from "@/components/app-shell";
-import { DuplicateButton } from "@/components/duplicate-button";
 import { JobCostsForm } from "@/components/job-costs-form";
 import { JobForm } from "@/components/job-form";
-import { UpgradeNotice } from "@/components/upgrade-notice";
-import { duplicateJobAction, invoiceFromJobAction } from "@/lib/actions/data";
+import { invoiceFromJobAction } from "@/lib/actions/data";
 import { getContractor } from "@/lib/auth";
-import { canUseFeature, planLimits } from "@/lib/entitlements";
 import { getClients, getJob, getJobCosts, getJobDocuments } from "@/lib/queries";
 
 export default async function JobDetailPage({
@@ -15,10 +12,10 @@ export default async function JobDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ upgrade?: string; error?: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { id } = await params;
-  const { upgrade, error } = await searchParams;
+  const { error } = await searchParams;
   const job = await getJob(id);
   if (!job) notFound();
   const [contractor, clients, docs, costs] = await Promise.all([
@@ -27,9 +24,6 @@ export default async function JobDetailPage({
     getJobDocuments(id),
     getJobCosts(id),
   ]);
-  const markupPct = canUseFeature(contractor.plan, "material_markup")
-    ? contractor.defaultMarkupPct
-    : 0;
 
   return (
     <div className="space-y-8">
@@ -39,7 +33,6 @@ export default async function JobDetailPage({
         back={{ href: "/app/jobs", label: "Jobs" }}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <DuplicateButton action={duplicateJobAction} id={job.id} />
             <form action={invoiceFromJobAction}>
               <input type="hidden" name="jobId" value={job.id} />
               <button className="btn btn-navy">Create invoice</button>
@@ -58,25 +51,12 @@ export default async function JobDetailPage({
           Add a material, expense, or labour line before creating an invoice.
         </p>
       ) : null}
-      {upgrade === "duplicate" ? (
-        <UpgradeNotice>Duplicating jobs is on Solo. Upgrade to copy a job as a starting point.</UpgradeNotice>
-      ) : upgrade === "documents" ? (
-        <UpgradeNotice>
-          Free includes {planLimits.free.documentsPerMonth} quotes and invoices per month. Upgrade to
-          Solo for unlimited documents.
-        </UpgradeNotice>
-      ) : upgrade ? (
-        <UpgradeNotice>
-          Free includes {planLimits.free.activeJobs} active jobs. Completed and archived jobs don’t
-          count. Upgrade to Solo for unlimited jobs.
-        </UpgradeNotice>
-      ) : null}
       <JobForm clients={clients} initial={job} />
       <JobCostsForm
         jobId={job.id}
         costs={costs}
         labourRate={contractor.labourRateHourly}
-        markupPct={markupPct}
+        markupPct={contractor.defaultMarkupPct}
       />
       <div className="grid gap-4 md:grid-cols-2">
         <RelatedList
