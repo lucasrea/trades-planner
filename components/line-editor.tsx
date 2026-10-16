@@ -53,14 +53,14 @@ function EditableLineRow({
   const [quantity, setQuantity] = useState(line.quantity);
   const [unit, setUnit] = useState(line.unit);
   const [unitPrice, setUnitPrice] = useState(line.unitPrice);
-  const onRemoveDraftRef = useRef(onRemoveDraft);
-  onRemoveDraftRef.current = onRemoveDraft;
+  const handledSave = useRef(false);
 
   useEffect(() => {
-    if (!state?.ok) return;
-    onRemoveDraftRef.current?.();
+    if (!state?.ok || handledSave.current) return;
+    handledSave.current = true;
+    onRemoveDraft?.();
     router.refresh();
-  }, [state, router]);
+  }, [state, router, onRemoveDraft]);
 
   const preview = lineTotal({ id: line.id, kind, description, quantity, unit, unitPrice });
 
