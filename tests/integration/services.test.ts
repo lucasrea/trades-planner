@@ -1,10 +1,10 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { documents, lineItems } from "@/lib/db/schema";
+import { documents, jobs, lineItems } from "@/lib/db/schema";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/services/context";
 import { getClient, saveClient } from "@/lib/services/clients";
 import { createDraftDocument, createInvoiceFromQuote, createInvoiceFromTrackedLines, deleteDraftDocument, setDocumentStatus } from "@/lib/services/documents";
-import { createJobWithClient } from "@/lib/services/jobs";
+import { createJobWithClient, updateJob } from "@/lib/services/jobs";
 import { deleteLine, saveDocumentLine, saveTrackedLine } from "@/lib/services/line-items";
 import { getTestDb } from "../helpers/db";
 import { seedTenant, seedTwoContractors } from "../helpers/seed";
@@ -159,5 +159,51 @@ describe("services", () => {
         unitPrice: 1,
       }),
     ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it("preserves unitCost when a line update omits cost", async () => {
+    const tenant = await seedTenant("uc");
+    const ctx = { db: getTestDb(), contractorId: tenant.contractorId };
+    const { id: quoteId } = await createDraftDocument(ctx, tenant.jobId, "quote");
+    const lineId = await saveDocumentLine(ctx, {
+      jobId: tenant.jobId,
+      documentId: quoteId,
+      kind: "material",
+      description: "Part",
+      quantity: 1,
+      unit: "ea",
+      unitCost: 4,
+      unitPrice: 10,
+    });
+    await saveDocumentLine(ctx, {
+      id: lineId,
+      jobId: tenant.jobId,
+      documentId: quoteId,
+      kind: "material",
+      description: "Part updated",
+      quantity: 2,
+      unit: "ea",
+      unitPrice: 10,
+    });
+    const [row] = await ctx.db
+      .select({ unitCost: lineItems.unitCost })
+      .from(lineItems)
+      .where(eq(lineItems.id, lineId))
+      .limit(1);
+    expect(row?.unitCost).toBe(4);
+  });
+
+  it("updates job fields for the owning contractor", async () => {
+    const tenant = await seedTenant("ju");
+    const ctx = { db: getTestDb(), contractorId: tenant.contractorId };
+    await updateJob(ctx, tenant.jobId, {
+      title: "Renamed job",
+      siteAddress: "123 Main",
+      notes: "Note",
+      clientId: tenant.clientId,
+    });
+    const [row] = await ctx.db.select().from(jobs).where(eq(jobs.id, tenant.jobId)).limit(1);
+    expect(row?.title).toBe("Renamed job");
+    expect(row?.siteAddress).toBe("123 Main");
   });
 });

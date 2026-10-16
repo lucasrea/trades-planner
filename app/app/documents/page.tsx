@@ -3,6 +3,7 @@ import { EmptyState, PageHeader } from "@/components/app-shell";
 import { ExpandableListTable } from "@/components/expandable-list-table";
 import { isOverdue, type DocStatus, type DocType } from "@/lib/documents";
 import { calendarDateInTimeZone, formatDisplayDate, previewText } from "@/lib/format";
+import { actionErrorNotice } from "@/lib/action-errors";
 import { cad } from "@/lib/money";
 import { getDocuments, type DocumentListFilter } from "@/lib/queries";
 import { statusLabel } from "@/lib/status";
@@ -54,7 +55,7 @@ export default async function DocumentsPage({
   }>;
 }) {
   const raw = await searchParams;
-  const notice = one(raw.error);
+  const notice = actionErrorNotice(one(raw.error));
   const typeParam = one(raw.type);
   const statusParam = one(raw.status);
   const cursor = one(raw.cursor);

@@ -4,6 +4,7 @@ import {
   computeTotals,
   documentTotals,
   lineTotal,
+  matchingTaxPercentCaption,
   padNumber,
   roundMoney,
   storedTaxPercent,
@@ -98,5 +99,7 @@ describe("money helpers", () => {
     expect(totals).toEqual({ subtotal: 10, tax: 1.3, total: 11.3 });
     expect(storedTaxPercent(10, 1.3)).toBe(13);
     expect(storedTaxPercent(0, 0)).toBeNull();
+    expect(matchingTaxPercentCaption(0.13, 10, 1.3)).toBe("13%");
+    expect(matchingTaxPercentCaption(0.13, 3.33, 0.43)).toBeNull();
   });
 });

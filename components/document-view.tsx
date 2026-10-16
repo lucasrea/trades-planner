@@ -16,7 +16,7 @@ import {
 import { FormSubmitButton } from "@/components/form-submit";
 import { buildMailto, documentActions, type DocStatus, type DocType } from "@/lib/documents";
 import { formatDisplayDate } from "@/lib/format";
-import { cad, storedTaxPercent, type LineKind } from "@/lib/money";
+import { cad, matchingTaxPercentCaption, type LineKind } from "@/lib/money";
 
 const kindLabel: Record<string, string> = {
   material: "Material",
@@ -137,7 +137,7 @@ export function DocumentView({
   const draft = document.status === "draft";
   const dateLabel = isQuote ? "Valid until" : "Due date";
   const dateValue = isQuote ? document.validUntil : document.dueDate;
-  const taxPercent = storedTaxPercent(document.subtotal, document.tax);
+  const taxPercentCaption = matchingTaxPercentCaption(taxRate, document.subtotal, document.tax);
   const clientEmail = document.client?.email.trim() ?? "";
   const etransferInstructions = etransferEmail.trim()
     ? `Pay by e-transfer to ${etransferEmail.trim()}${etransferNote.trim() ? `. ${etransferNote.trim()}` : "."}`
@@ -310,7 +310,7 @@ export function DocumentView({
               <div className="flex justify-between text-muted">
                 <dt>
                   {taxLabel}
-                  {taxPercent != null ? ` (${taxPercent}%)` : ""}
+                  {taxPercentCaption ? ` (${taxPercentCaption})` : ""}
                 </dt>
                 <dd className="tabular-nums">{cad(document.tax)}</dd>
               </div>

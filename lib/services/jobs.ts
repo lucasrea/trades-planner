@@ -107,6 +107,34 @@ export async function createJobWithClient(
   });
 }
 
+export async function updateJob(
+  ctx: ServiceContext,
+  jobId: string,
+  input: { title: string; siteAddress?: string; notes?: string; clientId: string },
+) {
+  const title = input.title.trim();
+  if (!title) throw new ValidationError("Job title is required.");
+  await requireJob(ctx.db, ctx.contractorId, jobId);
+  const [owned] = await ctx.db
+    .select({ id: clients.id })
+    .from(clients)
+    .where(and(eq(clients.id, input.clientId), eq(clients.contractorId, ctx.contractorId)))
+    .limit(1);
+  if (!owned) throw new NotFoundError("Client not found.");
+  const [updated] = await ctx.db
+    .update(jobs)
+    .set({
+      title,
+      clientId: input.clientId,
+      siteAddress: input.siteAddress?.trim() ?? "",
+      notes: input.notes?.trim() ?? "",
+      updatedAt: Date.now(),
+    })
+    .where(and(eq(jobs.id, jobId), eq(jobs.contractorId, ctx.contractorId)))
+    .returning({ id: jobs.id });
+  if (!updated) throw new NotFoundError("Job not found.");
+}
+
 export async function setJobStatus(ctx: ServiceContext, jobId: string, status: JobStatus) {
   if (!jobStatuses.includes(status)) throw new ValidationError("Invalid job status.");
   const [updated] = await ctx.db.update(jobs).set({ status, updatedAt: Date.now() }).where(and(eq(jobs.id, jobId), eq(jobs.contractorId, ctx.contractorId))).returning({ id: jobs.id });

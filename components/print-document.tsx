@@ -1,5 +1,13 @@
 import { formatDisplayDate } from "@/lib/format";
-import { cad, computeTotals, lineTotal, storedTaxPercent, type DraftLine, type LineKind } from "@/lib/money";
+import {
+  cad,
+  computeTotals,
+  contractorTaxPercent,
+  lineTotal,
+  matchingTaxPercentCaption,
+  type DraftLine,
+  type LineKind,
+} from "@/lib/money";
 
 type Party = {
   businessName: string;
@@ -90,10 +98,13 @@ export function PrintDocument({
   const computed = computeTotals(lines, contractor.taxRate);
   const totals = storedTotals ?? computed;
   const usingStored = Boolean(storedTotals);
-  const taxPercent = usingStored
-    ? storedTaxPercent(totals.subtotal, totals.tax)
-    : Math.round(contractor.taxRate * 1000) / 10;
-  const taxCaption = taxPercent == null ? contractor.taxLabel : `${contractor.taxLabel} (${taxPercent}%)`;
+  const contractorPct = contractorTaxPercent(contractor.taxRate);
+  const taxPercentCaption = usingStored
+    ? matchingTaxPercentCaption(contractor.taxRate, totals.subtotal, totals.tax)
+    : contractorPct != null
+      ? `${contractorPct}%`
+      : null;
+  const taxCaption = taxPercentCaption ? `${contractor.taxLabel} (${taxPercentCaption})` : contractor.taxLabel;
   const showTax = usingStored ? totals.tax !== 0 : true;
   const issuedRaw = formatDisplayDate(issueDate, { month: "long" });
   const issued = issuedRaw === "—" ? null : issuedRaw;

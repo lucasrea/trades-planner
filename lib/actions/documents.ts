@@ -8,6 +8,7 @@ import { getContractor } from "@/lib/auth";
 import { ensureDb } from "@/lib/db";
 import type { DocStatus, DocType } from "@/lib/documents";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/services/context";
+import { codeFromServiceError, type ActionErrorCode } from "@/lib/action-errors";
 import {
   addTrackedLinesToInvoice,
   createDraftDocument,
@@ -23,8 +24,8 @@ async function ctx() {
   return { db: await ensureDb(), contractorId: contractor.id };
 }
 
-function redirectWithMessage(path: string, message: string): never {
-  redirect(`${path}?error=${encodeURIComponent(message)}`);
+function redirectWithError(path: string, code: ActionErrorCode): never {
+  redirect(`${path}?error=${code}`);
 }
 
 export async function createDraftDocumentAction(formData: FormData) {
@@ -55,9 +56,9 @@ export async function setDocumentStatusAction(formData: FormData) {
   try {
     await setDocumentStatus(await ctx(), documentId, next as DocStatus);
   } catch (error) {
-    if (error instanceof NotFoundError) redirectWithMessage("/app/documents", error.message);
+    if (error instanceof NotFoundError) redirectWithError("/app/documents", codeFromServiceError(error));
     if (error instanceof ValidationError || error instanceof ConflictError) {
-      redirectWithMessage(`/app/documents/${documentId}`, error.message);
+      redirectWithError(`/app/documents/${documentId}`, codeFromServiceError(error));
     }
     throw error;
   }
@@ -73,9 +74,9 @@ export async function createInvoiceFromQuoteAction(formData: FormData) {
   try {
     invoiceId = await createInvoiceFromQuote(await ctx(), quoteId);
   } catch (error) {
-    if (error instanceof NotFoundError) redirectWithMessage("/app/documents", error.message);
+    if (error instanceof NotFoundError) redirectWithError("/app/documents", codeFromServiceError(error));
     if (error instanceof ValidationError || error instanceof ConflictError) {
-      redirectWithMessage(`/app/documents/${quoteId}`, error.message);
+      redirectWithError(`/app/documents/${quoteId}`, codeFromServiceError(error));
     }
     throw error;
   }
@@ -92,7 +93,7 @@ export async function createInvoiceFromTrackedLinesAction(formData: FormData) {
     invoiceId = await createInvoiceFromTrackedLines(await ctx(), jobId);
   } catch (error) {
     if (error instanceof ValidationError || error instanceof ConflictError || error instanceof NotFoundError) {
-      redirectWithMessage(`/app/jobs/${jobId}`, error.message);
+      redirectWithError(`/app/jobs/${jobId}`, codeFromServiceError(error));
     }
     throw error;
   }
@@ -107,9 +108,9 @@ export async function addTrackedLinesToInvoiceAction(formData: FormData) {
   try {
     await addTrackedLinesToInvoice(await ctx(), documentId);
   } catch (error) {
-    if (error instanceof NotFoundError) redirectWithMessage("/app/documents", error.message);
+    if (error instanceof NotFoundError) redirectWithError("/app/documents", codeFromServiceError(error));
     if (error instanceof ValidationError || error instanceof ConflictError) {
-      redirectWithMessage(`/app/documents/${documentId}`, error.message);
+      redirectWithError(`/app/documents/${documentId}`, codeFromServiceError(error));
     }
     throw error;
   }
@@ -119,12 +120,12 @@ export async function addTrackedLinesToInvoiceAction(formData: FormData) {
 
 export async function deleteDraftDocumentAction(formData: FormData) {
   const documentId = formText(formData, "documentId");
-  if (!documentId) redirectWithMessage("/app/documents", "Missing document.");
+  if (!documentId) redirectWithError("/app/documents", "missing-document");
   try {
     await deleteDraftDocument(await ctx(), documentId);
   } catch (error) {
-    if (error instanceof NotFoundError) redirectWithMessage("/app/documents", error.message);
-    if (error instanceof ConflictError) redirectWithMessage(`/app/documents/${documentId}`, error.message);
+    if (error instanceof NotFoundError) redirectWithError("/app/documents", codeFromServiceError(error));
+    if (error instanceof ConflictError) redirectWithError(`/app/documents/${documentId}`, codeFromServiceError(error));
     throw error;
   }
   revalidatePath("/app/documents");

@@ -96,6 +96,46 @@ export function JobForm({
   );
 }
 
+export function JobEditForm({
+  job,
+  clients,
+}: {
+  job: { id: string; title: string; clientId: string; siteAddress: string; notes: string };
+  clients: { id: string; name: string }[];
+}) {
+  const [state, formAction, pending] = useActionState(saveJobAction, null);
+  const saved = Boolean(state && "ok" in state && state.ok);
+
+  return (
+    <form action={formAction} className="card max-w-xl space-y-4 p-6">
+      <input type="hidden" name="id" value={job.id} />
+      <Field label="Title">
+        <input className="input" name="title" required defaultValue={job.title} />
+      </Field>
+      <Field label="Client">
+        <select className="input" name="clientId" required defaultValue={job.clientId}>
+          <option value="">Select client</option>
+          {clients.map((client) => (
+            <option key={client.id} value={client.id}>
+              {client.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Job site address">
+        <textarea className="input min-h-20" name="siteAddress" defaultValue={job.siteAddress} placeholder="Where the work happens" />
+      </Field>
+      <Field label="Notes">
+        <textarea className="input min-h-20" name="notes" defaultValue={job.notes} />
+      </Field>
+      <ActionError state={state && "error" in state ? state : null} />
+      <button className="btn btn-primary" disabled={pending || saved}>
+        {pending ? "Saving…" : saved ? "Saved" : "Save job"}
+      </button>
+    </form>
+  );
+}
+
 export function JobStatusForm({ jobId, status }: { jobId: string; status: string }) {
   const [state, action, pending] = useActionState(setJobStatusAction, null);
   const known = (jobStatusOptions as readonly string[]).includes(status);

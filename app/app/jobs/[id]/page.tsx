@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import { PageHeader, RelatedList } from "@/components/app-shell";
-import { JobStatusForm } from "@/components/job-form";
+import { JobEditForm, JobStatusForm } from "@/components/job-form";
 import { LineEditor } from "@/components/line-editor";
 import { JobDocumentActions } from "@/components/job-document-actions";
+import { actionErrorNotice } from "@/lib/action-errors";
 import { getContractor } from "@/lib/auth";
 import { type LineKind } from "@/lib/money";
-import { getJob, getJobDocuments, getTrackedLines } from "@/lib/queries";
+import { getClients, getJob, getJobDocuments, getTrackedLines } from "@/lib/queries";
 
 function asKind(kind: string): LineKind {
   if (kind === "labour" || kind === "other") return kind;
@@ -21,13 +22,14 @@ export default async function JobDetailPage({
 }) {
   const { id } = await params;
   const raw = await searchParams;
-  const error = Array.isArray(raw.error) ? raw.error[0] : raw.error;
+  const notice = actionErrorNotice(Array.isArray(raw.error) ? raw.error[0] : raw.error);
   const job = await getJob(id);
   if (!job) notFound();
-  const [contractor, tracked, docs] = await Promise.all([
+  const [contractor, tracked, docs, clients] = await Promise.all([
     getContractor(),
     getTrackedLines(id),
     getJobDocuments(id),
+    getClients(),
   ]);
 
   return (
@@ -38,24 +40,24 @@ export default async function JobDetailPage({
         back={{ href: "/app/jobs", label: "Jobs" }}
         action={<JobDocumentActions jobId={job.id} />}
       />
-      {error ? (
+      {notice ? (
         <p className="text-sm text-accent" role="alert">
-          {error === "nothing-to-bill" ? "Add unbilled tracked lines before creating an invoice from them." : error}
+          {notice}
         </p>
       ) : null}
-      <div className="card grid gap-6 p-6 sm:grid-cols-2">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">Client</p>
-          <p className="mt-1 font-medium">{job.client?.name || "—"}</p>
-        </div>
-        <JobStatusForm jobId={job.id} status={job.status} />
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">Site</p>
-          <p className="mt-1 whitespace-pre-line">{job.siteAddress.trim() || "—"}</p>
-        </div>
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">Notes</p>
-          <p className="mt-1 whitespace-pre-line">{job.notes.trim() || "—"}</p>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_240px]">
+        <JobEditForm
+          job={{
+            id: job.id,
+            title: job.title,
+            clientId: job.clientId,
+            siteAddress: job.siteAddress,
+            notes: job.notes,
+          }}
+          clients={clients}
+        />
+        <div className="card p-6">
+          <JobStatusForm jobId={job.id} status={job.status} />
         </div>
       </div>
       <section>

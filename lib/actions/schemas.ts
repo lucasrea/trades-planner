@@ -12,6 +12,7 @@ const jobStatuses = ["quoted", "active", "done"] as const;
 
 export const saveJobSchema = z
   .object({
+    id: z.string().optional(),
     title: z.string().trim().min(1),
     siteAddress: z.string().optional(),
     notes: z.string().optional(),
@@ -21,7 +22,8 @@ export const saveJobSchema = z
     clientPhone: z.string().optional(),
     clientBillingAddress: z.string().optional(),
   })
-  .refine((v) => v.clientId || v.clientName?.trim(), { message: "Pick or create a client." });
+  .refine((v) => v.id || v.clientId || v.clientName?.trim(), { message: "Pick or create a client." })
+  .refine((v) => !v.id || v.clientId, { message: "Pick a client." });
 
 export const setJobStatusSchema = z.object({
   jobId: z.string().min(1),

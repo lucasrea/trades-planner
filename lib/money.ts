@@ -70,3 +70,20 @@ export function storedTaxPercent(subtotal: number, tax: number): number | null {
   return Math.round((tax / subtotal) * 1000) / 10;
 }
 
+export function contractorTaxPercent(taxRate: number): number | null {
+  if (!(taxRate > 0)) return null;
+  return Math.round(taxRate * 1000) / 10;
+}
+
+/** Show a tax percent only when stored totals match the contractor's current rate. */
+export function matchingTaxPercentCaption(
+  taxRate: number,
+  subtotal: number,
+  tax: number,
+): string | null {
+  const contractor = contractorTaxPercent(taxRate);
+  const stored = storedTaxPercent(subtotal, tax);
+  if (contractor == null || stored == null || contractor !== stored) return null;
+  return `${contractor}%`;
+}
+

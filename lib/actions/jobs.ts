@@ -6,7 +6,7 @@ import { saveJobSchema, setJobStatusSchema } from "@/lib/actions/schemas";
 import { getContractor } from "@/lib/auth";
 import { ensureDb } from "@/lib/db";
 import { NotFoundError, ValidationError } from "@/lib/services/context";
-import { createJobWithClient, setJobStatus, type JobStatus } from "@/lib/services/jobs";
+import { createJobWithClient, setJobStatus, updateJob, type JobStatus } from "@/lib/services/jobs";
 
 const jobStatuses = ["quoted", "active", "done"] as const;
 
@@ -17,6 +17,7 @@ async function ctx() {
 
 export async function saveJobAction(_: unknown, formData: FormData) {
   const parsed = saveJobSchema.safeParse({
+    id: formText(formData, "id") || undefined,
     title: formText(formData, "title"),
     siteAddress: formText(formData, "siteAddress"),
     notes: formText(formData, "notes"),
@@ -28,7 +29,19 @@ export async function saveJobAction(_: unknown, formData: FormData) {
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   try {
-    const jobId = await createJobWithClient(await ctx(), {
+    const context = await ctx();
+    if (parsed.data.id) {
+      await updateJob(context, parsed.data.id, {
+        title: parsed.data.title,
+        siteAddress: parsed.data.siteAddress,
+        notes: parsed.data.notes,
+        clientId: parsed.data.clientId!,
+      });
+      revalidatePath("/app/jobs");
+      revalidatePath(`/app/jobs/${parsed.data.id}`);
+      return { ok: true, jobId: parsed.data.id };
+    }
+    const jobId = await createJobWithClient(context, {
       title: parsed.data.title,
       siteAddress: parsed.data.siteAddress,
       notes: parsed.data.notes,

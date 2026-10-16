@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getContractor } from "@/lib/auth";
+import { roundMoney } from "@/lib/money";
 import { ensureDb } from "@/lib/db";
 import {
   clients,
@@ -82,7 +83,7 @@ export async function getJobs() {
         ),
       )
       .groupBy(lineItems.jobId);
-    for (const row of totals) unbilledByJob.set(row.jobId, row.unbilled);
+    for (const row of totals) unbilledByJob.set(row.jobId, roundMoney(row.unbilled));
   }
   return mapped.map((job) => ({ ...job, unbilledTotal: unbilledByJob.get(job.id) ?? 0 }));
 }

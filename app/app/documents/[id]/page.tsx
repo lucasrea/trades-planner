@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { DocumentView } from "@/components/document-view";
+import { actionErrorNotice } from "@/lib/action-errors";
 import { getContractor } from "@/lib/auth";
 import { isOverdue, type DocStatus, type DocType } from "@/lib/documents";
 import { calendarDateInTimeZone } from "@/lib/format";
@@ -14,7 +15,7 @@ export default async function DocumentDetailPage({
 }) {
   const { id } = await params;
   const raw = await searchParams;
-  const notice = Array.isArray(raw.error) ? raw.error[0] : raw.error;
+  const notice = actionErrorNotice(Array.isArray(raw.error) ? raw.error[0] : raw.error);
   const document = await getDocument(id);
   if (!document) notFound();
   const contractor = await getContractor();
@@ -43,7 +44,7 @@ export default async function DocumentDetailPage({
       etransferNote={contractor.etransferNote}
       displayStatus={displayStatus}
       unbilledCount={unbilledCount}
-      notice={notice}
+      notice={notice ?? undefined}
     />
   );
 }
