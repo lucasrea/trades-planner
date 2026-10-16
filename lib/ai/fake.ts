@@ -1,3 +1,4 @@
+import { createLiveExtractionProvider } from "@/lib/ai/extract-describe";
 import type { DescribeExtraction, ReceiptExtraction } from "@/lib/ai/extraction-types";
 import { ProviderError, type ExtractionProvider, type TranscriptionProvider } from "@/lib/ai/provider";
 
@@ -96,9 +97,9 @@ export function createFakeTranscriptionProvider(): TranscriptionProvider {
 
 export function assertLiveProviderAllowed() {
   if (process.env.AI_PROVIDER !== "live") return;
-  const key = process.env.ANTHROPIC_API_KEY ?? process.env.OPENAI_API_KEY;
+  const key = process.env.OPENAI_API_KEY;
   if (!key?.trim()) {
-    throw new ProviderError("AI_PROVIDER=live requires ANTHROPIC_API_KEY or OPENAI_API_KEY.");
+    throw new ProviderError("AI_PROVIDER=live requires OPENAI_API_KEY.");
   }
 }
 
@@ -106,7 +107,7 @@ export function getExtractionProvider(): ExtractionProvider {
   const provider = process.env.AI_PROVIDER ?? (process.env.NODE_ENV === "production" ? "live" : "fake");
   if (provider === "live") {
     assertLiveProviderAllowed();
-    throw new ProviderError("Live extraction provider is not implemented yet.");
+    return createLiveExtractionProvider();
   }
   return createFakeExtractionProvider();
 }
