@@ -23,14 +23,6 @@ import {
   quotes,
 } from "@/lib/db/schema";
 import {
-  isActiveJobStatus,
-  canUseFeature,
-  requireActiveJobSlot,
-  requireClientSlot,
-  requireDocumentSlot,
-  requireFeature,
-} from "@/lib/entitlements";
-import {
   defaultSellPrice,
   jobCostKinds,
   jobCostLineTotal,
@@ -42,8 +34,6 @@ import {
   lineTotal,
   padNumber,
 } from "@/lib/money";
-import { getPlanUsage } from "@/lib/plan-usage";
-
 const jobStatuses = ["quoted", "active", "completed", "archived"] as const;
 const quoteStatuses = ["draft", "sent", "approved", "declined"] as const;
 const invoiceStatuses = ["draft", "sent", "paid", "overdue"] as const;
@@ -115,9 +105,6 @@ export async function saveClientAction(_: unknown, formData: FormData) {
     revalidatePath("/app");
     redirect("/app/clients");
   }
-  const usage = await getPlanUsage(contractor.id);
-  const blocked = requireClientSlot(contractor.plan, usage.clients);
-  if (blocked) return blocked;
   const newId = id();
   await db.insert(clients).values({
     id: newId,
@@ -156,12 +143,6 @@ export async function saveJobAction(_: unknown, formData: FormData) {
       .where(and(eq(jobs.id, jobId), eq(jobs.contractorId, contractor.id)))
       .limit(1);
     if (!existing) return { error: "Job not found." };
-    const becomingActive = isActiveJobStatus(values.status) && !isActiveJobStatus(existing.status);
-    if (becomingActive) {
-      const usage = await getPlanUsage(contractor.id);
-      const blocked = requireActiveJobSlot(contractor.plan, usage.activeJobs);
-      if (blocked) return blocked;
-    }
     await db
       .update(jobs)
       .set(values)
@@ -170,11 +151,6 @@ export async function saveJobAction(_: unknown, formData: FormData) {
     revalidatePath(`/app/jobs/${jobId}`);
     revalidatePath("/app");
     redirect("/app/jobs");
-  }
-  if (isActiveJobStatus(values.status)) {
-    const usage = await getPlanUsage(contractor.id);
-    const blocked = requireActiveJobSlot(contractor.plan, usage.activeJobs);
-    if (blocked) return blocked;
   }
   const newId = id();
   await db.insert(jobs).values({
@@ -215,10 +191,6 @@ export async function saveQuoteAction(_: unknown, formData: FormData) {
       .where(and(eq(quotes.id, quoteId), eq(quotes.contractorId, contractor.id)))
       .limit(1);
     if (!existingQuote) return { error: "Quote not found." };
-  } else {
-    const usage = await getPlanUsage(contractor.id);
-    const blocked = requireDocumentSlot(contractor.plan, usage.documentsThisMonth);
-    if (blocked) return blocked;
   }
 
   await db.transaction(async (tx) => {
@@ -323,10 +295,6 @@ export async function saveInvoiceAction(_: unknown, formData: FormData) {
       .where(and(eq(invoices.id, invoiceId), eq(invoices.contractorId, contractor.id)))
       .limit(1);
     if (!existingInvoice) return { error: "Invoice not found." };
-  } else {
-    const usage = await getPlanUsage(contractor.id);
-    const blocked = requireDocumentSlot(contractor.plan, usage.documentsThisMonth);
-    if (blocked) return blocked;
   }
 
   await db.transaction(async (tx) => {
@@ -412,10 +380,6 @@ export async function invoiceFromQuoteAction(formData: FormData) {
     .limit(1);
   if (existingInvoice) redirect(`/app/invoices/${existingInvoice.id}`);
 
-  const usage = await getPlanUsage(contractor.id);
-  const blocked = requireDocumentSlot(contractor.plan, usage.documentsThisMonth);
-  if (blocked) redirect(`/app/quotes/${quote.id}?upgrade=1`);
-
   const lines = await db
     .select()
     .from(quoteLineItems)
@@ -470,8 +434,6 @@ export async function duplicateQuoteAction(formData: FormData) {
   const contractor = await getContractor();
   const sourceId = formText(formData, "id");
   if (!sourceId) throw new Error("Quote not found.");
-  const blocked = requireFeature(contractor.plan, "duplicate_documents");
-  if (blocked) redirect(`/app/quotes/${sourceId}?upgrade=duplicate`);
   const db = await ensureDb();
   const [quote] = await db
     .select()
@@ -479,9 +441,6 @@ export async function duplicateQuoteAction(formData: FormData) {
     .where(and(eq(quotes.id, sourceId), eq(quotes.contractorId, contractor.id)))
     .limit(1);
   if (!quote) throw new Error("Quote not found.");
-  const usage = await getPlanUsage(contractor.id);
-  const documentBlock = requireDocumentSlot(contractor.plan, usage.documentsThisMonth);
-  if (documentBlock) redirect(`/app/quotes/${sourceId}?upgrade=1`);
   const lines = await db.select().from(quoteLineItems).where(eq(quoteLineItems.quoteId, quote.id));
   const now = Date.now();
   const quoteId = id();
@@ -535,8 +494,6 @@ export async function duplicateJobAction(formData: FormData) {
   const contractor = await getContractor();
   const sourceId = formText(formData, "id");
   if (!sourceId) throw new Error("Job not found.");
-  const blocked = requireFeature(contractor.plan, "duplicate_documents");
-  if (blocked) redirect(`/app/jobs/${sourceId}?upgrade=duplicate`);
   const db = await ensureDb();
   const [job] = await db
     .select()
@@ -544,9 +501,6 @@ export async function duplicateJobAction(formData: FormData) {
     .where(and(eq(jobs.id, sourceId), eq(jobs.contractorId, contractor.id)))
     .limit(1);
   if (!job) throw new Error("Job not found.");
-  const usage = await getPlanUsage(contractor.id);
-  const jobBlock = requireActiveJobSlot(contractor.plan, usage.activeJobs);
-  if (jobBlock) redirect(`/app/jobs/${sourceId}?upgrade=1`);
   const newId = id();
   await db.insert(jobs).values({
     id: newId,
@@ -583,7 +537,7 @@ export async function saveJobCostAction(_: unknown, formData: FormData) {
     : defaultSellPrice(kind, cost, {
         markupPct: contractor.defaultMarkupPct,
         labourRate: contractor.labourRateHourly,
-        applyMarkup: canUseFeature(contractor.plan, "material_markup") && kind !== "labour",
+        applyMarkup: kind !== "labour",
       });
   const [sort] = await db
     .select({ value: max(jobCosts.sortOrder) })
@@ -653,9 +607,6 @@ export async function invoiceFromJobAction(formData: FormData) {
       }),
     );
   if (!lines.length) redirect(`/app/jobs/${job.id}?error=costs`);
-  const usage = await getPlanUsage(contractor.id);
-  const blocked = requireDocumentSlot(contractor.plan, usage.documentsThisMonth);
-  if (blocked) redirect(`/app/jobs/${job.id}?upgrade=documents`);
   const totals = documentTotals(lines, contractor.taxRate);
   const now = Date.now();
   const invoiceId = id();

@@ -1,17 +1,11 @@
 import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/app-shell";
 import { ExpandableListTable } from "@/components/expandable-list-table";
-import { UpgradeNotice } from "@/components/upgrade-notice";
 import { duplicateJobAction } from "@/lib/actions/data";
 import { formatDisplayDate, previewText } from "@/lib/format";
 import { getJobs } from "@/lib/queries";
 
-export default async function JobsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ upgrade?: string }>;
-}) {
-  const { upgrade } = await searchParams;
+export default async function JobsPage() {
   const rows = await getJobs();
   return (
     <div>
@@ -24,9 +18,6 @@ export default async function JobsPage({
           </Link>
         }
       />
-      {upgrade === "duplicate" ? (
-        <UpgradeNotice>Duplicating jobs is on Solo. Upgrade to copy a job as a starting point.</UpgradeNotice>
-      ) : null}
       {rows.length === 0 ? (
         <EmptyState
           title="No jobs yet"

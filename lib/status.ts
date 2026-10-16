@@ -2,6 +2,10 @@ export const quoteStatuses = ["draft", "sent", "approved", "declined"] as const;
 export const invoiceStatuses = ["draft", "sent", "paid", "overdue"] as const;
 export const jobStatuses = ["quoted", "active", "completed", "archived"] as const;
 
+export function isActiveJobStatus(status: string) {
+  return status === "quoted" || status === "active";
+}
+
 export function statusClass(status: string) {
   switch (status) {
     case "approved":

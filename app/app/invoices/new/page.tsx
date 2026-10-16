@@ -1,7 +1,6 @@
 import { EmptyState, PageHeader } from "@/components/app-shell";
 import { DocumentForm } from "@/components/document-form";
 import { getContractor } from "@/lib/auth";
-import { canUseFeature } from "@/lib/entitlements";
 import { getClients, getJobs } from "@/lib/queries";
 
 export default async function NewInvoicePage({
@@ -34,7 +33,7 @@ export default async function NewInvoicePage({
         taxRate={contractor.taxRate}
         taxLabel={contractor.taxLabel}
         labourRate={contractor.labourRateHourly}
-        markupPct={canUseFeature(contractor.plan, "material_markup") ? contractor.defaultMarkupPct : 0}
+        markupPct={contractor.defaultMarkupPct}
         clients={clients.map((c) => ({ id: c.id, label: c.name }))}
         jobs={jobs.map((j) => ({ id: j.id, label: `${j.title} · ${j.client?.name || ""}`, clientId: j.clientId }))}
         initial={clientId ? { clientId } : undefined}
