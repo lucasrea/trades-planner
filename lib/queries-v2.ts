@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
-import { clients, documents, jobs, lineItems } from "@/lib/db/schema";
+import { captures, clients, documents, jobs, lineItems } from "@/lib/db/schema";
 import { isOverdue } from "@/lib/documents";
 
 export type DocumentListFilter = { type?: "quote" | "invoice"; status?: string };
@@ -98,4 +98,13 @@ export async function getHomeForContractor(db: Database, contractorId: string, t
       overdue: isOverdue({ type: "invoice", status: document.status as "sent", dueDate: document.dueDate }, today),
     })),
   };
+}
+
+export async function getCaptureForContractor(db: Database, contractorId: string, captureId: string) {
+  const [row] = await db
+    .select()
+    .from(captures)
+    .where(and(eq(captures.id, captureId), eq(captures.contractorId, contractorId)))
+    .limit(1);
+  return row ?? null;
 }

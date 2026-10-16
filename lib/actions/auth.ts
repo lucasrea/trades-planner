@@ -81,7 +81,6 @@ export async function completeOnboardingAction(_: unknown, formData: FormData) {
     .set({
       ...profile,
       onboardingCompletedAt: Date.now(),
-      plan: "free",
     })
     .where(eq(contractors.id, session.contractorId));
   revalidatePath("/app");

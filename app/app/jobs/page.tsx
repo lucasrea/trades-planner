@@ -61,8 +61,8 @@ export default async function JobsPage() {
                 items: [
                   {
                     kind: "link",
-                    href: `/app/quotes/new?clientId=${job.clientId}&jobId=${job.id}`,
-                    label: "New quote",
+                    href: `/app/jobs/${job.id}`,
+                    label: "Open",
                   },
                 ],
               },

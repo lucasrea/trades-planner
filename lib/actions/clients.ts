@@ -20,7 +20,6 @@ export async function saveClientAction(_: unknown, formData: FormData) {
   try {
     const contractor = await getContractor();
     const clientId = await saveClient({ db: await ensureDb(), contractorId: contractor.id }, parsed.data);
-    revalidatePath("/app/clients");
     revalidatePath("/app/jobs");
     return { ok: true, clientId };
   } catch (error) {
