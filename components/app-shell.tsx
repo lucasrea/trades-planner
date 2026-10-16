@@ -3,16 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import {
-  Files,
-  FileText,
-  HardHat,
-  Home,
-  Menu,
-  Receipt,
-  Settings,
-  X,
-} from "lucide-react";
+import { Files, HardHat, Home, Menu, Settings, X } from "lucide-react";
 import type { AuthUser } from "@/lib/auth";
 import { UserAvatar, UserMenu } from "@/components/user-menu";
 
@@ -20,8 +11,6 @@ const links = [
   { href: "/app", label: "Home", icon: Home },
   { href: "/app/jobs", label: "Jobs", icon: HardHat },
   { href: "/app/documents", label: "Documents", icon: Files },
-  { href: "/app/quotes", label: "Quotes", icon: FileText },
-  { href: "/app/invoices", label: "Invoices", icon: Receipt },
   { href: "/app/settings", label: "Settings", icon: Settings },
 ];
 

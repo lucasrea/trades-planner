@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { documents } from "@/lib/db/schema";
-import { getDocumentsForContractor, getHomeForContractor } from "@/lib/queries-v2";
+import { captures, documents } from "@/lib/db/schema";
+import { getCaptureForContractor, getDocumentsForContractor, getHomeForContractor } from "@/lib/queries-v2";
+import { newId } from "@/lib/id";
 import { createDraftDocument } from "@/lib/services/documents";
 import { saveTrackedLine } from "@/lib/services/line-items";
 import { getTestDb } from "../helpers/db";
@@ -27,5 +28,22 @@ describe("v2 queries", () => {
     const home = await getHomeForContractor(db, a.contractorId, "2026-01-01");
     expect(home.openJobs[0]?.unbilledTotal).toBe(100);
     expect(home.unpaidInvoices.some((row) => row.overdue)).toBe(true);
+  });
+
+  it("scopes getCapture by contractor", async () => {
+    const { a, b } = await seedTwoContractors();
+    const db = getTestDb();
+    const captureId = newId();
+    await db.insert(captures).values({
+      id: captureId,
+      contractorId: b.contractorId,
+      type: "text",
+      status: "needs_review",
+      transcript: "secret",
+      createdAt: Date.now(),
+    });
+    expect(await getCaptureForContractor(db, a.contractorId, captureId)).toBeNull();
+    const owned = await getCaptureForContractor(db, b.contractorId, captureId);
+    expect(owned?.id).toBe(captureId);
   });
 });

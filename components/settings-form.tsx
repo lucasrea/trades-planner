@@ -17,7 +17,6 @@ type ContractorSettings = {
   defaultMarkupPct: number;
   etransferEmail: string;
   etransferNote: string;
-  plan: string;
 };
 
 type SectionId = "business" | "tax" | "rates" | "payment";

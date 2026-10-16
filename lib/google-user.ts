@@ -48,7 +48,6 @@ export async function upsertGoogleUser(input: {
       id: contractorId,
       userId: existing.id,
       email,
-      plan: "free",
     });
     return { userId: existing.id, contractorId };
   }
@@ -68,7 +67,6 @@ export async function upsertGoogleUser(input: {
     id: contractorId,
     userId,
     email,
-    plan: "free",
   });
   return { userId, contractorId };
 }

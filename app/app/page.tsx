@@ -9,19 +9,13 @@ export default function HomePage() {
         <li>
           <Link href="/app/jobs" className="flex items-center justify-between px-5 py-4 hover:bg-paper/70">
             <span className="font-medium">Jobs</span>
-            <span className="text-muted">Clients, sites, and job costs</span>
+            <span className="text-muted">Sites, tracked lines, and new drafts</span>
           </Link>
         </li>
         <li>
-          <Link href="/app/quotes" className="flex items-center justify-between px-5 py-4 hover:bg-paper/70">
-            <span className="font-medium">Quotes</span>
-            <span className="text-muted">Draft, print, and approve</span>
-          </Link>
-        </li>
-        <li>
-          <Link href="/app/invoices" className="flex items-center justify-between px-5 py-4 hover:bg-paper/70">
-            <span className="font-medium">Invoices</span>
-            <span className="text-muted">Bill and mark paid</span>
+          <Link href="/app/documents" className="flex items-center justify-between px-5 py-4 hover:bg-paper/70">
+            <span className="font-medium">Documents</span>
+            <span className="text-muted">Quotes and invoices in one list</span>
           </Link>
         </li>
       </ul>
