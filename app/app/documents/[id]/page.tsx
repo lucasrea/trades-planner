@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { DocumentView } from "@/components/document-view";
 import { getContractor } from "@/lib/auth";
 import { isOverdue, type DocStatus, type DocType } from "@/lib/documents";
+import { calendarDateInTimeZone } from "@/lib/format";
 import { getDocument, getTrackedLines } from "@/lib/queries";
 
 export default async function DocumentDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -11,7 +12,7 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
   const contractor = await getContractor();
   const tracked = document.type === "invoice" ? await getTrackedLines(document.jobId) : [];
   const unbilledCount = tracked.filter((line) => !line.billedDocumentId).length;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = calendarDateInTimeZone();
   const displayStatus = isOverdue(
     {
       type: document.type as DocType,

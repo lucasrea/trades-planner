@@ -1,0 +1,26 @@
+---
+description: After opening a PR, run an independent Sonnet 5.5 code review before merge
+alwaysApply: true
+---
+
+# Pull requests and review
+
+Applies to all agents (Cursor Composer, Grok, cloud agents, etc.) working in this repo.
+
+## When you open a PR
+
+After `gh pr create` (or when a branch is ready to merge via PR):
+
+1. **Wait for CI** on the PR (`gh pr checks`). Do not merge while `check` is failing.
+2. **Launch a read-only review** in the same session (do not merge first):
+   - Use the **Task** tool, `subagent_type`: `generalPurpose`, model: **`claude-sonnet-5-5-high`**.
+   - The reviewer must **not edit files** or run state-changing git commands.
+   - Diff: `git diff origin/master...HEAD` (or the PR’s base branch). Include the task packet from `docs/planning/agent-tasks.md` when the work maps to a numbered task.
+   - Checklist: `docs/planning/agent-tasks.md` §0.6 plus `.cursor/rules/00-project.mdc` (tenant scoping, no AI arithmetic, services layer, RLS, no new deps without justification, security/IDOR).
+   - Output: **PASS** or **FAIL** with concrete file:line issues ranked by severity.
+3. If **FAIL**: fix blocking and agreed should-fix items on the **same branch**, push, re-run CI, and **run Sonnet review again** on the updated diff.
+4. **UI / app changes**: after review fixes, do a signed-in browser pass on the affected routes when possible (not only “redirects to login”).
+
+## Merge gate
+
+Merge only when CI is green and the latest Sonnet review is **PASS**, or the user explicitly overrides after reading the FAIL list.

@@ -138,7 +138,7 @@ function EditableLineRow({
           />
         </td>
         <td className="whitespace-nowrap px-3 py-2 font-medium">{cad(preview)}</td>
-        <td className="px-2 py-2">
+        <td className="sticky right-0 bg-card px-2 py-2 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.35)]">
           <div className="flex items-center gap-1">
             <form id={formId} action={action}>
               {existing ? <input type="hidden" name="id" value={line.id} /> : null}
@@ -211,14 +211,19 @@ function PersistLineEditor({
   lockedIds?: string[];
 }) {
   const [drafts, setDrafts] = useState<DraftLine[]>([]);
-  const locked = new Set(lockedIds);
-  const totals = useMemo(() => computeTotals([...lines, ...drafts], taxRate), [lines, drafts, taxRate]);
+  const locked = useMemo(() => new Set(lockedIds), [lockedIds]);
+  const billableLines = useMemo(
+    () => (documentId ? lines : lines.filter((line) => !locked.has(line.id))),
+    [documentId, lines, locked],
+  );
+  const totals = useMemo(() => computeTotals(billableLines, taxRate), [billableLines, taxRate]);
   const showTax = taxRate > 0;
+  const subtotalLabel = documentId ? "Subtotal" : "Unbilled subtotal";
 
   return (
     <div className="space-y-3">
       <div className="overflow-x-auto rounded-xl border border-line">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-paper text-left text-muted">
             <tr>
               <th className="px-3 py-2 font-medium">Type</th>
@@ -227,7 +232,7 @@ function PersistLineEditor({
               <th className="px-3 py-2 font-medium">Unit</th>
               <th className="px-3 py-2 font-medium">Price</th>
               <th className="px-3 py-2 font-medium">Line</th>
-              <th className="px-3 py-2" />
+              <th className="sticky right-0 bg-paper px-3 py-2" />
             </tr>
           </thead>
           <tbody>
@@ -278,7 +283,7 @@ function PersistLineEditor({
       </div>
       <dl className="ml-auto w-full max-w-xs space-y-1 text-sm">
         <div className="flex justify-between">
-          <dt>Subtotal</dt>
+          <dt>{subtotalLabel}</dt>
           <dd>{cad(totals.subtotal)}</dd>
         </div>
         {showTax ? (
@@ -290,7 +295,7 @@ function PersistLineEditor({
           </div>
         ) : null}
         <div className="flex justify-between border-t border-line pt-2 text-base font-semibold">
-          <dt>Total</dt>
+          <dt>{documentId ? "Total" : "Unbilled total"}</dt>
           <dd>{cad(totals.total)}</dd>
         </div>
       </dl>

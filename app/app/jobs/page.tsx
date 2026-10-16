@@ -74,7 +74,6 @@ export default async function JobsPage() {
               { label: "Status", value: job.status, status: job.status },
               { label: "Unbilled", value: cad(job.unbilledTotal) },
               { label: "Site address", value: job.siteAddress || "—" },
-              { label: "Target date", value: formatDisplayDate(job.targetDate) },
               { label: "Created", value: formatDisplayDate(job.createdAt) },
               { label: "Notes", value: previewText(job.notes) },
             ],

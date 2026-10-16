@@ -23,6 +23,10 @@ async function ctx() {
   return { db: await ensureDb(), contractorId: contractor.id };
 }
 
+function redirectDocumentError(documentId: string, code: string) {
+  redirect(`/app/documents/${documentId}?error=${code}`);
+}
+
 export async function createDraftDocumentAction(formData: FormData) {
   const parsed = createDraftDocumentSchema.safeParse({ jobId: formText(formData, "jobId"), type: formText(formData, "type") });
   if (!parsed.success) throw new Error("Invalid input.");
@@ -48,21 +52,42 @@ export async function setDocumentStatusAction(formData: FormData) {
   const documentId = formText(formData, "documentId");
   const next = formText(formData, "next");
   if (!documentId || !next) throw new Error("Invalid input.");
-  await setDocumentStatus(await ctx(), documentId, next as DocStatus);
-  revalidatePath(`/app/documents/${documentId}`);
+  try {
+    await setDocumentStatus(await ctx(), documentId, next as DocStatus);
+    revalidatePath(`/app/documents/${documentId}`);
+    redirect(`/app/documents/${documentId}`);
+  } catch (error) {
+    if (error instanceof ValidationError || error instanceof ConflictError || error instanceof NotFoundError) {
+      redirectDocumentError(documentId, "status");
+    }
+    throw error;
+  }
 }
 
 export async function createInvoiceFromQuoteAction(formData: FormData) {
   const quoteId = formText(formData, "quoteId");
   if (!quoteId) throw new Error("Invalid input.");
-  redirect(`/app/documents/${await createInvoiceFromQuote(await ctx(), quoteId)}`);
+  try {
+    const invoiceId = await createInvoiceFromQuote(await ctx(), quoteId);
+    revalidatePath("/app/documents");
+    revalidatePath(`/app/documents/${quoteId}`);
+    redirect(`/app/documents/${invoiceId}`);
+  } catch (error) {
+    if (error instanceof ValidationError || error instanceof ConflictError || error instanceof NotFoundError) {
+      redirectDocumentError(quoteId, "invoice");
+    }
+    throw error;
+  }
 }
 
 export async function createInvoiceFromTrackedLinesAction(formData: FormData) {
   const jobId = formText(formData, "jobId");
   if (!jobId) throw new Error("Invalid input.");
   try {
-    redirect(`/app/documents/${await createInvoiceFromTrackedLines(await ctx(), jobId)}`);
+    const invoiceId = await createInvoiceFromTrackedLines(await ctx(), jobId);
+    revalidatePath("/app/documents");
+    revalidatePath(`/app/jobs/${jobId}`);
+    redirect(`/app/documents/${invoiceId}`);
   } catch (error) {
     if (error instanceof ValidationError) redirect(`/app/jobs/${jobId}?error=nothing-to-bill`);
     throw error;
@@ -72,8 +97,16 @@ export async function createInvoiceFromTrackedLinesAction(formData: FormData) {
 export async function addTrackedLinesToInvoiceAction(formData: FormData) {
   const documentId = formText(formData, "documentId");
   if (!documentId) throw new Error("Invalid input.");
-  await addTrackedLinesToInvoice(await ctx(), documentId);
-  redirect(`/app/documents/${documentId}`);
+  try {
+    await addTrackedLinesToInvoice(await ctx(), documentId);
+    revalidatePath(`/app/documents/${documentId}`);
+    redirect(`/app/documents/${documentId}`);
+  } catch (error) {
+    if (error instanceof ValidationError || error instanceof ConflictError || error instanceof NotFoundError) {
+      redirectDocumentError(documentId, "tracked");
+    }
+    throw error;
+  }
 }
 
 export async function deleteDraftDocumentAction(formData: FormData) {
@@ -81,8 +114,16 @@ export async function deleteDraftDocumentAction(formData: FormData) {
   if (!documentId) return;
   try {
     await deleteDraftDocument(await ctx(), documentId);
-    redirect("/app/documents");
-  } catch {
-    return;
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      // Already deleted — still send the user to the list.
+    } else if (error instanceof ConflictError) {
+      redirectDocumentError(documentId, "not-draft");
+    } else {
+      throw error;
+    }
   }
+  revalidatePath("/app/documents");
+  revalidatePath(`/app/documents/${documentId}`);
+  redirect("/app/documents");
 }

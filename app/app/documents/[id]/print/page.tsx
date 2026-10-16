@@ -41,6 +41,11 @@ export default async function DocumentPrintPage({ params }: { params: Promise<{ 
           }))}
           contractor={contractor}
           logoUrl={user?.image}
+          storedTotals={{
+            subtotal: document.subtotal,
+            tax: document.tax,
+            total: document.total,
+          }}
         />
       </div>
     </div>

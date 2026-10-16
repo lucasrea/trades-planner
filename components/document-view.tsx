@@ -13,8 +13,9 @@ import {
   saveDocumentAction,
   setDocumentStatusAction,
 } from "@/lib/actions/documents";
+import { FormSubmitButton } from "@/components/form-submit";
 import { buildMailto, type DocType } from "@/lib/documents";
-import { formatDisplayDate } from "@/lib/format";
+import { formatDisplayDate, formatTaxRateLabel } from "@/lib/format";
 import { cad, type LineKind } from "@/lib/money";
 
 const kindLabel: Record<string, string> = {
@@ -63,7 +64,7 @@ function StatusButton({
     <form action={setDocumentStatusAction}>
       <input type="hidden" name="documentId" value={documentId} />
       <input type="hidden" name="next" value={next} />
-      <button className={className}>{label}</button>
+      <FormSubmitButton label={label} className={className} />
     </form>
   );
 }
@@ -171,13 +172,17 @@ export function DocumentView({
         {isQuote && document.status === "approved" ? (
           <form action={createInvoiceFromQuoteAction}>
             <input type="hidden" name="quoteId" value={document.id} />
-            <button className="btn btn-primary">Create invoice</button>
+            <FormSubmitButton label="Create invoice" pendingLabel="Creating…" className="btn btn-primary" />
           </form>
         ) : null}
         {!isQuote && draft && unbilledCount > 0 ? (
           <form action={addTrackedLinesToInvoiceAction}>
             <input type="hidden" name="documentId" value={document.id} />
-            <button className="btn btn-navy">Add unbilled job lines ({unbilledCount})</button>
+            <FormSubmitButton
+              label={`Add unbilled job lines (${unbilledCount})`}
+              pendingLabel="Adding…"
+              className="btn btn-navy"
+            />
           </form>
         ) : null}
         {!isQuote && document.status === "sent" ? (
@@ -186,7 +191,7 @@ export function DocumentView({
         {draft ? (
           <form action={deleteDraftDocumentAction}>
             <input type="hidden" name="documentId" value={document.id} />
-            <button className="btn btn-ghost">Delete draft</button>
+            <FormSubmitButton label="Delete draft" pendingLabel="Deleting…" className="btn btn-ghost" />
           </form>
         ) : null}
         {mailto ? (
@@ -285,9 +290,7 @@ export function DocumentView({
             </div>
             {showTax ? (
               <div className="flex justify-between text-muted">
-                <dt>
-                  {taxLabel} ({Math.round(taxRate * 1000) / 10}%)
-                </dt>
+                <dt>{formatTaxRateLabel(taxLabel, document.subtotal, document.tax, taxRate)}</dt>
                 <dd className="tabular-nums">{cad(document.tax)}</dd>
               </div>
             ) : null}

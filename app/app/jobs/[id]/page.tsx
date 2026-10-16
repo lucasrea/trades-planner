@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { PageHeader, RelatedList } from "@/components/app-shell";
 import { JobStatusForm } from "@/components/job-form";
 import { LineEditor } from "@/components/line-editor";
-import { createDraftDocumentAction, createInvoiceFromTrackedLinesAction } from "@/lib/actions/documents";
+import { JobDocumentActions } from "@/components/job-document-actions";
 import { getContractor } from "@/lib/auth";
 import { type LineKind } from "@/lib/money";
 import { getJob, getJobDocuments, getTrackedLines } from "@/lib/queries";
@@ -36,24 +36,7 @@ export default async function JobDetailPage({
         title={job.title}
         subtitle={job.client?.name}
         back={{ href: "/app/jobs", label: "Jobs" }}
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <form action={createDraftDocumentAction}>
-              <input type="hidden" name="jobId" value={job.id} />
-              <input type="hidden" name="type" value="quote" />
-              <button className="btn btn-primary">New quote</button>
-            </form>
-            <form action={createDraftDocumentAction}>
-              <input type="hidden" name="jobId" value={job.id} />
-              <input type="hidden" name="type" value="invoice" />
-              <button className="btn btn-navy">New invoice</button>
-            </form>
-            <form action={createInvoiceFromTrackedLinesAction}>
-              <input type="hidden" name="jobId" value={job.id} />
-              <button className="btn btn-ghost">Create invoice from tracked lines</button>
-            </form>
-          </div>
-        }
+        action={<JobDocumentActions jobId={job.id} />}
       />
       {error === "nothing-to-bill" ? (
         <p className="text-sm text-accent" role="alert">

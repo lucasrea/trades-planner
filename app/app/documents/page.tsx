@@ -2,7 +2,7 @@ import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/app-shell";
 import { ExpandableListTable } from "@/components/expandable-list-table";
 import { isOverdue, type DocStatus, type DocType } from "@/lib/documents";
-import { formatDisplayDate, previewText } from "@/lib/format";
+import { calendarDateInTimeZone, formatDisplayDate, previewText } from "@/lib/format";
 import { cad } from "@/lib/money";
 import { getDocuments, type DocumentListFilter } from "@/lib/queries";
 import { statusLabel } from "@/lib/status";
@@ -55,7 +55,7 @@ export default async function DocumentsPage({
   const type = typeParam === "quote" || typeParam === "invoice" ? typeParam : undefined;
   const allowed = statusesFor(type);
   const status = statusParam && (allowed as readonly string[]).includes(statusParam) ? statusParam : undefined;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = calendarDateInTimeZone();
   const { items, nextCursor } = await getDocuments({ type, status }, cursor);
   const filtered = Boolean(type || status);
 

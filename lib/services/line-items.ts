@@ -23,13 +23,16 @@ async function saveLine(ctx: ServiceContext, input: SaveLineInput) {
   const row = toLineRow({ ...input, unitPrice: input.unitPrice! });
   if (input.documentId) {
     const doc = await requireDocument(ctx.db, ctx.contractorId, input.documentId);
+    if (doc.jobId !== input.jobId) throw new ValidationError("Line job does not match document job.");
     if (isLocked(doc.status as DocStatus)) throw new ConflictError("Document is locked.");
   }
   if (input.id) {
     const [existing] = await ctx.db.select().from(lineItems).where(and(eq(lineItems.id, input.id), eq(lineItems.contractorId, ctx.contractorId))).limit(1);
     if (!existing) throw new NotFoundError("Line not found.");
+    if (input.jobId !== existing.jobId) throw new ValidationError("Line job does not match.");
     if (existing.documentId) {
       const doc = await requireDocument(ctx.db, ctx.contractorId, existing.documentId);
+      if (doc.jobId !== input.jobId) throw new ValidationError("Line job does not match document job.");
       if (isLocked(doc.status as DocStatus)) throw new ConflictError("Document is locked.");
     } else if (existing.billedDocumentId) throw new ConflictError("Billed tracked line cannot be edited.");
     await ctx.db.transaction(async (tx) => {

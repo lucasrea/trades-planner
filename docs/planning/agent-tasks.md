@@ -21,7 +21,7 @@ Put this file at `docs/planning/agent-tasks.md`.
 3. Paste the whole packet (from its `###` heading to its **Commit** line) and add one line: *"Do only this task. Start with a short plan, then implement."*
 4. Review the plan quickly. If it plans anything outside the packet, say so before it codes.
 5. When the agent finishes, run the **Done when** commands yourself. Skim the diff for scope creep (files that are not in the packet).
-6. Optional but recommended: open a second fresh chat and paste the **reviewer prompt** (0.6) with the diff.
+6. **Required:** after opening a PR (`gh pr create`), launch an independent **Sonnet 5.5** review per `.cursor/rules/01-pr-review.mdc` (Task tool, read-only, §0.6 checklist). Fix FAIL items before merge.
 7. Commit, merge, move on. If a task fails twice, split it further instead of re-prompting harder (0.7).
 
 ### 0.3 Sizes

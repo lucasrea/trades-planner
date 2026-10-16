@@ -20,6 +20,7 @@ export function JobForm({
   const [state, formAction, pending] = useActionState(saveJobAction, null);
   const hasClients = clients.length > 0;
   const [mode, setMode] = useState<"existing" | "new">(hasClients ? "existing" : "new");
+  const saved = Boolean(state && "ok" in state && state.ok && "jobId" in state && state.jobId);
 
   useEffect(() => {
     if (state && "jobId" in state && state.ok && state.jobId) {
@@ -84,8 +85,8 @@ export function JobForm({
       </Field>
       <ActionError state={state && "error" in state ? state : null} />
       <div className="flex flex-wrap gap-2">
-        <button className="btn btn-primary" disabled={pending}>
-          {pending ? "Saving…" : "Save job"}
+        <button className="btn btn-primary" disabled={pending || saved}>
+          {pending ? "Saving…" : saved ? "Saved" : "Save job"}
         </button>
         <Link href="/app/jobs" className="btn btn-ghost">
           Cancel

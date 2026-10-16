@@ -1,3 +1,4 @@
+import { formatDisplayDate, formatTaxRateLabel } from "@/lib/format";
 import { cad, computeTotals, lineTotal, type DraftLine, type LineKind } from "@/lib/money";
 
 type Party = {
@@ -22,17 +23,6 @@ const docTitle = {
   Quote: "Quote",
   Invoice: "Invoice",
 } as const;
-
-function formatDocDate(value?: string | null) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-CA", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
 
 function logoInitials(businessName: string) {
   const parts = businessName.trim().split(/\s+/).filter(Boolean);
@@ -81,6 +71,7 @@ export function PrintDocument({
   lines,
   contractor,
   logoUrl,
+  storedTotals,
 }: {
   kind: "Quote" | "Invoice";
   number: string;
@@ -94,12 +85,14 @@ export function PrintDocument({
   lines: DraftLine[];
   contractor: Party;
   logoUrl?: string;
+  storedTotals?: { subtotal: number; tax: number; total: number };
 }) {
-  const totals = computeTotals(lines, contractor.taxRate);
-  const issued = formatDocDate(
-    issueDate != null ? new Date(issueDate).toISOString().slice(0, 10) : null,
-  );
-  const secondaryDate = formatDocDate(dateValue);
+  const computed = computeTotals(lines, contractor.taxRate);
+  const totals = storedTotals ?? computed;
+  const issuedRaw = formatDisplayDate(issueDate, { month: "long" });
+  const issued = issuedRaw === "—" ? null : issuedRaw;
+  const secondaryRaw = formatDisplayDate(dateValue, { month: "long" });
+  const secondaryDate = secondaryRaw === "—" ? null : secondaryRaw;
   const title = docTitle[kind];
 
   return (
@@ -227,7 +220,12 @@ export function PrintDocument({
           </div>
           <div className="flex justify-between text-stone-600">
             <span>
-              {contractor.taxLabel} ({Math.round(contractor.taxRate * 1000) / 10}%)
+              {formatTaxRateLabel(
+                contractor.taxLabel,
+                totals.subtotal,
+                totals.tax,
+                contractor.taxRate,
+              )}
             </span>
             <span className="tabular-nums text-stone-900">{cad(totals.tax)}</span>
           </div>
@@ -252,10 +250,10 @@ export function PrintDocument({
       {kind === "Quote" && secondaryDate ? (
         <div className="mx-10 mb-6 border-t border-stone-200 pt-6 text-sm leading-relaxed text-stone-600 print:mx-0">
           <p>
-            This quotation is valid until{" "}
+            This quote is valid until{" "}
             <span className="font-medium text-stone-900">{secondaryDate}</span>. All amounts are
             stated in Canadian dollars and reflect the scope of work described above. Additional
-            work or material changes will be subject to a revised quotation.
+            work or material changes will be subject to a revised quote.
           </p>
         </div>
       ) : null}
@@ -271,7 +269,7 @@ export function PrintDocument({
 
       <div className="border-t border-stone-200 px-10 py-5 text-center text-xs text-stone-500 print:px-0">
         {kind === "Quote"
-          ? "We appreciate the opportunity to provide this quotation."
+          ? "We appreciate the opportunity to provide this quote."
           : "Thank you for your prompt payment."}
       </div>
     </div>
