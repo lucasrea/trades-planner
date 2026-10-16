@@ -6,7 +6,7 @@ export type DescribeLine = {
   quantity: number;
   unit: string;
   unit_price: number | null;
-  uncertain?: boolean;
+  uncertain?: boolean | null;
 };
 
 export type DescribeExtraction = {
