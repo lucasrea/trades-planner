@@ -1,0 +1,22 @@
+---
+description: Trades Planner project rules
+alwaysApply: true
+---
+Project: Trades Planner (github.com/lucasrea/trades-planner). Next.js 16 App Router, React 19, Tailwind 4, NextAuth v5 (Google), Drizzle ORM + postgres.js on Supabase Postgres, Vitest. Default branch: master. Work branch: v2-simplify. Node 20.
+Read AGENTS.md first. Next.js 16 has breaking changes; read node_modules/next/dist/docs/ before writing Next-specific code.
+We are executing a planned rewrite described in docs/planning/v2-design.md (split into docs/planning/v2/*.md). You are doing ONE task from docs/planning/agent-tasks.md. Do only that task.
+
+Rules:
+- Every DB query is scoped by contractor_id. Every server action / route handler resolves the session (getContractor()/requireSession()) and verifies ownership of any id it receives.
+- The AI never does arithmetic that appears on a document. Totals, tax and rounding come only from lib/money.ts (roundMoney, cad, computeTotals/documentTotals, applyMarkup, padNumber).
+- The AI never writes to the DB directly: model output is stored on a captures row, shown for review, and only becomes lines/documents when the user confirms.
+- Business logic lives in lib/services/* as functions taking { db, contractorId, ... }. Server Actions and API route handlers are thin adapters.
+- Pure core modules (lib/money.ts, lib/line-items.ts, lib/documents.ts, lib/billing.ts, lib/ai/schemas.ts) must not import Next, React or the DB.
+- Quotes and invoices share one documents table, one component set and one set of routes.
+- Billing is enforced in exactly one place: requireActiveAccess(). Never add plan checks elsewhere.
+- Every migration that creates a table also enables Row Level Security on it. Migrations are forward-only SQL in supabase/migrations/; never edit an applied migration.
+- No new dependencies without a one-line justification in the report. Never call paid or external providers (AI, Stripe, email) from tests; use the provider fakes.
+- Prefer deleting code over adding abstractions. If it is not in the task, do not build it. Do not refactor unrelated code.
+
+Process: (1) read the listed docs and files; (2) reply with a short plan (files to change, risks, ambiguities) and proceed unless blocked; (3) implement; (4) run: npm run lint && npm run typecheck && npm test && npm run build (and npm run test:integration once it exists); (5) final report: what changed, files touched, tests added, commands run with results, deviations from the packet, follow-ups discovered.
+If something is ambiguous: choose the simplest option consistent with the design doc, note it in the report, and do not expand scope.
