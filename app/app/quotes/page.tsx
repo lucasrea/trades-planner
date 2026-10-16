@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/app-shell";
 import { ExpandableListTable } from "@/components/expandable-list-table";
-import { duplicateQuoteAction } from "@/lib/actions/data";
 import { formatDisplayDate, previewText } from "@/lib/format";
 import { getQuotes } from "@/lib/queries";
 import { cad } from "@/lib/money";
@@ -52,7 +51,6 @@ export default async function QuotesPage() {
                     label: "View as PDF",
                     external: true,
                   },
-                  { kind: "form", action: duplicateQuoteAction, id: q.id, label: "Duplicate" },
                 ],
               },
             ],

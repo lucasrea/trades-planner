@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader, RelatedList } from "@/components/app-shell";
-import { DuplicateButton } from "@/components/duplicate-button";
 import { JobCostsForm } from "@/components/job-costs-form";
 import { JobForm } from "@/components/job-form";
-import { duplicateJobAction, invoiceFromJobAction } from "@/lib/actions/data";
+import { invoiceFromJobAction } from "@/lib/actions/data";
 import { getContractor } from "@/lib/auth";
 import { getClients, getJob, getJobCosts, getJobDocuments } from "@/lib/queries";
 
@@ -34,7 +33,6 @@ export default async function JobDetailPage({
         back={{ href: "/app/jobs", label: "Jobs" }}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <DuplicateButton action={duplicateJobAction} id={job.id} />
             <form action={invoiceFromJobAction}>
               <input type="hidden" name="jobId" value={job.id} />
               <button className="btn btn-navy">Create invoice</button>

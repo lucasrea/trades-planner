@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/app-shell";
 import { ExpandableListTable } from "@/components/expandable-list-table";
-import { duplicateJobAction } from "@/lib/actions/data";
 import { formatDisplayDate, previewText } from "@/lib/format";
 import { getJobs } from "@/lib/queries";
 
@@ -54,7 +53,6 @@ export default async function JobsPage() {
                     href: `/app/quotes/new?clientId=${job.clientId}&jobId=${job.id}`,
                     label: "New quote",
                   },
-                  { kind: "form", action: duplicateJobAction, id: job.id, label: "Duplicate" },
                 ],
               },
             ],

@@ -2,9 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app-shell";
 import { DocumentForm } from "@/components/document-form";
-import { DuplicateButton } from "@/components/duplicate-button";
 import { StatusBadge } from "@/components/status-badge";
-import { duplicateQuoteAction, invoiceFromQuoteAction } from "@/lib/actions/data";
+import { invoiceFromQuoteAction } from "@/lib/actions/data";
 import { getContractor } from "@/lib/auth";
 import { getClients, getJobs, getQuote } from "@/lib/queries";
 
@@ -31,7 +30,6 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
             >
               View as PDF
             </Link>
-            <DuplicateButton action={duplicateQuoteAction} id={quote.id} />
             <form action={invoiceFromQuoteAction}>
               <input type="hidden" name="quoteId" value={quote.id} />
               <button className="btn btn-navy">Create invoice</button>

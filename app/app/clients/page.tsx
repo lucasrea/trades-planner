@@ -11,16 +11,9 @@ export default async function ClientsPage() {
         title="Clients"
         subtitle="People you quote and invoice."
         action={
-          <>
-            {rows.length > 0 ? (
-              <a href="/api/clients/export" className="btn btn-ghost">
-                Export CSV
-              </a>
-            ) : null}
-            <Link href="/app/clients/new" className="btn btn-primary">
-              Add client
-            </Link>
-          </>
+          <Link href="/app/clients/new" className="btn btn-primary">
+            Add client
+          </Link>
         }
       />
       {rows.length === 0 ? (
