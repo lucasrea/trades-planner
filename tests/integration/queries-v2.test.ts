@@ -43,6 +43,7 @@ describe("v2 queries", () => {
       createdAt: Date.now(),
     });
     expect(await getCaptureForContractor(db, a.contractorId, captureId)).toBeNull();
-    expect(await getCaptureForContractor(db, b.contractorId, captureId)?.id).toBe(captureId);
+    const owned = await getCaptureForContractor(db, b.contractorId, captureId);
+    expect(owned?.id).toBe(captureId);
   });
 });
