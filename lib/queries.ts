@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getContractor } from "@/lib/auth";
 import { ensureDb } from "@/lib/db";
 import {
@@ -7,6 +7,7 @@ import {
   invoices,
   jobs,
   jobCosts,
+  lineItems,
   quoteLineItems,
   quotes,
 } from "@/lib/db/schema";
@@ -62,7 +63,28 @@ export async function getJobs() {
     )
     .where(eq(jobs.contractorId, contractor.id))
     .orderBy(desc(jobs.createdAt));
-  return rows.map(({ job, client }) => ({ ...job, client }));
+  const mapped = rows.map(({ job, client }) => ({ ...job, client }));
+  const jobIds = mapped.map((job) => job.id);
+  const unbilledByJob = new Map<string, number>();
+  if (jobIds.length) {
+    const totals = await db
+      .select({
+        jobId: lineItems.jobId,
+        unbilled: sql<number>`coalesce(sum(${lineItems.lineTotal}), 0)`.mapWith(Number),
+      })
+      .from(lineItems)
+      .where(
+        and(
+          eq(lineItems.contractorId, contractor.id),
+          inArray(lineItems.jobId, jobIds),
+          isNull(lineItems.documentId),
+          isNull(lineItems.billedDocumentId),
+        ),
+      )
+      .groupBy(lineItems.jobId);
+    for (const row of totals) unbilledByJob.set(row.jobId, row.unbilled);
+  }
+  return mapped.map((job) => ({ ...job, unbilledTotal: unbilledByJob.get(job.id) ?? 0 }));
 }
 
 export async function getJob(id: string) {

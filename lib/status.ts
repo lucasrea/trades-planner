@@ -11,6 +11,7 @@ export function statusClass(status: string) {
     case "approved":
     case "paid":
     case "active":
+    case "done":
     case "completed":
       return "bg-lime-950/60 text-lime-400 ring-1 ring-lime-900/50";
     case "sent":

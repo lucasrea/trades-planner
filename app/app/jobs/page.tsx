@@ -2,10 +2,15 @@ import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/app-shell";
 import { ExpandableListTable } from "@/components/expandable-list-table";
 import { formatDisplayDate, previewText } from "@/lib/format";
+import { cad } from "@/lib/money";
 import { getJobs } from "@/lib/queries";
 
+const statusRank: Record<string, number> = { active: 0, quoted: 1, done: 2 };
+
 export default async function JobsPage() {
-  const rows = await getJobs();
+  const rows = (await getJobs())
+    .slice()
+    .sort((a, b) => (statusRank[a.status] ?? 9) - (statusRank[b.status] ?? 9) || b.updatedAt - a.updatedAt);
   return (
     <div>
       <PageHeader
@@ -30,6 +35,7 @@ export default async function JobsPage() {
             { label: "Job" },
             { label: "Client" },
             { label: "Status" },
+            { label: "Unbilled", align: "right" },
             { label: "Site" },
             { label: "Actions", align: "right" },
           ]}
@@ -40,6 +46,11 @@ export default async function JobsPage() {
             cells: [
               { kind: "text", value: job.client?.name || "—", className: "text-muted" },
               { kind: "status", status: job.status },
+              {
+                kind: "text",
+                value: cad(job.unbilledTotal),
+                className: "block text-right tabular-nums",
+              },
               {
                 kind: "text",
                 value: job.siteAddress || "—",
@@ -61,6 +72,7 @@ export default async function JobsPage() {
               { label: "Client email", value: job.client?.email || "—" },
               { label: "Client phone", value: job.client?.phone || "—" },
               { label: "Status", value: job.status, status: job.status },
+              { label: "Unbilled", value: cad(job.unbilledTotal) },
               { label: "Site address", value: job.siteAddress || "—" },
               { label: "Target date", value: formatDisplayDate(job.targetDate) },
               { label: "Created", value: formatDisplayDate(job.createdAt) },

@@ -1,78 +1,123 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ActionError } from "@/components/action-error";
 import { Field } from "@/components/app-shell";
-import { useActionRedirect } from "@/components/use-action-redirect";
-import { saveJobAction } from "@/lib/actions/data";
+import { saveJobAction, setJobStatusAction } from "@/lib/actions/jobs";
+
+const jobStatusOptions = ["quoted", "active", "done"] as const;
 
 export function JobForm({
   clients,
   initial,
 }: {
   clients: { id: string; name: string }[];
-  initial?: {
-    id?: string;
-    title?: string;
-    clientId?: string;
-    status?: string;
-    siteAddress?: string;
-    notes?: string;
-    targetDate?: string | null;
-  };
+  initial?: { clientId?: string };
 }) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(saveJobAction, null);
-  useActionRedirect(state);
-  const editing = Boolean(initial?.id);
+  const hasClients = clients.length > 0;
+  const [mode, setMode] = useState<"existing" | "new">(hasClients ? "existing" : "new");
+
+  useEffect(() => {
+    if (state && "jobId" in state && state.ok && state.jobId) {
+      router.push(`/app/jobs/${state.jobId}`);
+    }
+  }, [state, router]);
 
   return (
     <form action={formAction} className="card max-w-xl space-y-4 p-6">
-      {editing ? <input type="hidden" name="id" value={initial!.id} /> : null}
       <Field label="Title">
-        <input className="input" name="title" required defaultValue={initial?.title} placeholder="Kitchen rough-in" />
+        <input className="input" name="title" required placeholder="Kitchen rough-in" />
       </Field>
-      <Field label="Client">
-        <select className="input" name="clientId" required defaultValue={initial?.clientId || ""}>
-          <option value="">Select client</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={mode === "existing" ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
+          disabled={!hasClients}
+          onClick={() => setMode("existing")}
+        >
+          Existing client
+        </button>
+        <button
+          type="button"
+          className={mode === "new" ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
+          onClick={() => setMode("new")}
+        >
+          New client
+        </button>
+      </div>
+      {mode === "existing" ? (
+        <Field label="Client">
+          <select className="input" name="clientId" required defaultValue={initial?.clientId || ""}>
+            <option value="">Select client</option>
+            {clients.map((client) => (
+              <option key={client.id} value={client.id}>
+                {client.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      ) : (
+        <>
+          <Field label="Client name">
+            <input className="input" name="clientName" required placeholder="Patel" />
+          </Field>
+          <Field label="Email">
+            <input className="input" type="email" name="clientEmail" placeholder="patel@example.com" />
+          </Field>
+          <Field label="Phone">
+            <input className="input" name="clientPhone" placeholder="555-0100" />
+          </Field>
+          <Field label="Billing address">
+            <textarea className="input min-h-20" name="clientBillingAddress" placeholder="Where invoices are sent" />
+          </Field>
+        </>
+      )}
+      <Field label="Job site address">
+        <textarea className="input min-h-20" name="siteAddress" placeholder="Where the work happens" />
+      </Field>
+      <Field label="Notes">
+        <textarea className="input min-h-20" name="notes" />
+      </Field>
+      <ActionError state={state && "error" in state ? state : null} />
+      <div className="flex flex-wrap gap-2">
+        <button className="btn btn-primary" disabled={pending}>
+          {pending ? "Saving…" : "Save job"}
+        </button>
+        <Link href="/app/jobs" className="btn btn-ghost">
+          Cancel
+        </Link>
+      </div>
+    </form>
+  );
+}
+
+export function JobStatusForm({ jobId, status }: { jobId: string; status: string }) {
+  const [state, action, pending] = useActionState(setJobStatusAction, null);
+  const known = (jobStatusOptions as readonly string[]).includes(status);
+
+  return (
+    <form action={action} className="space-y-2">
+      <input type="hidden" name="jobId" value={jobId} />
+      <Field label="Status">
+        <select className="input" name="status" defaultValue={known ? status : "quoted"}>
+          {jobStatusOptions.map((value) => (
+            <option key={value} value={value}>
+              {value.charAt(0).toUpperCase() + value.slice(1)}
             </option>
           ))}
         </select>
       </Field>
-      <Field label="Status">
-        <select className="input" name="status" defaultValue={initial?.status || "quoted"}>
-          <option value="quoted">Quoted</option>
-          <option value="active">Active</option>
-          <option value="completed">Completed</option>
-          <option value="archived">Archived</option>
-        </select>
-      </Field>
-      <Field label="Job site address">
-        <textarea
-          className="input min-h-20"
-          name="siteAddress"
-          defaultValue={initial?.siteAddress}
-          placeholder="Where the work happens — can differ from billing"
-        />
-      </Field>
-      <Field label="Target date">
-        <input className="input" type="date" name="targetDate" defaultValue={initial?.targetDate || ""} />
-      </Field>
-      <Field label="Notes">
-        <textarea className="input min-h-20" name="notes" defaultValue={initial?.notes} />
-      </Field>
+      {known ? null : (
+        <p className="text-sm text-muted">This job is marked {status}. Choose quoted, active, or done.</p>
+      )}
       <ActionError state={state} />
-      <div className="flex flex-wrap gap-2">
-        <button className="btn btn-primary" disabled={pending}>
-          {pending ? "Saving…" : editing ? "Save changes" : "Save job"}
-        </button>
-        <Link href={editing && initial?.id ? `/app/jobs/${initial.id}` : "/app/jobs"} className="btn btn-ghost">
-          Cancel
-        </Link>
-      </div>
+      <button className="btn btn-ghost btn-sm" disabled={pending}>
+        {pending ? "Saving…" : "Update status"}
+      </button>
     </form>
   );
 }
