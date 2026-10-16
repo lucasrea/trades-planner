@@ -196,7 +196,12 @@ export function DocumentView({
         ) : (
           <span className="self-center text-sm text-muted">No client email</span>
         )}
-        <Link href={`/app/documents/${document.id}/print`} className="btn btn-ghost">
+        <Link
+          href={`/app/documents/${document.id}/print`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-ghost"
+        >
           Print
         </Link>
       </div>

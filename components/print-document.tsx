@@ -19,7 +19,7 @@ const kindLabel: Record<LineKind, string> = {
 };
 
 const docTitle = {
-  Quote: "Quotation",
+  Quote: "Quote",
   Invoice: "Invoice",
 } as const;
 
