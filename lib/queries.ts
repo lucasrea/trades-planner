@@ -203,21 +203,3 @@ export async function getJobDocuments(jobId: string) {
   return { quotes: quoteRows, invoices: invoiceRows };
 }
 
-export async function getDashboard() {
-  const contractor = await getContractor();
-  const db = await ensureDb();
-  const [clientRows, jobRows, quoteRows, invoiceRows] = await Promise.all([
-    db.select().from(clients).where(eq(clients.contractorId, contractor.id)).orderBy(desc(clients.createdAt)),
-    db.select().from(jobs).where(eq(jobs.contractorId, contractor.id)).orderBy(desc(jobs.createdAt)),
-    db.select().from(quotes).where(eq(quotes.contractorId, contractor.id)).orderBy(desc(quotes.updatedAt)),
-    db.select().from(invoices).where(eq(invoices.contractorId, contractor.id)).orderBy(desc(invoices.updatedAt)),
-  ]);
-
-  return {
-    contractor,
-    clients: clientRows,
-    jobs: jobRows,
-    quotes: quoteRows,
-    invoices: invoiceRows,
-  };
-}

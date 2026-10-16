@@ -9,7 +9,7 @@ export default async function SettingsPage() {
       <PageHeader
         title="Settings"
         subtitle="This is what prints on quotes and invoices."
-        back={{ href: "/app", label: "Dashboard" }}
+        back={{ href: "/app", label: "Home" }}
       />
       <SettingsForm contractor={contractor} />
     </div>
