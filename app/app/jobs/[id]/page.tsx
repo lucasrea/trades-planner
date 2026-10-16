@@ -5,7 +5,7 @@ import { JobCostsForm } from "@/components/job-costs-form";
 import { JobForm } from "@/components/job-form";
 import { invoiceFromJobAction } from "@/lib/actions/data";
 import { getContractor } from "@/lib/auth";
-import { getClients, getJob, getJobCosts, getJobDocuments } from "@/lib/queries";
+import { getClients, getJob, getJobCosts, getLegacyJobDocuments } from "@/lib/queries";
 
 export default async function JobDetailPage({
   params,
@@ -21,7 +21,7 @@ export default async function JobDetailPage({
   const [contractor, clients, docs, costs] = await Promise.all([
     getContractor(),
     getClients(),
-    getJobDocuments(id),
+    getLegacyJobDocuments(id),
     getJobCosts(id),
   ]);
 

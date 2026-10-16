@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "next typegen && tsc --noEmit",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },
