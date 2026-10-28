@@ -1,26 +1,18 @@
-import Link from "next/link";
-import { PageHeader } from "@/components/app-shell";
 import { CaptureBar } from "@/components/capture-bar";
+import { getJobs } from "@/lib/queries";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const jobs = (await getJobs())
+    .filter((job) => job.status === "quoted" || job.status === "active")
+    .map((job) => ({
+      id: job.id,
+      title: job.title,
+      clientName: job.client?.name ?? null,
+    }));
+
   return (
-    <div className="space-y-6">
-      <PageHeader title="Home" subtitle="Describe a job, or jump to your paperwork." />
-      <CaptureBar />
-      <ul className="card divide-y divide-line text-sm">
-        <li>
-          <Link href="/app/jobs" className="flex items-center justify-between px-5 py-4 hover:bg-paper/70">
-            <span className="font-medium">Jobs</span>
-            <span className="text-muted">Sites, tracked lines, and new drafts</span>
-          </Link>
-        </li>
-        <li>
-          <Link href="/app/documents" className="flex items-center justify-between px-5 py-4 hover:bg-paper/70">
-            <span className="font-medium">Documents</span>
-            <span className="text-muted">Quotes and invoices in one list</span>
-          </Link>
-        </li>
-      </ul>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <CaptureBar jobs={jobs} fill />
     </div>
   );
 }
