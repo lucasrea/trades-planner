@@ -45,6 +45,7 @@ jobs:
       - name: Integration tests
         run: npm run test:integration
         env:
+          DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci
           DATABASE_URL_TEST: postgres://ci:ci@127.0.0.1:5432/ci
 
       - name: Build
