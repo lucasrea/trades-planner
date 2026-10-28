@@ -1,4 +1,5 @@
 import { createLiveExtractionProvider } from "@/lib/ai/extract-describe";
+import { createLiveTranscriptionProvider } from "@/lib/ai/transcribe";
 import type { DescribeExtraction, ReceiptExtraction } from "@/lib/ai/extraction-types";
 import { ProviderError, type ExtractionProvider, type TranscriptionProvider } from "@/lib/ai/provider";
 
@@ -116,7 +117,7 @@ export function getTranscriptionProvider(): TranscriptionProvider {
   const provider = process.env.AI_PROVIDER ?? (process.env.NODE_ENV === "production" ? "live" : "fake");
   if (provider === "live") {
     assertLiveProviderAllowed();
-    throw new ProviderError("Live transcription provider is not implemented yet.");
+    return createLiveTranscriptionProvider();
   }
   return createFakeTranscriptionProvider();
 }

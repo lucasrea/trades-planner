@@ -1,0 +1,44 @@
+{
+  "id": "invoice-chen-valve",
+  "synthetic": true,
+  "note": "Synthetic example, not a customer transcript.",
+  "text": "Invoice Chen for yesterday: two hours labour and a 45 dollar valve.",
+  "context": {
+    "labourRate": 85,
+    "clients": [
+      {
+        "id": "c1",
+        "name": "Patel, Maria"
+      },
+      {
+        "id": "c2",
+        "name": "Chen, David"
+      }
+    ],
+    "openJobs": [
+      {
+        "id": "j1",
+        "title": "Kitchen rough-in",
+        "clientName": "Patel, Maria"
+      }
+    ]
+  },
+  "expected": {
+    "intent": "invoice",
+    "expectWarning": false,
+    "lines": [
+      {
+        "kind": "labour",
+        "descriptionIncludes": "labour",
+        "quantity": 2,
+        "unitPrice": null
+      },
+      {
+        "kind": "material",
+        "descriptionIncludes": "valve",
+        "quantity": 1,
+        "unitPrice": 45
+      }
+    ]
+  }
+}
