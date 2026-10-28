@@ -208,15 +208,16 @@ These were found while turning the plan into tasks. Where the design doc and thi
 | T56 | API v1 foundation | M | T55 | — |
 | T57 | API v1: resources | M | T56 | — |
 | T58 | API v1: captures, billing, account, OpenAPI | M | T57 | — |
-| T59 | Monorepo conversion | M | T58 | — |
+| T59 | Extract shared `packages/core` | M | T58, T66 | — |
 | T60 | PWA | S | T59 | iPhone |
 | T61 | Expo scaffold and sign-in | M | T59 | Apple dev, Google clients |
 | T62 | Expo capture and review | M | T61 | — |
 | T63 | Expo jobs, documents, share, settings | M | T62 | — |
 | T64 | Expo offline queue and push | M | T63 | — |
 | T65 | TestFlight, Maestro, store checklist | S | T64 | App Store Connect |
+| T66 | Workspace layout: `apps/web` and `apps/mobile` | M | T29 | — |
 
-Tasks **T01–T40 are written in full detail**. **T41–T65 are outlines**: before running each, ask an agent to expand it into a full packet (same format) using the referenced design sections and the then-current code.
+Tasks **T01–T40 and T66 are written in full detail**. **T41–T65 are outlines**: before running each, ask an agent to expand it into a full packet (same format) using the referenced design sections and the then-current code.
 
 ---
 
@@ -827,13 +828,31 @@ Before running each, ask an agent to expand the outline into a full packet in th
 | T56 | **API v1 foundation:** `getContractorFromRequest` (session cookie **or** `Authorization: Bearer`), consistent error shape, cursor pagination helper, `Idempotency-Key` table and helper (24 h), `mobile_sessions` migration, `/api/v1/auth/google|apple|refresh|logout` (verify native ID tokens with `jose`, rotate hashed refresh tokens). Contract tests. | §16.3–16.4 |
 | T57 | **API v1 resources:** me/settings, clients, jobs, lines, documents (incl. status, send, invoice-from-quote), all thin over services, `requireActiveAccess` on mutations. Contract tests per endpoint. | §16.3 |
 | T58 | **API v1 captures, billing, account, devices:** capture endpoints reuse the existing handlers' logic via shared services; `GET /billing`, checkout/portal URL endpoints; account export/delete; `POST /devices` (push token). Generate OpenAPI from the zod schemas; publish `docs/api/openapi.json`. | §16.3 |
-| T59 | **Monorepo conversion:** npm workspaces `apps/web`, `packages/core` (money, line-items, documents, billing access state, zod schemas/API types), scaffold `apps/mobile`. Full CI and Playwright green after the move; no behaviour change. | §16.5 |
+| T59 | **Extract `packages/core`.** The workspace already exists (T66). Move the pure modules (`money`, `line-items`, `documents`, `billing` access state, zod schemas and API types) from `apps/web` into `packages/core` and point both apps at that package. No behaviour change. | §16.5 |
 | T60 | **PWA:** manifest, icons, installable shell; verify mic and camera work from an iPhone home-screen install. You: iPhone. | §16.1 |
 | T61 | **Expo scaffold and sign-in:** Expo Router app, EAS config, Google and Sign in with Apple, tokens in Keychain (`expo-secure-store`), API client generated from OpenAPI, Sentry. You: Apple Developer account, OAuth clients. | §16.4–16.5 |
 | T62 | **Expo capture and review:** Home with Record (`expo-audio`), Snap (`expo-camera`/`expo-image-picker` with downscale), type-instead, and the review screen (create-as selector, client/job suggestion, line editor, confirm blocking). | §16.5 |
 | T63 | **Expo jobs, documents, share, settings:** lists and detail, share PDF via the native share sheet from `GET /documents/:id/pdf`, billing state with the Apple-compliant approach chosen (design §16.6), export and in-app account deletion. | §16.5–16.6 |
 | T64 | **Offline queue and push:** capture queue with idempotency keys (airplane-mode capture uploads exactly once on reconnect), optional push for quote decisions (`expo-notifications`, `push_tokens`). | §16.5 |
 | T65 | **TestFlight, Maestro, store checklist:** Maestro flows, TestFlight internal then external beta, App Store Connect listing, privacy label, reviewer demo account, submission and iteration. You: everything account-related. **Gate G11.** | §16.7–16.8, §17 |
+
+### T66 — Workspace layout: web app and mobile app
+`Size M · Depends T29 · Read: 16-mobile-readiness…md §16.5`
+
+Do this before more web UI if new work should land in the deployed app folder. The phone app in this task is the product shell. Live sign-in and data stay in T56–T64.
+
+**Do:**
+1. Convert the repo to **npm workspaces**. Root `package.json` lists `apps/web` and `apps/mobile` and keeps the shared scripts (`lint`, `typecheck`, `test`, `test:integration`, `build`) so they still run the web app.
+2. **`apps/web`** is the deployed unit: the current Next.js app and its server code (App Router, route handlers, server actions, `lib/services`, Drizzle). Move the existing app here. Vercel’s root directory becomes `apps/web`. No product behaviour change.
+3. **`apps/mobile`** is the phone app for the signed-in product: Expo Router with tabs for Home, Jobs, Documents, and Settings, matching the web app. No marketing landing page. Describe, new job, and settings edits do not call the API yet. Native Google sign-in, live data, the microphone, and the camera stay in T56–T64.
+4. Leave repo-level tooling where it is: `supabase/`, `docs/`, `.github/`, and the integration-test Postgres setup. Update path aliases, CI working directories, and any scripts that assume the Next app is at the repo root.
+5. Update `AGENTS.md` / `.cursor/rules/00-project.mdc` path notes so later tasks edit `apps/web`, not the old root paths.
+
+**Don’t:** extract `packages/core` (that stays T59), change web APIs, or add a second deploy target. One Vercel project, rooted at `apps/web`.
+
+**Done when:** `npm run lint && npm run typecheck && npm test && npm run build` pass from the repo root; the web app serves the same routes as before the move; the phone app typechecks and opens on the product tabs; CI is green.
+
+**Commit:** `chore(repo): workspace layout for apps/web and apps/mobile`
 
 ---
 

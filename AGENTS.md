@@ -1,9 +1,7 @@
-<!-- BEGIN:nextjs-agent-rules -->
+# Trades Planner
 
-# This is NOT the Next.js you know
+The Next.js app lives in `apps/web`. Read `apps/web/AGENTS.md` before writing Next.js code.
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+The Expo app lives in `apps/mobile`. It is the signed-in product only (Home, Jobs, Documents, Settings), not the marketing site.
 
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
+Supabase, docs, and CI stay at the repo root.

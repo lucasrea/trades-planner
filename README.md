@@ -6,7 +6,7 @@ MVP for a solo Canadian trades contractor: clients, jobs, quotes, invoices, GST/
 **Repo:** [github.com/lucasrea/trades-planner](https://github.com/lucasrea/trades-planner)  
 **Planning:** [docs/planning/trades-planner-scope.md](./docs/planning/trades-planner-scope.md)
 
-Next.js app — marketing site and logged-in app in one repo. **Supabase Postgres** for local and production (via Drizzle).
+npm workspaces. The Next.js app (marketing site and logged-in product) is `apps/web`. The Expo app in `apps/mobile` is the same signed-in product on a phone, without the marketing site. **Supabase Postgres** for local and production (via Drizzle). Vercel’s root directory is `apps/web`.
 
 ## Run locally
 
@@ -16,9 +16,10 @@ Node 20+ required.
 git clone https://github.com/lucasrea/trades-planner.git
 cd trades-planner
 npm install
-cp .env.example .env.local
+cp apps/web/.env.example apps/web/.env.local
 # Fill in .env.local (see Supabase setup below)
 npm run dev
+npm run dev:mobile
 ```
 
 Set in `.env.local`:

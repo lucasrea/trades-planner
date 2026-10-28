@@ -3,16 +3,23 @@
 # Usage: ./scripts/sync-vercel-env.sh
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+APP="$(cd "$(dirname "$0")/.." && pwd)"
+ENV_FILE="$ROOT/.env.local"
+if [[ ! -f "$ENV_FILE" ]]; then
+  ENV_FILE="$APP/.env.local"
+fi
 
-if [[ ! -f .env.local ]]; then
-  echo "Missing .env.local — copy .env.example and fill in values."
+cd "$ROOT"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Missing .env.local — copy apps/web/.env.example and fill in values."
   exit 1
 fi
 
 set -a
 # shellcheck disable=SC1091
-source .env.local
+source "$ENV_FILE"
 set +a
 
 REQUIRED=(AUTH_SECRET AUTH_URL AUTH_GOOGLE_ID AUTH_GOOGLE_SECRET DATABASE_URL)
