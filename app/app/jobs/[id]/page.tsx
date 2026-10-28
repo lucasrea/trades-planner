@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { PageHeader, RelatedList } from "@/components/app-shell";
+import { CaptureBar } from "@/components/capture-bar";
 import { JobEditForm, JobStatusForm } from "@/components/job-form";
 import { LineEditor } from "@/components/line-editor";
 import { JobDocumentActions } from "@/components/job-document-actions";
@@ -45,6 +46,7 @@ export default async function JobDetailPage({
           {notice}
         </p>
       ) : null}
+      <CaptureBar jobId={job.id} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_240px]">
         <JobEditForm
           job={{

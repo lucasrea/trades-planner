@@ -1,0 +1,44 @@
+{
+  "id": "invoice-furnace",
+  "synthetic": true,
+  "note": "Synthetic example, not a customer transcript.",
+  "text": "Invoice the furnace service: one hour labour and a 90 dollar ignitor.",
+  "context": {
+    "labourRate": 85,
+    "clients": [
+      {
+        "id": "c1",
+        "name": "Patel, Maria"
+      },
+      {
+        "id": "c2",
+        "name": "Chen, David"
+      }
+    ],
+    "openJobs": [
+      {
+        "id": "j1",
+        "title": "Kitchen rough-in",
+        "clientName": "Patel, Maria"
+      }
+    ]
+  },
+  "expected": {
+    "intent": "invoice",
+    "expectWarning": false,
+    "lines": [
+      {
+        "kind": "labour",
+        "descriptionIncludes": "furnace",
+        "quantity": 1,
+        "unitPrice": null
+      },
+      {
+        "kind": "material",
+        "descriptionIncludes": "ignitor",
+        "quantity": 1,
+        "unitPrice": 90
+      }
+    ]
+  }
+}

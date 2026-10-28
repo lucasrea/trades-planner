@@ -1,0 +1,44 @@
+{
+  "id": "site-and-scope",
+  "synthetic": true,
+  "note": "Synthetic example, not a customer transcript.",
+  "text": "Quote 14 Elm Street water heater swap, tank 900, labour four hours.",
+  "context": {
+    "labourRate": 85,
+    "clients": [
+      {
+        "id": "c1",
+        "name": "Patel, Maria"
+      },
+      {
+        "id": "c2",
+        "name": "Chen, David"
+      }
+    ],
+    "openJobs": [
+      {
+        "id": "j1",
+        "title": "Kitchen rough-in",
+        "clientName": "Patel, Maria"
+      }
+    ]
+  },
+  "expected": {
+    "intent": "quote",
+    "expectWarning": false,
+    "lines": [
+      {
+        "kind": "material",
+        "descriptionIncludes": "tank",
+        "quantity": 1,
+        "unitPrice": 900
+      },
+      {
+        "kind": "labour",
+        "descriptionIncludes": "labour",
+        "quantity": 4,
+        "unitPrice": null
+      }
+    ]
+  }
+}

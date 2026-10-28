@@ -1,0 +1,44 @@
+{
+  "id": "disposal-fee",
+  "synthetic": true,
+  "note": "Synthetic example, not a customer transcript.",
+  "text": "Quote a dump fee of 75 dollars plus one hour labour.",
+  "context": {
+    "labourRate": 85,
+    "clients": [
+      {
+        "id": "c1",
+        "name": "Patel, Maria"
+      },
+      {
+        "id": "c2",
+        "name": "Chen, David"
+      }
+    ],
+    "openJobs": [
+      {
+        "id": "j1",
+        "title": "Kitchen rough-in",
+        "clientName": "Patel, Maria"
+      }
+    ]
+  },
+  "expected": {
+    "intent": "quote",
+    "expectWarning": false,
+    "lines": [
+      {
+        "kind": "other",
+        "descriptionIncludes": "dump",
+        "quantity": 1,
+        "unitPrice": 75
+      },
+      {
+        "kind": "labour",
+        "descriptionIncludes": "labour",
+        "quantity": 1,
+        "unitPrice": null
+      }
+    ]
+  }
+}

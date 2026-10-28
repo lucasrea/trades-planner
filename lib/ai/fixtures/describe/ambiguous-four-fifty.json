@@ -1,0 +1,38 @@
+{
+  "id": "ambiguous-four-fifty",
+  "synthetic": true,
+  "note": "Synthetic example, not a customer transcript.",
+  "text": "The brass fitting was four fifty. I'm not sure if that means $4.50 or $450.",
+  "context": {
+    "labourRate": 85,
+    "clients": [
+      {
+        "id": "c1",
+        "name": "Patel, Maria"
+      },
+      {
+        "id": "c2",
+        "name": "Chen, David"
+      }
+    ],
+    "openJobs": [
+      {
+        "id": "j1",
+        "title": "Kitchen rough-in",
+        "clientName": "Patel, Maria"
+      }
+    ]
+  },
+  "expected": {
+    "intent": "quote",
+    "expectWarning": true,
+    "lines": [
+      {
+        "kind": "material",
+        "descriptionIncludes": "fitting",
+        "quantity": 1,
+        "unitPrice": null
+      }
+    ]
+  }
+}

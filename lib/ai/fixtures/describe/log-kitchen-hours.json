@@ -1,0 +1,38 @@
+{
+  "id": "log-kitchen-hours",
+  "synthetic": true,
+  "note": "Synthetic example, not a customer transcript.",
+  "text": "Log three hours on the kitchen rough-in. No customer document.",
+  "context": {
+    "labourRate": 85,
+    "clients": [
+      {
+        "id": "c1",
+        "name": "Patel, Maria"
+      },
+      {
+        "id": "c2",
+        "name": "Chen, David"
+      }
+    ],
+    "openJobs": [
+      {
+        "id": "j1",
+        "title": "Kitchen rough-in",
+        "clientName": "Patel, Maria"
+      }
+    ]
+  },
+  "expected": {
+    "intent": "log",
+    "expectWarning": false,
+    "lines": [
+      {
+        "kind": "labour",
+        "descriptionIncludes": "rough",
+        "quantity": 3,
+        "unitPrice": null
+      }
+    ]
+  }
+}

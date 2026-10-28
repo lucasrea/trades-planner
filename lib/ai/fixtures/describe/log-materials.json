@@ -1,0 +1,38 @@
+{
+  "id": "log-materials",
+  "synthetic": true,
+  "note": "Synthetic example, not a customer transcript.",
+  "text": "Log materials only on the kitchen job: two sticks of copper at 40 dollars each.",
+  "context": {
+    "labourRate": 85,
+    "clients": [
+      {
+        "id": "c1",
+        "name": "Patel, Maria"
+      },
+      {
+        "id": "c2",
+        "name": "Chen, David"
+      }
+    ],
+    "openJobs": [
+      {
+        "id": "j1",
+        "title": "Kitchen rough-in",
+        "clientName": "Patel, Maria"
+      }
+    ]
+  },
+  "expected": {
+    "intent": "log",
+    "expectWarning": false,
+    "lines": [
+      {
+        "kind": "material",
+        "descriptionIncludes": "copper",
+        "quantity": 2,
+        "unitPrice": 40
+      }
+    ]
+  }
+}

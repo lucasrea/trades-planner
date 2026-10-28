@@ -1,0 +1,44 @@
+{
+  "id": "existing-client",
+  "synthetic": true,
+  "note": "Synthetic example, not a customer transcript.",
+  "text": "Mrs Patel needs a quote for a new shutoff. One hour labour, valve is 18 dollars.",
+  "context": {
+    "labourRate": 85,
+    "clients": [
+      {
+        "id": "c1",
+        "name": "Patel, Maria"
+      },
+      {
+        "id": "c2",
+        "name": "Chen, David"
+      }
+    ],
+    "openJobs": [
+      {
+        "id": "j1",
+        "title": "Kitchen rough-in",
+        "clientName": "Patel, Maria"
+      }
+    ]
+  },
+  "expected": {
+    "intent": "quote",
+    "expectWarning": false,
+    "lines": [
+      {
+        "kind": "labour",
+        "descriptionIncludes": "shutoff",
+        "quantity": 1,
+        "unitPrice": null
+      },
+      {
+        "kind": "material",
+        "descriptionIncludes": "valve",
+        "quantity": 1,
+        "unitPrice": 18
+      }
+    ]
+  }
+}

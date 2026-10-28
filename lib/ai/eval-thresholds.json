@@ -1,0 +1,7 @@
+{
+  "intentAccuracy": 0.75,
+  "allLinesCorrect": 0.55,
+  "priceAccuracy": 0.7,
+  "maxFalseInventionRate": 0.25,
+  "warningWhenUncertain": 0.5
+}
