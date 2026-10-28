@@ -112,6 +112,12 @@ export const captures = pgTable("captures", {
   extraction: jsonb("extraction"),
   model: text("model"),
   error: text("error"),
+  latencyMs: integer("latency_ms"),
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  promptVersion: text("prompt_version"),
+  feedback: text("feedback"),
+  editSummary: jsonb("edit_summary"),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   confirmedAt: bigint("confirmed_at", { mode: "number" }),
 });
