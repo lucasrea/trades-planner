@@ -1,8 +1,8 @@
 import { Tabs } from "expo-router";
-import { Text } from "react-native";
+import { ColorValue, Text } from "react-native";
 import { colors } from "../../src/theme";
 
-function TabIcon({ glyph, color }: { glyph: string; color: string }) {
+function TabIcon({ glyph, color }: { glyph: string; color: ColorValue }) {
   return <Text style={{ color, fontSize: 16, lineHeight: 18 }}>{glyph}</Text>;
 }
 

@@ -116,7 +116,7 @@ Browser → Vercel (Next.js)
               └── Drizzle ORM → Supabase Postgres
 ```
 
-No separate backend service — all API logic lives in this repo under `lib/` and `app/api/`.
+No separate backend service — all API logic lives in this repo under `apps/web/lib/` and `apps/web/app/api/`.
 
 ## What’s in / not in
 

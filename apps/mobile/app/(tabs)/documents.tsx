@@ -39,8 +39,8 @@ export default function DocumentsScreen() {
         />
       ) : (
         <EmptyState
-          title="No documents yet"
-          body="Quotes and invoices are created from a job. Open a job to start a draft."
+          title="Documents aren't loaded"
+          body="Sign-in on the phone isn't connected yet, so this list stays empty."
           action={<PrimaryButton label="Go to jobs" onPress={() => router.push("/jobs")} />}
         />
       )}
