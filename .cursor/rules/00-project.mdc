@@ -2,8 +2,8 @@
 description: Trades Planner project rules
 alwaysApply: true
 ---
-Project: Trades Planner (github.com/lucasrea/trades-planner). Next.js 16 App Router, React 19, Tailwind 4, NextAuth v5 (Google), Drizzle ORM + postgres.js on Supabase Postgres, Vitest. Default branch: master. Work branch: v2-simplify. Node 20.
-Read AGENTS.md first. Next.js 16 has breaking changes; read node_modules/next/dist/docs/ before writing Next-specific code.
+Project: Trades Planner (github.com/lucasrea/trades-planner). npm workspaces. The Next.js app is `apps/web` (Next.js 16 App Router, React 19, Tailwind 4, NextAuth v5 (Google), Drizzle ORM + postgres.js on Supabase Postgres, Vitest). The Expo app is `apps/mobile` and mirrors the signed-in product only. Supabase, docs, and CI stay at the repo root. Default branch: master. Work branch: v2-simplify. Node 20.
+Read AGENTS.md first. Next.js 16 has breaking changes; read apps/web/node_modules/next/dist/docs/ or the hoisted node_modules/next/dist/docs/ before writing Next-specific code. Later tasks edit `apps/web`, not the old repo-root app paths.
 We are executing a planned rewrite described in docs/planning/v2-design.md (split into docs/planning/v2/*.md). You are doing ONE task from docs/planning/agent-tasks.md. Do only that task.
 
 Rules:

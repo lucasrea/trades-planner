@@ -3,16 +3,21 @@
 # Requires DATABASE_URL in .env.local (use Direct connection, port 5432, for migrations).
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+APP="$(cd "$(dirname "$0")/.." && pwd)"
+ENV_FILE="$ROOT/.env.local"
+if [[ ! -f "$ENV_FILE" ]]; then
+  ENV_FILE="$APP/.env.local"
+fi
 
-if [[ ! -f .env.local ]]; then
+if [[ ! -f "$ENV_FILE" ]]; then
   echo "Missing .env.local"
   exit 1
 fi
 
 set -a
 # shellcheck disable=SC1091
-source .env.local
+source "$ENV_FILE"
 set +a
 
 if [[ -z "${DATABASE_URL:-}" ]]; then
@@ -20,5 +25,6 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
   exit 1
 fi
 
+cd "$APP"
 npm run db:push
 echo "Schema pushed to Supabase."
