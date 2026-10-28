@@ -54,7 +54,7 @@ export function AppShell({
   if (isPrint) return <>{children}</>;
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-dvh overflow-hidden">
       <aside className="no-print hidden w-60 flex-col border-r border-line bg-navy text-white lg:flex">
         <div className="px-5 py-5">
           <Link href="/app" className="text-base font-semibold tracking-tight">
@@ -105,7 +105,7 @@ export function AppShell({
         </div>
       ) : null}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="no-print flex items-center justify-between gap-3 border-b border-line bg-card px-4 py-2 lg:justify-end lg:px-6">
           <div className="flex items-center lg:hidden">
             <button
@@ -119,7 +119,7 @@ export function AppShell({
           </div>
           <UserMenu user={user} />
         </div>
-        <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-6 sm:px-6 sm:py-8">{children}</main>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { confirmCaptureAction, discardCaptureAction } from "@/lib/actions/captures";
 import type { DescribeExtraction } from "@/lib/ai/extraction-types";
 import { LineEditor } from "@/components/line-editor";
+import { defaultCreateAs } from "@/lib/captures-display";
 import { describeToDraft, fuzzyMatchClient, fuzzyMatchJob, type DescribeDraftLine } from "@/lib/line-items";
 import { cad, computeTotals, type DraftLine } from "@/lib/money";
 
@@ -71,19 +72,26 @@ export function CaptureReviewForm({
   warningMessages?: string[];
 }) {
   const isReceipt = captureType === "receipt";
-  const initialCreateAs =
-    extraction?.intent === "invoice" ? "invoice" : extraction?.intent === "log" ? "log" : "quote";
-  const [createAs, setCreateAs] = useState<"quote" | "invoice" | "log">(isReceipt ? "log" : initialCreateAs);
+  const attachedJob = defaultJobId ? jobs.find((job) => job.id === defaultJobId) : undefined;
+  const [createAs, setCreateAs] = useState<"quote" | "invoice" | "log">(() =>
+    defaultCreateAs({ captureType, intent: extraction?.intent, jobId: defaultJobId }),
+  );
   const [clientMode, setClientMode] = useState<"existing" | "new">(() => {
+    if (attachedJob) return "existing";
     const name = extraction?.client_name?.trim();
     if (!name) return "existing";
     return fuzzyMatchClient(name, clients) ? "existing" : "new";
   });
   const [clientId, setClientId] = useState(
-    () => fuzzyMatchClient(extraction?.client_name?.trim() ?? "", clients)?.id ?? clients[0]?.id ?? "",
+    () =>
+      attachedJob?.clientId ??
+      fuzzyMatchClient(extraction?.client_name?.trim() ?? "", clients)?.id ??
+      clients[0]?.id ??
+      "",
   );
   const [clientName, setClientName] = useState(extraction?.client_name?.trim() ?? "");
   const [jobMode, setJobMode] = useState<"existing" | "new">(() => {
+    if (defaultJobId) return "existing";
     const title = extraction?.job_title?.trim();
     if (!title) return "existing";
     return fuzzyMatchJob(title, jobs) ? "existing" : "new";
@@ -265,7 +273,11 @@ export function CaptureReviewForm({
         <div className="card space-y-4 p-6">
           <p className="text-sm font-semibold">Create as</p>
           <p className="text-xs text-muted">
-            Suggested from your description — change if you meant a quote, invoice, or job log.
+            {defaultJobId && createAs === "log"
+              ? "These lines stay on the job until you invoice them."
+              : createAs === "invoice"
+                ? "This opens a draft invoice."
+                : "Suggested from your description. Change it if you meant a quote, invoice, or job log."}
           </p>
           <div className="flex flex-wrap gap-2">
             {(["quote", "invoice", "log"] as const).map((value) => (

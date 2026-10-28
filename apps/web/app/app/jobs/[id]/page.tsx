@@ -46,7 +46,9 @@ export default async function JobDetailPage({
           {notice}
         </p>
       ) : null}
-      <CaptureBar jobId={job.id} />
+      <CaptureBar
+        lockedJob={{ id: job.id, title: job.title, clientName: job.client?.name ?? null }}
+      />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_240px]">
         <JobEditForm
           job={{
