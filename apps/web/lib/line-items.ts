@@ -152,3 +152,29 @@ export function fuzzyMatchJob(title: string, jobs: { id: string; title: string }
   }
   return best;
 }
+
+const JOB_WORD_STOPWORDS = new Set(["the", "and", "for", "job", "work", "new"]);
+
+/**
+ * Find the one job a short note points at ("add this to the kitchen"). A job matches when at least
+ * half of its meaningful title words appear in the note. Ties and no match return null, so the
+ * contractor picks instead of us guessing.
+ */
+export function matchJobInText(text: string, jobs: { id: string; title: string }[]) {
+  const words = new Set(normalizeName(text).split(" ").filter(Boolean));
+  let best: { id: string; score: number } | null = null;
+  let tied = false;
+  for (const job of jobs) {
+    const tokens = nameTokens(job.title).filter((token) => token.length >= 3 && !JOB_WORD_STOPWORDS.has(token));
+    if (!tokens.length) continue;
+    const score = tokens.filter((token) => words.has(token)).length / tokens.length;
+    if (score < 0.5) continue;
+    if (!best || score > best.score) {
+      best = { id: job.id, score };
+      tied = false;
+    } else if (score === best.score) {
+      tied = true;
+    }
+  }
+  return best && !tied ? best.id : null;
+}

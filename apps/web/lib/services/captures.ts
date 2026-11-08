@@ -36,6 +36,13 @@ export type ConfirmCaptureInput = {
   job?: { id: string } | { title: string; siteAddress?: string };
   notes?: string;
   lines: ConfirmLineInput[];
+  /** Receipt only. Jobs to start; lines reference them with jobId "new:<key>". */
+  newJobs?: {
+    key: string;
+    title: string;
+    siteAddress?: string;
+    client: { id: string } | { name: string; email?: string; phone?: string; billingAddress?: string };
+  }[];
 };
 
 export type ConfirmCaptureResult =
@@ -232,6 +239,41 @@ async function insertTrackedLines(
   return [...jobIds];
 }
 
+const NEW_JOB_PREFIX = "new:";
+
+/** Receipt lines become unbilled materials. Start any new jobs, then point each line at a real job id. */
+async function resolveReceiptLines(tx: Tx, ctx: ServiceContext, parsed: ConfirmCaptureInput): Promise<ConfirmLineInput[]> {
+  const startedJobs = new Map<string, string>();
+  for (const draft of parsed.newJobs ?? []) {
+    if (startedJobs.has(draft.key)) throw new ValidationError("Duplicate new job.");
+    const clientId = await resolveClientId(tx, ctx, draft.client);
+    const jobId = await resolveJobId(tx, ctx, {
+      clientId,
+      job: { title: draft.title, siteAddress: draft.siteAddress },
+      createAs: "log",
+    });
+    startedJobs.set(draft.key, jobId);
+  }
+  const usedKeys = new Set<string>();
+  const lines = parsed.lines.map((line) => {
+    if (line.unitCost == null) throw new ValidationError("Every receipt line needs a cost.");
+    let jobId = line.jobId;
+    if (jobId?.startsWith(NEW_JOB_PREFIX)) {
+      const key = jobId.slice(NEW_JOB_PREFIX.length);
+      const resolved = startedJobs.get(key);
+      if (!resolved) throw new ValidationError("Line points at a job that was not started.");
+      usedKeys.add(key);
+      jobId = resolved;
+    }
+    return { ...line, kind: "material" as const, jobId };
+  });
+  // A job the contractor started but no line uses would be left empty. Refuse instead of creating it.
+  if ([...startedJobs.keys()].some((key) => !usedKeys.has(key))) {
+    throw new ValidationError("A new job has no lines.");
+  }
+  return lines;
+}
+
 function parseConfirmInput(input: ConfirmCaptureInput): ConfirmCaptureInput {
   return confirmCaptureSchema.parse(input);
 }
@@ -274,7 +316,8 @@ export async function confirmCapture(ctx: ServiceContext, input: ConfirmCaptureI
     if (isReceipt && parsed.createAs !== "log") throw new ValidationError("Receipts can only be added to jobs.");
 
     if (isReceipt) {
-      const jobIds = await insertTrackedLines(tx, ctx, { captureId: capture.id, lines: parsed.lines });
+      const lines = await resolveReceiptLines(tx, ctx, parsed);
+      const jobIds = await insertTrackedLines(tx, ctx, { captureId: capture.id, lines });
       await markCaptureConfirmed(tx, ctx, capture.id);
       return { kind: "log", jobIds };
     }

@@ -22,10 +22,13 @@ const DEFAULT_RECEIPT: ReceiptExtraction = {
   vendor: "Home Depot",
   purchased_at: "2026-10-01",
   currency: "CAD",
-  subtotal: 45,
-  tax: 5.85,
-  total: 50.85,
-  lines: [{ description: "PEX fittings", quantity: 1, unit_price: 45, line_total: 45 }],
+  subtotal: 69,
+  tax: 8.97,
+  total: 77.97,
+  lines: [
+    { description: "PEX fittings", quantity: 1, unit_price: 45, line_total: 45 },
+    { description: "Teflon tape", quantity: 3, unit_price: 8, line_total: 24 },
+  ],
   warnings: [],
 };
 

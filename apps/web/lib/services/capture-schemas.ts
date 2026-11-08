@@ -26,6 +26,14 @@ const jobNewSchema = z.object({
   siteAddress: z.string().trim().max(500).optional(),
 });
 
+/** Receipt only: jobs started on the preview. Lines point at one with jobId "new:<key>". */
+export const newReceiptJobSchema = z.object({
+  key: z.string().min(1).max(64),
+  title: z.string().trim().min(1).max(200),
+  siteAddress: z.string().trim().max(500).optional(),
+  client: z.union([clientExistingSchema, clientNewSchema]),
+});
+
 export const confirmCaptureSchema = z.object({
   captureId: z.string().min(1),
   createAs: z.enum(["quote", "invoice", "log"]),
@@ -33,6 +41,7 @@ export const confirmCaptureSchema = z.object({
   job: z.union([jobExistingSchema, jobNewSchema]).optional(),
   notes: z.string().trim().max(4000).optional(),
   lines: z.array(confirmLineSchema).min(1).max(100),
+  newJobs: z.array(newReceiptJobSchema).max(20).optional(),
 });
 
 export const textCaptureBodySchema = z.object({

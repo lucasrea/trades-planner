@@ -90,7 +90,7 @@ describe("captures service", () => {
       confirmCapture(ctx, {
         captureId,
         createAs: "log",
-        lines: [{ kind: "material", description: "X", quantity: 1, unit: "ea", unitPrice: 1, jobId: b.jobId }],
+        lines: [{ kind: "material", description: "X", quantity: 1, unit: "ea", unitCost: 1, unitPrice: 1, jobId: b.jobId }],
       }),
     ).rejects.toBeInstanceOf(NotFoundError);
     const rows = await ctx.db.select().from(lineItems).where(eq(lineItems.captureId, captureId));
