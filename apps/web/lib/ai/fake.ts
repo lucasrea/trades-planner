@@ -32,6 +32,31 @@ const DEFAULT_RECEIPT: ReceiptExtraction = {
   warnings: [],
 };
 
+const ADD_MATERIAL = /\badd\s+(?:an?\s+|the\s+)?(.+?)\s+at\s+\$?(\d+(?:\.\d+)?)\s+to\s+(?:the\s+)?(.+?)[.!]?$/i;
+const LOG_HOURS = /\blog\s+(\d+(?:\.\d+)?)\s+hours?\s+(?:on|for|at)\s+(?:the\s+)?(.+?)[.!]?$/i;
+
+/** Predictable answers for the two tracked-work phrasings Plan tests rely on. */
+function fakeTrackedWork(text: string): DescribeExtraction | null {
+  const base = { intent: "log" as const, client_name: null, site_address: null, scope_notes: null, warnings: [] };
+  const material = ADD_MATERIAL.exec(text);
+  if (material) {
+    return {
+      ...base,
+      job_title: material[3]!,
+      lines: [{ kind: "material", description: material[1]!, quantity: 1, unit: "ea", unit_price: Number(material[2]) }],
+    };
+  }
+  const hours = LOG_HOURS.exec(text);
+  if (hours) {
+    return {
+      ...base,
+      job_title: hours[2]!,
+      lines: [{ kind: "labour", description: "Labour", quantity: Number(hours[1]), unit: "hr", unit_price: null }],
+    };
+  }
+  return null;
+}
+
 function hashKey(input: string): string {
   let h = 0;
   for (let i = 0; i < input.length; i += 1) h = (h * 31 + input.charCodeAt(i)) | 0;
@@ -69,6 +94,8 @@ export function createFakeExtractionProvider(): ExtractionProvider {
         if (readFakeMode() === "empty") {
           return { ...DEFAULT_DESCRIBE, lines: [], warnings: ["No lines detected."] };
         }
+        const tracked = fakeTrackedWork(text.trim());
+        if (tracked) return tracked;
         const key = hashKey(text.trim().slice(0, 200));
         if (key.endsWith("7")) {
           return { ...DEFAULT_DESCRIBE, intent: "invoice", client_name: "Chen" };
