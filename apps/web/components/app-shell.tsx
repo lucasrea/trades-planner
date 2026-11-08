@@ -3,12 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Files, HardHat, Home, Menu, Settings, X } from "lucide-react";
+import { Files, HardHat, Menu, Settings, X } from "lucide-react";
 import type { AuthUser } from "@/lib/auth";
 import { UserAvatar, UserMenu } from "@/components/user-menu";
 
+function PlanIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="1.25" y="1.25" width="13.5" height="9.5" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M4.2 13.6 5.4 10.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M5 6.2v2.2M8 4.8v3.6M11 5.6v2.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 const links = [
-  { href: "/app", label: "Chat", icon: Home },
+  { href: "/app", label: "Plan", icon: PlanIcon },
   { href: "/app/jobs", label: "Jobs", icon: HardHat },
   { href: "/app/documents", label: "Documents", icon: Files },
   { href: "/app/settings", label: "Settings", icon: Settings },
