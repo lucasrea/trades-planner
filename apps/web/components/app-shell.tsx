@@ -8,7 +8,7 @@ import type { AuthUser } from "@/lib/auth";
 import { UserAvatar, UserMenu } from "@/components/user-menu";
 
 const links = [
-  { href: "/app", label: "Home", icon: Home },
+  { href: "/app", label: "Chat", icon: Home },
   { href: "/app/jobs", label: "Jobs", icon: HardHat },
   { href: "/app/documents", label: "Documents", icon: Files },
   { href: "/app/settings", label: "Settings", icon: Settings },

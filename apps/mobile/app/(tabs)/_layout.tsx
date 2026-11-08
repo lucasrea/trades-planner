@@ -19,7 +19,7 @@ export default function TabLayout() {
         tabBarInactiveTintColor: colors.muted,
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: ({ color }) => <TabIcon glyph="⌂" color={color} /> }} />
+      <Tabs.Screen name="index" options={{ title: "Chat", tabBarIcon: ({ color }) => <TabIcon glyph="⌂" color={color} /> }} />
       <Tabs.Screen name="jobs" options={{ title: "Jobs", tabBarIcon: ({ color }) => <TabIcon glyph="▣" color={color} /> }} />
       <Tabs.Screen name="documents" options={{ title: "Documents", tabBarIcon: ({ color }) => <TabIcon glyph="☰" color={color} /> }} />
       <Tabs.Screen name="settings" options={{ title: "Settings", tabBarIcon: ({ color }) => <TabIcon glyph="⚙" color={color} /> }} />
