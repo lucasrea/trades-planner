@@ -172,7 +172,7 @@ export function CaptureReview({ capture, manualHref }: { capture: CaptureReviewD
   if (failed) {
     return (
       <div>
-        <PageHeader title={title} subtitle="Review" back={{ href: "/app", label: "Home" }} />
+        <PageHeader title={title} subtitle="Review" back={{ href: "/app", label: "Plan" }} />
         <div className="card space-y-4 p-6">
           <p className="text-sm">Couldn&apos;t read that — add the lines manually.</p>
           {capture.error ? <p className="text-sm text-muted">{capture.error}</p> : null}
@@ -195,7 +195,7 @@ export function CaptureReview({ capture, manualHref }: { capture: CaptureReviewD
 
   return (
     <div className="space-y-6">
-      <PageHeader title={title} subtitle={`Status: ${capture.status}`} back={{ href: "/app", label: "Home" }} />
+      <PageHeader title={title} subtitle={`Status: ${capture.status}`} back={{ href: "/app", label: "Plan" }} />
       {describe ? <DescribeBody extraction={describe} transcript={capture.transcript} /> : null}
       {receipt ? <ReceiptBody extraction={receipt} /> : null}
       {!describe && !receipt ? (

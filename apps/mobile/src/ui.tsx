@@ -95,8 +95,10 @@ const styles = StyleSheet.create({
   },
   primary: {
     alignItems: "center",
+    alignSelf: "stretch",
     backgroundColor: colors.accent,
     borderRadius: 12,
+    paddingHorizontal: 20,
     paddingVertical: 14,
   },
   primaryLabel: { color: "#1a100c", fontSize: 16, fontWeight: "600" },
