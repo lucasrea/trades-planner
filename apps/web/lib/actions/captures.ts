@@ -22,7 +22,7 @@ export async function confirmCaptureAction(input: ConfirmCaptureInput) {
     revalidatePath(`/app/captures/${input.captureId}`);
     if (result.kind === "document") redirect(`/app/documents/${result.documentId}`);
     if (result.jobIds.length === 1) redirect(`/app/jobs/${result.jobIds[0]}`);
-    redirect(`/app/jobs?capture=${input.captureId}`);
+    redirect(`/app/captures/${input.captureId}`);
   } catch (error) {
     if (
       error instanceof NotFoundError ||

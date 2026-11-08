@@ -108,3 +108,14 @@ export async function getCaptureForContractor(db: Database, contractorId: string
     .limit(1);
   return row ?? null;
 }
+
+/** Jobs a confirmed capture wrote lines onto, with how many lines each got. Scoped by contractor. */
+export async function getCaptureResultJobsForContractor(db: Database, contractorId: string, captureId: string) {
+  return db
+    .select({ id: jobs.id, title: jobs.title, lineCount: sql<number>`count(${lineItems.id})::int` })
+    .from(lineItems)
+    .innerJoin(jobs, and(eq(jobs.id, lineItems.jobId), eq(jobs.contractorId, contractorId)))
+    .where(and(eq(lineItems.captureId, captureId), eq(lineItems.contractorId, contractorId)))
+    .groupBy(jobs.id, jobs.title)
+    .orderBy(jobs.title);
+}

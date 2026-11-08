@@ -1,4 +1,5 @@
 import { CaptureBar } from "@/components/capture-bar";
+import { ReceiptUpload } from "@/components/receipt-upload";
 import { getJobs } from "@/lib/queries";
 
 export default async function HomePage() {
@@ -13,6 +14,9 @@ export default async function HomePage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <CaptureBar jobs={jobs} fill />
+      <div className="pt-3">
+        <ReceiptUpload jobs={jobs} />
+      </div>
     </div>
   );
 }

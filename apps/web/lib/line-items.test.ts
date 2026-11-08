@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   describeToDraft,
   fuzzyMatchClient,
+  matchJobInText,
   receiptToDraft,
   receiptWarnings,
   sumLines,
@@ -42,5 +43,26 @@ describe("line-items", () => {
   it("fuzzyMatchClient matches normalized names", () => {
     expect(fuzzyMatchClient("Mrs. Patel", [{ id: "1", name: "Patel, Maria" }])?.id).toBe("1");
     expect(fuzzyMatchClient("Totally Different", [{ id: "1", name: "Patel" }])).toBeNull();
+  });
+
+  it("matchJobInText finds the one job the note names", () => {
+    const jobs = [
+      { id: "k", title: "Kitchen remodel" },
+      { id: "b", title: "Bathroom repair" },
+    ];
+    expect(matchJobInText("add this to the kitchen", jobs)).toBe("k");
+    expect(matchJobInText("Bathroom Repair please", jobs)).toBe("b");
+    expect(matchJobInText("these are for the garage", jobs)).toBeNull();
+    expect(matchJobInText("", jobs)).toBeNull();
+  });
+
+  it("matchJobInText refuses to guess on a tie or on filler words", () => {
+    const jobs = [
+      { id: "1", title: "Smith kitchen" },
+      { id: "2", title: "Jones kitchen" },
+    ];
+    expect(matchJobInText("add this to the kitchen", jobs)).toBeNull();
+    expect(matchJobInText("add this to the Smith kitchen", jobs)).toBe("1");
+    expect(matchJobInText("add this to the job", [{ id: "x", title: "The job" }])).toBeNull();
   });
 });

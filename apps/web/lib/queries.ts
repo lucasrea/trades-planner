@@ -7,6 +7,7 @@ import {
   getDocumentForContractor,
   getDocumentsForContractor,
   getCaptureForContractor,
+  getCaptureResultJobsForContractor,
   getHomeForContractor,
   getJobDocumentsForContractor,
   getTrackedLinesForContractor,
@@ -22,6 +23,11 @@ export {
   getJobDocumentsForContractor,
   getTrackedLinesForContractor,
 };
+
+export async function getCaptureResultJobs(captureId: string) {
+  const contractor = await getContractor();
+  return getCaptureResultJobsForContractor(await ensureDb(), contractor.id, captureId);
+}
 
 export async function getCapture(id: string) {
   const contractor = await getContractor();
