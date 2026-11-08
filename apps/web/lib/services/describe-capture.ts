@@ -17,6 +17,7 @@ export type DescribeCaptureResult = {
   reviewUrl: string;
   /** The Plan preview card. Null when the message failed or no action could be chosen. */
   preview: PlanPreview | null;
+  transcript: string | null;
 };
 
 type ContractorSlice = { id: string; labourRateHourly: number };
@@ -125,5 +126,6 @@ export async function createDescribeCapture(
     status,
     reviewUrl: `/app/captures/${captureId}`,
     preview,
+    transcript,
   };
 }

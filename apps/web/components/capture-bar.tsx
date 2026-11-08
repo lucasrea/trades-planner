@@ -3,8 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Send } from "lucide-react";
+import { Mic, Send, Square } from "lucide-react";
 import { PlanProposalCard } from "@/components/plan-proposal-card";
+import { useVoiceRecorder, type RecordedAudio } from "@/components/use-voice-recorder";
+import { checkRecording, formatElapsed, uploadFilename, uploadMime } from "@/lib/captures/recorder";
 import type { PlanPreview } from "@/lib/plan-proposal";
 
 export type CaptureJobOption = {
@@ -38,12 +40,73 @@ export function CaptureBar({
   const [error, setError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(lockedJob?.id ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [unsentAudio, setUnsentAudio] = useState<RecordedAudio | null>(null);
+  const [reading, setReading] = useState(false);
   const [thread, setThread] = useState<PlanMessage[]>([]);
   const selected = lockedJob ?? jobs.find((job) => job.id === jobId) ?? null;
+  const recorder = useVoiceRecorder((audio) => void sendRecording(audio));
+  const busy = pending || reading;
+
+  async function sendRecording(audio: RecordedAudio) {
+    setUnsentAudio(null);
+    setError(null);
+    setMenuOpen(false);
+    const check = checkRecording(audio.blob.size);
+    if (!check.ok) {
+      setError(check.message);
+      return;
+    }
+    setReading(true);
+    try {
+      const mime = uploadMime(audio.blob.type, audio.recorderMime);
+      const form = new FormData();
+      form.set("audio", new File([audio.blob], uploadFilename(mime), { type: mime }));
+      if (selected?.id) form.set("jobId", selected.id);
+      const response = await fetch("/api/captures/voice", { method: "POST", body: form });
+      const body = (await response.json().catch(() => null)) as {
+        captureId?: string;
+        status?: string;
+        reviewUrl?: string;
+        preview?: PlanPreview | null;
+        transcript?: string;
+        error?: { message?: string };
+      } | null;
+      if (response.status === 429) {
+        setUnsentAudio(audio);
+        setError(body?.error?.message ?? "You've hit the hourly limit.");
+        return;
+      }
+      if (!response.ok || !body?.reviewUrl) {
+        setUnsentAudio(audio);
+        setError(body?.error?.message ?? "Couldn't send that recording. You can try again.");
+        return;
+      }
+      if (!fill) {
+        router.push(body.reviewUrl);
+        return;
+      }
+      setThread((prev) => [
+        ...prev,
+        {
+          captureId: body.captureId ?? body.reviewUrl!,
+          text: body.transcript?.trim() || "Voice message",
+          reviewUrl: body.reviewUrl!,
+          preview: body.preview ?? null,
+          failed: body.status === "failed",
+          cancelled: false,
+        },
+      ]);
+    } catch {
+      setUnsentAudio(audio);
+      setError("Network error. Your recording is kept, so you can try again.");
+    } finally {
+      setReading(false);
+    }
+  }
 
   async function submit(next = text) {
     const trimmed = next.trim();
-    if (!trimmed || pending) return;
+    if (!trimmed || busy || recorder.recording) return;
     setText(next);
     setPending(true);
     setError(null);
@@ -129,11 +192,21 @@ export function CaptureBar({
             <p className="max-w-[36rem] rounded-2xl bg-elevated px-4 py-3 text-sm leading-relaxed">{text.trim()}</p>
           </div>
         ) : null}
-        {pending ? <p className="text-sm text-muted">Reading…</p> : null}
-        {error ? (
+        {busy ? <p className="text-sm text-muted">Reading…</p> : null}
+        {recorder.error || error ? (
           <p className="text-sm text-accent" role="alert">
-            {error}
+            {error ?? recorder.error}
           </p>
+        ) : null}
+        {unsentAudio && !busy ? (
+          <div className="mt-2 flex items-center gap-2">
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => void sendRecording(unsentAudio)}>
+              Try sending again
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setUnsentAudio(null)}>
+              Discard recording
+            </button>
+          </div>
         ) : null}
       </div>
       <div className="relative rounded-2xl border border-line bg-card p-2">
@@ -180,7 +253,7 @@ export function CaptureBar({
           rows={2}
           placeholder="Describe the work"
           aria-label="Message"
-          disabled={pending}
+          disabled={busy}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
@@ -198,21 +271,39 @@ export function CaptureBar({
               className="btn btn-ghost btn-sm max-w-[16rem] truncate"
               aria-expanded={menuOpen}
               aria-haspopup="listbox"
-              disabled={pending}
+              disabled={busy || recorder.recording}
               onClick={() => setMenuOpen((open) => !open)}
             >
               {selected ? selected.title : "New job"}
             </button>
           )}
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            aria-label="Send"
-            disabled={pending || !text.trim()}
-            onClick={() => void submit()}
-          >
-            <Send size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            {recorder.recording ? (
+              <span className="text-sm tabular-nums text-muted" role="timer" aria-label="Recording time">
+                {formatElapsed(recorder.elapsedMs)}
+              </span>
+            ) : null}
+            {recorder.supported ? (
+              <button
+                type="button"
+                className={recorder.recording ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
+                aria-label={recorder.recording ? "Stop recording" : "Record"}
+                disabled={busy}
+                onClick={() => (recorder.recording ? recorder.stop() : void recorder.start())}
+              >
+                {recorder.recording ? <Square size={16} /> : <Mic size={16} />}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              aria-label="Send"
+              disabled={busy || recorder.recording || !text.trim()}
+              onClick={() => void submit()}
+            >
+              <Send size={16} />
+            </button>
+          </div>
         </div>
       </div>
     </section>
