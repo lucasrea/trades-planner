@@ -1,13 +1,26 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Send } from "lucide-react";
+import { PlanProposalCard } from "@/components/plan-proposal-card";
+import type { PlanPreview } from "@/lib/plan-proposal";
 
 export type CaptureJobOption = {
   id: string;
   title: string;
   clientName: string | null;
+};
+
+type PlanMessage = {
+  captureId: string;
+  text: string;
+  reviewUrl: string;
+  /** null: the message could not be read or no action could be chosen. */
+  preview: PlanPreview | null;
+  failed: boolean;
+  cancelled: boolean;
 };
 
 export function CaptureBar({
@@ -25,6 +38,7 @@ export function CaptureBar({
   const [error, setError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(lockedJob?.id ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [thread, setThread] = useState<PlanMessage[]>([]);
   const selected = lockedJob ?? jobs.find((job) => job.id === jobId) ?? null;
 
   async function submit(next = text) {
@@ -42,7 +56,10 @@ export function CaptureBar({
         body: JSON.stringify(assignedId ? { text: trimmed, jobId: assignedId } : { text: trimmed }),
       });
       const body = (await response.json().catch(() => null)) as {
+        captureId?: string;
+        status?: string;
         reviewUrl?: string;
+        preview?: PlanPreview | null;
         error?: { message?: string };
       } | null;
       if (response.status === 429) {
@@ -53,7 +70,22 @@ export function CaptureBar({
         setError(body?.error?.message ?? "Couldn't send that. Your text is still here.");
         return;
       }
-      router.push(body.reviewUrl);
+      if (!fill) {
+        router.push(body.reviewUrl);
+        return;
+      }
+      setThread((prev) => [
+        ...prev,
+        {
+          captureId: body.captureId ?? body.reviewUrl!,
+          text: trimmed,
+          reviewUrl: body.reviewUrl!,
+          preview: body.preview ?? null,
+          failed: body.status === "failed",
+          cancelled: false,
+        },
+      ]);
+      setText("");
     } catch {
       setError("Network error. Your text is still here.");
     } finally {
@@ -64,6 +96,34 @@ export function CaptureBar({
   return (
     <section className={fill ? "flex min-h-0 flex-1 flex-col" : "space-y-3"}>
       <div className={fill ? "flex min-h-0 flex-1 flex-col justify-end overflow-y-auto pb-4" : undefined}>
+        {thread.map((message) => (
+          <div key={message.captureId} className="mb-3">
+            <div className="mb-3 flex justify-end">
+              <p className="max-w-[36rem] whitespace-pre-line rounded-2xl bg-elevated px-4 py-3 text-sm leading-relaxed">
+                {message.text}
+              </p>
+            </div>
+            {message.cancelled ? (
+              <p className="text-sm text-muted">Cancelled. Nothing was saved.</p>
+            ) : message.preview ? (
+              <PlanProposalCard
+                captureId={message.captureId}
+                reviewUrl={message.reviewUrl}
+                preview={message.preview}
+                onCancelled={() =>
+                  setThread((prev) => prev.map((m) => (m.captureId === message.captureId ? { ...m, cancelled: true } : m)))
+                }
+              />
+            ) : (
+              <p className="text-sm text-muted" role="status">
+                {message.failed ? "I couldn't read that." : "I couldn't tell what to do with that."} Your message is saved.{" "}
+                <Link href={message.reviewUrl} className="underline">
+                  Add it yourself
+                </Link>
+              </p>
+            )}
+          </div>
+        ))}
         {pending && text.trim() ? (
           <div className="mb-3 flex justify-end">
             <p className="max-w-[36rem] rounded-2xl bg-elevated px-4 py-3 text-sm leading-relaxed">{text.trim()}</p>

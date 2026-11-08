@@ -9,6 +9,9 @@ export type DescribeLine = {
   uncertain?: boolean | null;
 };
 
+export const PLAN_ACTIONS = ["create_job", "add_materials", "log_hours", "make_quote", "make_invoice"] as const;
+export type PlanAction = (typeof PLAN_ACTIONS)[number];
+
 export type DescribeExtraction = {
   intent: "quote" | "invoice" | "log" | null;
   client_name: string | null;
@@ -17,6 +20,10 @@ export type DescribeExtraction = {
   scope_notes: string | null;
   lines: DescribeLine[];
   warnings: string[];
+  /** Plan proposal fields, set by app code (never by the model). */
+  action?: PlanAction | null;
+  job_id?: string | null;
+  client_id?: string | null;
 };
 
 export type ReceiptLine = {
@@ -54,6 +61,9 @@ export function parseDescribeExtraction(value: unknown): DescribeExtraction | nu
     scope_notes: typeof value.scope_notes === "string" ? value.scope_notes : null,
     lines: value.lines as DescribeLine[],
     warnings: Array.isArray(value.warnings) ? value.warnings.filter((w): w is string => typeof w === "string") : [],
+    action: PLAN_ACTIONS.find((action) => action === value.action) ?? null,
+    job_id: typeof value.job_id === "string" ? value.job_id : null,
+    client_id: typeof value.client_id === "string" ? value.client_id : null,
   };
 }
 

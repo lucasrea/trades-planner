@@ -74,7 +74,7 @@ export function CaptureReviewForm({
   const isReceipt = captureType === "receipt";
   const attachedJob = defaultJobId ? jobs.find((job) => job.id === defaultJobId) : undefined;
   const [createAs, setCreateAs] = useState<"quote" | "invoice" | "log">(() =>
-    defaultCreateAs({ captureType, intent: extraction?.intent, jobId: defaultJobId }),
+    defaultCreateAs({ captureType, intent: extraction?.intent, jobId: defaultJobId, action: extraction?.action }),
   );
   const [clientMode, setClientMode] = useState<"existing" | "new">(() => {
     if (attachedJob) return "existing";
