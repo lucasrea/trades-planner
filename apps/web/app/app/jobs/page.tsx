@@ -17,9 +17,11 @@ export default async function JobsPage() {
         title="Jobs"
         subtitle="Active work and quoted jobs."
         action={
-          <Link href="/app/jobs/new" className="btn btn-primary">
-            New job
-          </Link>
+          rows.length === 0 ? undefined : (
+            <Link href="/app/jobs/new" className="btn btn-primary">
+              New job
+            </Link>
+          )
         }
       />
       {rows.length === 0 ? (
