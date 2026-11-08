@@ -1,10 +1,13 @@
 import { and, desc, eq } from "drizzle-orm";
 import { runDescribeExtraction } from "@/lib/ai/run-describe";
+import type { DescribeExtraction } from "@/lib/ai/extraction-types";
 import type { Database } from "@/lib/db";
 import { captures, clients, jobs } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
+import { buildProposal, type PlanPreview } from "@/lib/plan-proposal";
 import { assertCaptureRateLimit } from "@/lib/services/capture-rate-limit";
 import { requireJob } from "@/lib/services/internal";
+import { previewStoredProposal } from "@/lib/services/plan-proposals";
 
 export const EXTRACTION_FAILED_MESSAGE = "We couldn't read that. You can add lines manually on the review screen.";
 
@@ -12,6 +15,8 @@ export type DescribeCaptureResult = {
   captureId: string;
   status: "needs_review" | "failed";
   reviewUrl: string;
+  /** The Plan preview card. Null when the message failed or no action could be chosen. */
+  preview: PlanPreview | null;
 };
 
 type ContractorSlice = { id: string; labourRateHourly: number };
@@ -26,9 +31,7 @@ export async function createDescribeCapture(
   },
 ): Promise<DescribeCaptureResult> {
   await assertCaptureRateLimit(db, contractor.id);
-  if (input.jobId) {
-    await requireJob(db, contractor.id, input.jobId);
-  }
+  const selectedJob = input.jobId ? await requireJob(db, contractor.id, input.jobId) : null;
 
   const captureId = newId();
   await db.insert(captures).values({
@@ -43,7 +46,7 @@ export async function createDescribeCapture(
 
   let status: "needs_review" | "failed" = "needs_review";
   let error: string | null = null;
-  let extraction: unknown = null;
+  let extraction: DescribeExtraction | null = null;
   let model: string | null = null;
   let latencyMs = 0;
   let inputTokens: number | null = null;
@@ -62,7 +65,7 @@ export async function createDescribeCapture(
         .orderBy(desc(clients.createdAt))
         .limit(50),
       db
-        .select({ id: jobs.id, title: jobs.title, clientName: clients.name })
+        .select({ id: jobs.id, title: jobs.title, clientId: jobs.clientId, clientName: clients.name })
         .from(jobs)
         .leftJoin(clients, and(eq(clients.id, jobs.clientId), eq(clients.contractorId, contractor.id)))
         .where(eq(jobs.contractorId, contractor.id))
@@ -77,7 +80,12 @@ export async function createDescribeCapture(
         openJobs: jobRows.map((row) => ({ id: row.id, title: row.title, clientName: row.clientName ?? "" })),
       },
     });
-    extraction = result.extraction;
+    extraction = buildProposal({
+      extraction: result.extraction,
+      selectedJob: selectedJob ? { id: selectedJob.id, title: selectedJob.title, clientId: selectedJob.clientId } : null,
+      jobs: jobRows.map((row) => ({ id: row.id, title: row.title, clientId: row.clientId })),
+      clients: clientRows,
+    });
     model = result.model;
     latencyMs = result.latencyMs;
     inputTokens = result.inputTokens;
@@ -103,9 +111,19 @@ export async function createDescribeCapture(
       .where(and(eq(captures.id, captureId), eq(captures.contractorId, contractor.id)));
   }
 
+  let preview: PlanPreview | null = null;
+  if (status === "needs_review" && extraction) {
+    try {
+      preview = await previewStoredProposal({ db, contractorId: contractor.id }, extraction);
+    } catch {
+      preview = null;
+    }
+  }
+
   return {
     captureId,
     status,
     reviewUrl: `/app/captures/${captureId}`,
+    preview,
   };
 }
