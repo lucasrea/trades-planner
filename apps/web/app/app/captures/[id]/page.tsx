@@ -89,7 +89,7 @@ export default async function CaptureReviewPage({
       <div className="card p-6 text-sm">
         <p>This capture is {capture.status}.</p>
         <a href="/app" className="btn btn-ghost btn-sm mt-4">
-          Back to Home
+          Back to Plan
         </a>
       </div>
     );
