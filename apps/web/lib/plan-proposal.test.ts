@@ -35,8 +35,11 @@ describe("chooseAction", () => {
     }
   });
 
-  it("works on the job already selected in Plan, even when the words price it", () => {
-    expect(chooseAction({ intent: "quote", lines: material, job: "selected", namesWork: false })).toBe("add_materials");
+  it("quotes on the selected job when the words ask to quote, otherwise tracks work", () => {
+    expect(chooseAction({ intent: "quote", lines: material, job: "selected", namesWork: false })).toBe("make_quote");
+    expect(chooseAction({ intent: "quote", lines: [...labour, ...material], job: "selected", namesWork: false })).toBe(
+      "make_quote",
+    );
     expect(chooseAction({ intent: null, lines: labour, job: "selected", namesWork: false })).toBe("log_hours");
   });
 
@@ -83,6 +86,39 @@ describe("buildProposal", () => {
       clients,
     });
     expect(proposal).toMatchObject({ action: "add_materials", job_id: "job-kitchen" });
+  });
+
+  it("quote with labour and material keeps both lines for one draft quote", () => {
+    const proposal = buildProposal({
+      extraction: extraction({ intent: "quote", client_name: "Chen", job_title: "Kitchen reno", lines: [hours, valve] }),
+      selectedJob: null,
+      jobs,
+      clients,
+    });
+    expect(proposal).toMatchObject({ action: "make_quote", job_id: "job-kitchen", client_id: "client-chen" });
+    expect(proposal.lines).toEqual([hours, valve]);
+    expect(proposal.warnings.join(" ")).not.toContain("Not included yet");
+
+    const preview = previewProposal(proposal, { labourRate: 85, jobTitle: "Kitchen reno", clientName: "Chen, David" })!;
+    expect(preview.title).toBe("Make a draft quote for Kitchen reno");
+    expect(preview.lines).toHaveLength(2);
+    expect(preview.lines.map((l) => l.kind)).toEqual(["labour", "material"]);
+
+    const plan = toConfirmPlan(proposal, { labourRate: 85, job: kitchen });
+    expect(plan.ok && plan.kind === "capture" && plan.input.createAs).toBe("quote");
+    expect(plan.ok && plan.kind === "capture" && plan.input.lines).toHaveLength(2);
+    expect(plan.ok && plan.kind === "capture" && plan.input.lines.map((l) => l.kind)).toEqual(["labour", "material"]);
+  });
+
+  it("quote on a selected job keeps the labour line", () => {
+    const proposal = buildProposal({
+      extraction: extraction({ intent: "quote", lines: [hours, valve] }),
+      selectedJob: kitchen,
+      jobs,
+      clients,
+    });
+    expect(proposal).toMatchObject({ action: "make_quote", job_id: "job-kitchen" });
+    expect(proposal.lines).toEqual([hours, valve]);
   });
 
   it("does one action: keeps materials now and says what is left for the next message", () => {
