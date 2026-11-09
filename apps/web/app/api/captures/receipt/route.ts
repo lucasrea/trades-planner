@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { validateImageFile } from "@/lib/captures/image";
 import { ensureDb } from "@/lib/db";
 import { contractors } from "@/lib/db/schema";
+import { assertCaptureEnabled } from "@/lib/captures/enabled";
 import { assertSameOrigin } from "@/lib/http/assert-same-origin";
 import { jsonError } from "@/lib/http/json-error";
 import { NotFoundError, RateLimitError } from "@/lib/services/context";
@@ -29,6 +30,9 @@ export async function POST(request: Request) {
   const db = await ensureDb();
   const [contractor] = await db.select().from(contractors).where(eq(contractors.id, session.contractorId)).limit(1);
   if (!contractor) return jsonError("unauthorized", "Sign in required.", 401);
+
+  const captureOff = assertCaptureEnabled();
+  if (captureOff) return captureOff;
 
   let form: FormData;
   try {
@@ -65,15 +69,24 @@ export async function POST(request: Request) {
       storage: getReceiptStorage(),
     });
     // The plan keeps a one-line note. The photo stays on the capture.
-    const savedPlanId = planId
-      ? await recordPlanTurn(ctx, {
+    let savedPlanId: string | null = null;
+    if (planId) {
+      try {
+        savedPlanId = await recordPlanTurn(ctx, {
           planId,
           userBody: receiptMessageBody(note),
           replyBody: receiptReplyBody(result.status),
           jobId,
           captureId: result.captureId,
-        })
-      : null;
+        });
+      } catch {
+        console.error({
+          event: "plan_turn_failed",
+          captureId: result.captureId,
+          contractorId: contractor.id,
+        });
+      }
+    }
     return Response.json({ ...result, planId: savedPlanId });
   } catch (error) {
     if (error instanceof RateLimitError) return jsonError("rate_limited", error.message, 429);

@@ -1,7 +1,9 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { documentLinks, documents, jobs, lineItems } from "@/lib/db/schema";
+import { SHARE_ATTEMPT_MAX } from "@/lib/share-attempt-window";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/services/context";
+import { SHARE_ATTEMPT_LIMIT_MESSAGE } from "@/lib/services/document-links";
 import { createDraftDocument, deleteDraftDocument, setDocumentStatus } from "@/lib/services/documents";
 import {
   createDocumentLink,
@@ -144,6 +146,30 @@ describe("document links", () => {
     const [stored] = await ctx.db.select().from(documents).where(eq(documents.id, id));
     expect(shared?.document.total).toBe(stored.total);
     expect(shared?.document.status).toBe("sent");
+  });
+
+  it("limits approve and decline attempts per token in a rolling hour", async () => {
+    const { ctx, id } = await draftQuote("l10");
+    await setDocumentStatus(ctx, id, "sent");
+    const token = await createDocumentLink(ctx, id);
+    const other = await draftQuote("l10b");
+    await setDocumentStatus(other.ctx, other.id, "sent");
+    const otherToken = await createDocumentLink(other.ctx, other.id);
+
+    for (let i = 0; i < SHARE_ATTEMPT_MAX; i++) {
+      await respondToSharedQuote(ctx.db, token, i % 2 === 0 ? "approved" : "declined");
+    }
+    const [docBefore] = await ctx.db.select().from(documents).where(eq(documents.id, id));
+    await expect(respondToSharedQuote(ctx.db, token, "approved")).rejects.toMatchObject({
+      message: SHARE_ATTEMPT_LIMIT_MESSAGE,
+    });
+    const [docAfter] = await ctx.db.select().from(documents).where(eq(documents.id, id));
+    expect(docAfter.status).toBe(docBefore.status);
+
+    expect(await respondToSharedQuote(other.ctx.db, otherToken, "approved")).toMatchObject({
+      status: "approved",
+      changed: true,
+    });
   });
 
   it("removes links when a draft is deleted", async () => {

@@ -9,6 +9,11 @@ describe("action-errors", () => {
     expect(codeFromServiceError(new ValidationError("No unbilled tracked lines on this job."))).toBe(
       "nothing-to-bill",
     );
+    expect(
+      codeFromServiceError(
+        new ValidationError("Too many approve or decline attempts on this link. Wait an hour and try again."),
+      ),
+    ).toBe("share-attempt-limit");
   });
 
   it("shows fixed copy for codes and ignores crafted query strings", () => {

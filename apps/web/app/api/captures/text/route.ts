@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { ensureDb } from "@/lib/db";
 import { contractors } from "@/lib/db/schema";
+import { assertCaptureEnabled } from "@/lib/captures/enabled";
 import { assertSameOrigin } from "@/lib/http/assert-same-origin";
 import { jsonError } from "@/lib/http/json-error";
 import { textCaptureBodySchema } from "@/lib/services/capture-schemas";
@@ -36,6 +37,9 @@ export async function POST(request: Request) {
   const auth = await contractorForSession();
   if (!auth) return jsonError("unauthorized", "Sign in required.", 401);
 
+  const captureOff = assertCaptureEnabled();
+  if (captureOff) return captureOff;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -63,8 +67,10 @@ export async function POST(request: Request) {
       jobId: parsedBody.data.jobId,
       resolveTranscript: async () => parsedBody.data.text,
     });
-    const savedPlanId = planId
-      ? await recordPlanTurn(ctx, {
+    let savedPlanId: string | null = null;
+    if (planId) {
+      try {
+        savedPlanId = await recordPlanTurn(ctx, {
           planId,
           userBody: parsedBody.data.text,
           replyBody: describeReplyBody({ status: result.status, previewTitle: result.preview?.title ?? null }),
@@ -72,8 +78,15 @@ export async function POST(request: Request) {
           jobTitle: result.preview?.jobTitle ?? null,
           jobId: parsedBody.data.jobId,
           captureId: result.captureId,
-        })
-      : null;
+        });
+      } catch {
+        console.error({
+          event: "plan_turn_failed",
+          captureId: result.captureId,
+          contractorId: auth.contractor.id,
+        });
+      }
+    }
     return json({ ...result, planId: savedPlanId });
   } catch (error) {
     if (error instanceof RateLimitError) return jsonError("rate_limited", error.message, 429);

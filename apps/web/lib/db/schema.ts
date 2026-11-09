@@ -89,6 +89,8 @@ export const documentLinks = pgTable("document_links", {
   documentId: text("document_id").notNull(),
   token: text("token").notNull().unique(),
   revokedAt: bigint("revoked_at", { mode: "number" }),
+  attemptCount: integer("attempt_count").notNull().default(0),
+  attemptWindowStart: bigint("attempt_window_start", { mode: "number" }),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
 
