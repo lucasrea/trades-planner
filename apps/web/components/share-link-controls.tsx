@@ -23,11 +23,14 @@ export function ShareLinkControls({
   documentId,
   initialToken,
   mail,
+  allowCreate = true,
 }: {
   documentId: string;
   initialToken: string | null;
   /** Present when the client has an email. */
   mail: ShareMailInput | null;
+  /** Drafts and sent documents can create a link. Later statuses can only turn an existing one off. */
+  allowCreate?: boolean;
 }) {
   const [token, setToken] = useState(initialToken);
   const [message, setMessage] = useState("");
@@ -89,16 +92,16 @@ export function ShareLinkControls({
 
   return (
     <>
-      <button type="button" className="btn btn-ghost" onClick={copy} disabled={pending}>
-        Copy link
-      </button>
-      {mail ? (
+      {allowCreate ? (
+        <button type="button" className="btn btn-ghost" onClick={copy} disabled={pending}>
+          Copy link
+        </button>
+      ) : null}
+      {allowCreate && mail ? (
         <button type="button" className="btn btn-ghost" onClick={email} disabled={pending}>
           Email link
         </button>
-      ) : (
-        <span className="self-center text-sm text-muted">No client email</span>
-      )}
+      ) : null}
       {token ? (
         <button type="button" className="btn btn-ghost" onClick={turnOff} disabled={pending}>
           Turn off link

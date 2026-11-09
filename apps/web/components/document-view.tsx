@@ -244,10 +244,11 @@ export function DocumentView({
             <FormSubmitButton label="Delete draft" pendingLabel="Deleting…" className="btn btn-ghost" />
           </form>
         ) : null}
-        {shareable ? (
+        {shareable || shareToken ? (
           <ShareLinkControls
             documentId={document.id}
             initialToken={shareToken}
+            allowCreate={shareable}
             mail={
               clientEmail
                 ? {
