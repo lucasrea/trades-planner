@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildDocumentClientEmail,
   buildMailto,
   canTransition,
   documentActions,
@@ -7,6 +8,7 @@ import {
   isOverdue,
   leadDocumentActions,
 } from "@/lib/documents";
+import { cad } from "@/lib/money";
 
 describe("documents", () => {
   it("handles transitions and overdue", () => {
@@ -38,6 +40,22 @@ describe("documents", () => {
     ]);
     expect(documentActions({ type: "invoice", status: "sent" })).toEqual(["mark-paid", "print"]);
     expect(documentActions({ type: "invoice", status: "paid" })).toEqual(["print"]);
+  });
+
+  it("builds client email text with cad total and share link", () => {
+    const { subject, text } = buildDocumentClientEmail({
+      businessName: "Acme",
+      type: "quote",
+      number: "Q-0001",
+      total: 113,
+      dueOrValid: null,
+      etransferInstructions: "",
+      link: "https://app.test/d/token",
+    });
+    expect(subject).toBe("Acme Quote Q-0001");
+    expect(text).toContain("Q-0001");
+    expect(text).toContain(cad(113));
+    expect(text).toContain("https://app.test/d/token");
   });
 
   it("puts the share link in the mailto body only when given", () => {
