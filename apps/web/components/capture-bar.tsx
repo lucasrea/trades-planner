@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mic, Send, Square } from "lucide-react";
 import { PlanProposalCard } from "@/components/plan-proposal-card";
 import { useVoiceRecorder, type RecordedAudio } from "@/components/use-voice-recorder";
 import { checkRecording, formatElapsed, uploadFilename, uploadMime } from "@/lib/captures/recorder";
-import type { PlanPreview } from "@/lib/plan-proposal";
+import { PLAN_NEW } from "@/lib/plans";
+import type { PlanThreadMessage } from "@/lib/services/plans";
 
 export type CaptureJobOption = {
   id: string;
@@ -15,26 +16,57 @@ export type CaptureJobOption = {
   clientName: string | null;
 };
 
-type PlanMessage = {
-  captureId: string;
-  text: string;
-  reviewUrl: string;
-  /** null: the message could not be read or no action could be chosen. */
-  preview: PlanPreview | null;
-  failed: boolean;
-  cancelled: boolean;
-};
+/** The open plan on the Plan screen. `id` is null for a new, empty thread. */
+export type OpenPlan = { id: string | null; messages: PlanThreadMessage[] };
+
+function PlanReply({ message, onCancelled }: { message: PlanThreadMessage; onCancelled: () => void }) {
+  const reviewUrl = message.reviewUrl;
+  const isReceipt = message.captureType === "receipt";
+  if (message.outcome === "cancelled") return <p className="text-sm text-muted">Cancelled. Nothing was saved.</p>;
+  if (message.outcome === "confirmed") {
+    return (
+      <p className="text-sm text-muted">
+        Confirmed.{isReceipt ? "" : ` ${message.body}`}{" "}
+        {reviewUrl ? (
+          <Link href={reviewUrl} className="underline">
+            Details
+          </Link>
+        ) : null}
+      </p>
+    );
+  }
+  if (message.preview && message.captureId && reviewUrl) {
+    return (
+      <PlanProposalCard captureId={message.captureId} reviewUrl={reviewUrl} preview={message.preview} onCancelled={onCancelled} />
+    );
+  }
+  return (
+    <p className="text-sm text-muted" role="status">
+      {message.body}
+      {isReceipt ? "" : " Your message is saved."}{" "}
+      {reviewUrl ? (
+        <Link href={reviewUrl} className="underline">
+          {isReceipt && message.outcome === "waiting" ? "Review receipt" : "Add it yourself"}
+        </Link>
+      ) : null}
+    </p>
+  );
+}
 
 export function CaptureBar({
   jobs = [],
   lockedJob,
   fill = false,
+  plan,
 }: {
   jobs?: CaptureJobOption[];
   lockedJob?: CaptureJobOption;
   fill?: boolean;
+  /** Plan screen only: the saved thread to show and add to. */
+  plan?: OpenPlan;
 }) {
   const router = useRouter();
+  const [refreshing, startRefresh] = useTransition();
   const [text, setText] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,10 +74,19 @@ export function CaptureBar({
   const [menuOpen, setMenuOpen] = useState(false);
   const [unsentAudio, setUnsentAudio] = useState<RecordedAudio | null>(null);
   const [reading, setReading] = useState(false);
-  const [thread, setThread] = useState<PlanMessage[]>([]);
+  const [sentText, setSentText] = useState("");
   const selected = lockedJob ?? jobs.find((job) => job.id === jobId) ?? null;
   const recorder = useVoiceRecorder((audio) => void sendRecording(audio));
-  const busy = pending || reading;
+  const busy = pending || reading || refreshing;
+  const planTarget = fill ? (plan?.id ?? PLAN_NEW) : null;
+
+  /** Show the saved thread. A new plan gets its own address so a refresh stays on it. */
+  function showPlan(savedPlanId: string | null | undefined) {
+    startRefresh(() => {
+      if (savedPlanId && savedPlanId !== plan?.id) router.replace(`/app?plan=${encodeURIComponent(savedPlanId)}`);
+      else router.refresh();
+    });
+  }
 
   async function sendRecording(audio: RecordedAudio) {
     setUnsentAudio(null);
@@ -62,13 +103,15 @@ export function CaptureBar({
       const form = new FormData();
       form.set("audio", new File([audio.blob], uploadFilename(mime), { type: mime }));
       if (selected?.id) form.set("jobId", selected.id);
+      if (planTarget) form.set("planId", planTarget);
+      setSentText("Voice message");
       const response = await fetch("/api/captures/voice", { method: "POST", body: form });
       const body = (await response.json().catch(() => null)) as {
         captureId?: string;
         status?: string;
         reviewUrl?: string;
-        preview?: PlanPreview | null;
         transcript?: string;
+        planId?: string | null;
         error?: { message?: string };
       } | null;
       if (response.status === 429) {
@@ -85,17 +128,7 @@ export function CaptureBar({
         router.push(body.reviewUrl);
         return;
       }
-      setThread((prev) => [
-        ...prev,
-        {
-          captureId: body.captureId ?? body.reviewUrl!,
-          text: body.transcript?.trim() || "Voice message",
-          reviewUrl: body.reviewUrl!,
-          preview: body.preview ?? null,
-          failed: body.status === "failed",
-          cancelled: false,
-        },
-      ]);
+      showPlan(body.planId);
     } catch {
       setUnsentAudio(audio);
       setError("Network error. Your recording is kept, so you can try again.");
@@ -113,16 +146,21 @@ export function CaptureBar({
     setMenuOpen(false);
     try {
       const assignedId = selected?.id;
+      setSentText(trimmed);
       const response = await fetch("/api/captures/text", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(assignedId ? { text: trimmed, jobId: assignedId } : { text: trimmed }),
+        body: JSON.stringify({
+          text: trimmed,
+          ...(assignedId ? { jobId: assignedId } : {}),
+          ...(planTarget ? { planId: planTarget } : {}),
+        }),
       });
       const body = (await response.json().catch(() => null)) as {
         captureId?: string;
         status?: string;
         reviewUrl?: string;
-        preview?: PlanPreview | null;
+        planId?: string | null;
         error?: { message?: string };
       } | null;
       if (response.status === 429) {
@@ -137,17 +175,7 @@ export function CaptureBar({
         router.push(body.reviewUrl);
         return;
       }
-      setThread((prev) => [
-        ...prev,
-        {
-          captureId: body.captureId ?? body.reviewUrl!,
-          text: trimmed,
-          reviewUrl: body.reviewUrl!,
-          preview: body.preview ?? null,
-          failed: body.status === "failed",
-          cancelled: false,
-        },
-      ]);
+      showPlan(body.planId);
       setText("");
     } catch {
       setError("Network error. Your text is still here.");
@@ -159,37 +187,22 @@ export function CaptureBar({
   return (
     <section className={fill ? "flex min-h-0 flex-1 flex-col" : "space-y-3"}>
       <div className={fill ? "flex min-h-0 flex-1 flex-col justify-end overflow-y-auto pb-4" : undefined}>
-        {thread.map((message) => (
-          <div key={message.captureId} className="mb-3">
-            <div className="mb-3 flex justify-end">
+        {(plan?.messages ?? []).map((message) =>
+          message.role === "user" ? (
+            <div key={message.id} className="mb-3 flex justify-end">
               <p className="max-w-[36rem] whitespace-pre-line rounded-2xl bg-elevated px-4 py-3 text-sm leading-relaxed">
-                {message.text}
+                {message.body}
               </p>
             </div>
-            {message.cancelled ? (
-              <p className="text-sm text-muted">Cancelled. Nothing was saved.</p>
-            ) : message.preview ? (
-              <PlanProposalCard
-                captureId={message.captureId}
-                reviewUrl={message.reviewUrl}
-                preview={message.preview}
-                onCancelled={() =>
-                  setThread((prev) => prev.map((m) => (m.captureId === message.captureId ? { ...m, cancelled: true } : m)))
-                }
-              />
-            ) : (
-              <p className="text-sm text-muted" role="status">
-                {message.failed ? "I couldn't read that." : "I couldn't tell what to do with that."} Your message is saved.{" "}
-                <Link href={message.reviewUrl} className="underline">
-                  Add it yourself
-                </Link>
-              </p>
-            )}
-          </div>
-        ))}
-        {pending && text.trim() ? (
+          ) : (
+            <div key={message.id} className="mb-3">
+              <PlanReply message={message} onCancelled={() => startRefresh(() => router.refresh())} />
+            </div>
+          ),
+        )}
+        {(pending || reading || refreshing) && sentText ? (
           <div className="mb-3 flex justify-end">
-            <p className="max-w-[36rem] rounded-2xl bg-elevated px-4 py-3 text-sm leading-relaxed">{text.trim()}</p>
+            <p className="max-w-[36rem] whitespace-pre-line rounded-2xl bg-elevated px-4 py-3 text-sm leading-relaxed">{sentText}</p>
           </div>
         ) : null}
         {busy ? <p className="text-sm text-muted">Reading…</p> : null}
