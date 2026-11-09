@@ -7,7 +7,8 @@ import {
 } from "@/lib/documents";
 import { captures, clients, contractors, documents, jobs, lineItems } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
-import { toLineRow, validateLine, type LineInput } from "@/lib/line-items";
+import { parseReceiptExtraction } from "@/lib/ai/extraction-types";
+import { toLineRow, validateLine, receiptConfirmBlockers, type LineInput } from "@/lib/line-items";
 import { confirmCaptureSchema } from "@/lib/services/capture-schemas";
 import { ConflictError, NotFoundError, ValidationError, type ServiceContext } from "@/lib/services/context";
 import {
@@ -317,6 +318,19 @@ export async function confirmCapture(ctx: ServiceContext, input: ConfirmCaptureI
 
     if (isReceipt) {
       const lines = await resolveReceiptLines(tx, ctx, parsed);
+      const extraction = parseReceiptExtraction(capture.extraction);
+      if (extraction && extraction.lines.length === lines.length) {
+        const blockers = receiptConfirmBlockers({
+          subtotal: extraction.subtotal,
+          lines: lines.map((line, index) => ({
+            description: line.description,
+            quantity: line.quantity,
+            unitCost: line.unitCost ?? 0,
+            printedLineTotal: extraction.lines[index]!.line_total,
+          })),
+        });
+        if (blockers.length > 0) throw new ValidationError(blockers[0]!);
+      }
       const jobIds = await insertTrackedLines(tx, ctx, { captureId: capture.id, lines });
       await markCaptureConfirmed(tx, ctx, capture.id);
       return { kind: "log", jobIds };

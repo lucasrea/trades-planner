@@ -5,7 +5,7 @@ import { ReceiptReviewForm } from "@/components/receipt-review-form";
 import { actionErrorNotice } from "@/lib/action-errors";
 import { parseDescribeExtraction, parseReceiptExtraction } from "@/lib/ai/extraction-types";
 import { getContractor } from "@/lib/auth";
-import { receiptToDraft, receiptWarnings } from "@/lib/line-items";
+import { receiptToDraft } from "@/lib/line-items";
 import { captureProcessingIsStale } from "@/lib/captures-display";
 import { getCapture, getCaptureResultJobs, getClients, getJobs } from "@/lib/queries";
 import { isActiveJobStatus } from "@/lib/status";
@@ -153,13 +153,14 @@ export default async function CaptureReviewPage({
           vendor={receipt?.vendor ?? null}
           purchasedAt={receipt?.purchased_at ?? null}
           note={capture.transcript}
-          warnings={receipt ? receiptWarnings(receipt) : []}
+          subtotal={receipt?.subtotal ?? null}
           lines={drafts.map((line, index) => {
             const jobId = receipt?.lines[index]?.jobId ?? capture.jobId;
             return {
               description: line.description,
               quantity: line.quantity,
               cost: line.unitCost ?? 0,
+              printedLineTotal: receipt?.lines[index]?.line_total ?? 0,
               jobId: jobId && openJobIds.has(jobId) ? jobId : null,
             };
           })}

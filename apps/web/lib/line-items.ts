@@ -102,6 +102,31 @@ export function receiptWarnings(extraction: ReceiptExtractionInput): string[] {
   return warnings;
 }
 
+export type ReceiptConfirmLine = {
+  description: string;
+  quantity: number;
+  unitCost: number;
+  printedLineTotal: number;
+};
+
+/** Confirm stays off while an edited cost disagrees with the printed line, or the lines miss the printed subtotal. */
+export function receiptConfirmBlockers(input: { subtotal: number | null; lines: ReceiptConfirmLine[] }): string[] {
+  const blockers: string[] = [];
+  for (const line of input.lines) {
+    const expected = roundMoney(line.quantity * line.unitCost);
+    if (Math.abs(expected - roundMoney(line.printedLineTotal)) > 0.02) {
+      blockers.push(`"${line.description}" does not match the printed line total.`);
+    }
+  }
+  if (input.subtotal != null) {
+    const sum = roundMoney(input.lines.reduce((acc, line) => acc + roundMoney(line.quantity * line.unitCost), 0));
+    if (Math.abs(sum - roundMoney(input.subtotal)) > 0.02) {
+      blockers.push("Line totals do not match the receipt subtotal.");
+    }
+  }
+  return blockers;
+}
+
 export function receiptToDraft(extraction: ReceiptExtractionInput, options: { markupPct: number }): LineInput[] {
   return extraction.lines.map((line) => ({
     kind: "material" as const,
