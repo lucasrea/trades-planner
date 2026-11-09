@@ -7,7 +7,7 @@ import { LineEditor } from "@/components/line-editor";
 import { JobDocumentActions } from "@/components/job-document-actions";
 import { actionErrorNotice } from "@/lib/action-errors";
 import { getContractor } from "@/lib/auth";
-import { type LineKind } from "@/lib/money";
+import { cad, computeTotals, type LineKind } from "@/lib/money";
 import { getClients, getJob, getJobDocuments, getTrackedLines } from "@/lib/queries";
 
 function asKind(kind: string): LineKind {
@@ -34,14 +34,27 @@ export default async function JobDetailPage({
     getClients(),
   ]);
 
+  const unbilled = tracked.filter((line) => !line.billedDocumentId);
+  const unbilledTotal = computeTotals(
+    unbilled.map((line) => ({
+      id: line.id,
+      kind: asKind(line.kind),
+      description: line.description,
+      quantity: line.quantity,
+      unit: line.unit,
+      unitPrice: line.unitPrice,
+    })),
+    0,
+  ).subtotal;
+
   return (
     <div className="space-y-8">
       <PageHeader
         title={job.title}
         subtitle={job.client?.name}
         back={{ href: "/app/jobs", label: "Jobs" }}
-        action={<JobDocumentActions jobId={job.id} />}
       />
+      <JobDocumentActions jobId={job.id} unbilledCount={unbilled.length} unbilledTotal={cad(unbilledTotal)} />
       {notice ? (
         <p className="text-sm text-accent" role="alert">
           {notice}
