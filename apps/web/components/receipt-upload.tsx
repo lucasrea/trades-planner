@@ -10,11 +10,14 @@ export function ReceiptUpload({
   jobs = [],
   lockedJob,
   planId,
+  compact = false,
 }: {
   jobs?: CaptureJobOption[];
   lockedJob?: CaptureJobOption;
   /** Plan screen only: the open plan's id, or "new". The receipt is added to that plan. */
   planId?: string;
+  /** Tighter spacing when shown above the plan composer. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -78,7 +81,7 @@ export function ReceiptUpload({
   }
 
   return (
-    <section className="space-y-3" aria-label="Receipt photo">
+    <section className={compact ? "space-y-2" : "space-y-3"} aria-label="Receipt photo">
       <input
         ref={inputRef}
         type="file"
