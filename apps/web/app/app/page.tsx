@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { CaptureBar } from "@/components/capture-bar";
-import { PlanList } from "@/components/plan-list";
+import { PlanSidebar } from "@/components/plan-list";
 import { ReceiptUpload } from "@/components/receipt-upload";
 import { ensureDb } from "@/lib/db";
 import { getContractor } from "@/lib/auth";
@@ -37,12 +37,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const open = { id: thread?.plan.id ?? null, messages: thread?.messages ?? [] };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <PlanList plans={plans} currentId={open.id} />
+    <PlanSidebar plans={plans} currentId={open.id}>
       <CaptureBar key={open.id ?? PLAN_NEW} jobs={jobs} fill plan={open} />
       <div className="pt-3">
         <ReceiptUpload jobs={jobs} planId={open.id ?? PLAN_NEW} />
       </div>
-    </div>
+    </PlanSidebar>
   );
 }

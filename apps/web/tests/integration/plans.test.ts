@@ -53,7 +53,8 @@ describe("saved plans", () => {
     expect((await second.json()).planId).toBe(planId);
 
     const thread = await getPlanThread(ctx, planId);
-    expect(thread.plan.title).toBe("Add a valve at $45 to the kitchen");
+    expect(thread.plan.title).toBe("Add these materials to kitchen");
+    expect((await listPlans(ctx))[0]?.jobTitle).toBe("kitchen");
     expect(thread.messages.map((m) => [m.role, m.captureType])).toEqual([
       ["user", "text"],
       ["plan", "text"],

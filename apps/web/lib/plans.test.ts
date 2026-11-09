@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeReplyBody, planOutcome, planTitle, receiptMessageBody, receiptReplyBody } from "@/lib/plans";
+import { describeReplyBody, planOutcome, planSummaryTitle, planTitle, receiptMessageBody, receiptReplyBody } from "@/lib/plans";
 
 describe("planTitle", () => {
   it("uses a short first message as is", () => {
@@ -19,6 +19,17 @@ describe("planTitle", () => {
 
   it("falls back for an empty message", () => {
     expect(planTitle("   ")).toBe("New plan");
+  });
+
+  it("names a plan from the model summary, not the raw message", () => {
+    expect(planSummaryTitle("Add these materials to kitchen", "Add a valve at $45 to the kitchen")).toBe(
+      "Add these materials to kitchen",
+    );
+  });
+
+  it("falls back to the message when the model had nothing to say", () => {
+    expect(planSummaryTitle("I couldn't tell what to do with that.", "Fix the tap")).toBe("Fix the tap");
+    expect(planSummaryTitle(null, "Fix the tap")).toBe("Fix the tap");
   });
 });
 

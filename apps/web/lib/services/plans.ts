@@ -1,15 +1,15 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { parseDescribeExtraction } from "@/lib/ai/extraction-types";
-import { captures, planMessages, plans } from "@/lib/db/schema";
+import { captures, jobs, planMessages, plans } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
 import type { PlanPreview } from "@/lib/plan-proposal";
-import { PLAN_NEW, planOutcome, planTitle, type PlanOutcome } from "@/lib/plans";
+import { PLAN_NEW, planOutcome, planSummaryTitle, type PlanOutcome } from "@/lib/plans";
 import { NotFoundError, ValidationError, type ServiceContext } from "@/lib/services/context";
 import { previewStoredProposal } from "@/lib/services/plan-proposals";
 
 const LIST_LIMIT = 100;
 
-export type PlanSummary = { id: string; title: string; updatedAt: number };
+export type PlanSummary = { id: string; title: string; jobTitle: string | null; updatedAt: number };
 
 export type PlanThreadMessage = {
   id: string;
@@ -42,7 +42,7 @@ export async function assertPlanTarget(ctx: ServiceContext, planId: string | und
 /** This contractor's plans, most recently used first. */
 export async function listPlans(ctx: ServiceContext): Promise<PlanSummary[]> {
   return ctx.db
-    .select({ id: plans.id, title: plans.title, updatedAt: plans.updatedAt })
+    .select({ id: plans.id, title: plans.title, jobTitle: plans.jobTitle, updatedAt: plans.updatedAt })
     .from(plans)
     .where(eq(plans.contractorId, ctx.contractorId))
     .orderBy(desc(plans.updatedAt), desc(plans.createdAt))
@@ -103,11 +103,31 @@ export async function getPlanThread(ctx: ServiceContext, planId: string) {
  */
 export async function recordPlanTurn(
   ctx: ServiceContext,
-  input: { planId: string; userBody: string; replyBody: string; captureId: string },
+  input: {
+    planId: string;
+    userBody: string;
+    replyBody: string;
+    captureId: string;
+    /** Model summary of this exchange. Used as the sidebar name on the first message. */
+    summaryTitle?: string | null;
+    /** Job this exchange is about. Shown as the sidebar tag, and kept once set. */
+    jobTitle?: string | null;
+    /** Owned job to tag when the caller has an id but not the title. */
+    jobId?: string | null;
+  },
 ): Promise<string> {
   const userBody = input.userBody.trim();
   if (!userBody) throw new ValidationError("Message is required.");
   return ctx.db.transaction(async (tx) => {
+    let jobTitle = input.jobTitle?.trim() || null;
+    if (!jobTitle && input.jobId) {
+      const [job] = await tx
+        .select({ title: jobs.title })
+        .from(jobs)
+        .where(and(eq(jobs.id, input.jobId), eq(jobs.contractorId, ctx.contractorId)))
+        .limit(1);
+      jobTitle = job?.title ?? null;
+    }
     const txCtx = { db: tx, contractorId: ctx.contractorId };
     const now = Date.now();
     let planId = input.planId;
@@ -116,13 +136,17 @@ export async function recordPlanTurn(
       await tx.insert(plans).values({
         id: planId,
         contractorId: ctx.contractorId,
-        title: planTitle(userBody),
+        title: planSummaryTitle(input.summaryTitle, userBody),
+        jobTitle,
         createdAt: now,
         updatedAt: now,
       });
     } else {
       await requirePlan(txCtx, planId);
-      await tx.update(plans).set({ updatedAt: now }).where(and(eq(plans.id, planId), eq(plans.contractorId, ctx.contractorId)));
+      await tx
+        .update(plans)
+        .set({ updatedAt: now, ...(jobTitle ? { jobTitle } : {}) })
+        .where(and(eq(plans.id, planId), eq(plans.contractorId, ctx.contractorId)));
     }
     await tx.insert(planMessages).values([
       { id: newId(), planId, contractorId: ctx.contractorId, role: "user", body: userBody, captureId: input.captureId, createdAt: now },

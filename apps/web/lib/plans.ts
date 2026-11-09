@@ -2,6 +2,23 @@
 
 const TITLE_MAX = 60;
 
+const GENERIC_REPLIES = new Set([
+  "I couldn't read that.",
+  "I couldn't tell what to do with that.",
+  "I couldn't read that receipt.",
+  "Receipt read. Check the lines before they are saved.",
+]);
+
+/**
+ * Sidebar name. Prefer the model's one-line summary of the first exchange.
+ * Fall back to a shortened first message when the model had nothing to say.
+ */
+export function planSummaryTitle(summary: string | null | undefined, firstMessage: string): string {
+  const trimmed = summary?.trim();
+  if (trimmed && !GENERIC_REPLIES.has(trimmed)) return planTitle(trimmed);
+  return planTitle(firstMessage);
+}
+
 /** The plan title: the first message with whitespace collapsed, cut at a word where it can be. */
 export function planTitle(firstMessage: string): string {
   const text = firstMessage.replace(/\s+/g, " ").trim();
