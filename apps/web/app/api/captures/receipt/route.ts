@@ -6,6 +6,8 @@ import { contractors } from "@/lib/db/schema";
 import { assertSameOrigin } from "@/lib/http/assert-same-origin";
 import { jsonError } from "@/lib/http/json-error";
 import { NotFoundError, RateLimitError } from "@/lib/services/context";
+import { assertPlanTarget, recordPlanTurn } from "@/lib/services/plans";
+import { receiptMessageBody, receiptReplyBody } from "@/lib/plans";
 import { createReceiptCapture } from "@/lib/services/receipt-capture";
 import { getReceiptStorage, StorageError } from "@/lib/storage/receipts";
 
@@ -45,6 +47,16 @@ export async function POST(request: Request) {
   const note = typeof noteField === "string" ? noteField.trim() : "";
   if (note.length > MAX_NOTE_LENGTH) return jsonError("invalid", `Note must be ${MAX_NOTE_LENGTH} characters or fewer.`, 400);
 
+  const planField = form.get("planId");
+  const planId = typeof planField === "string" && planField.trim() ? planField.trim() : undefined;
+  const ctx = { db, contractorId: contractor.id };
+  try {
+    await assertPlanTarget(ctx, planId);
+  } catch (error) {
+    if (error instanceof NotFoundError) return jsonError("not_found", "Plan not found.", 404);
+    throw error;
+  }
+
   try {
     const result = await createReceiptCapture(db, contractor, {
       image: { bytes: validated.bytes, mimeType: validated.mimeType },
@@ -52,7 +64,16 @@ export async function POST(request: Request) {
       note: note || undefined,
       storage: getReceiptStorage(),
     });
-    return Response.json(result);
+    // The plan keeps a one-line note. The photo stays on the capture.
+    const savedPlanId = planId
+      ? await recordPlanTurn(ctx, {
+          planId,
+          userBody: receiptMessageBody(note),
+          replyBody: receiptReplyBody(result.status),
+          captureId: result.captureId,
+        })
+      : null;
+    return Response.json({ ...result, planId: savedPlanId });
   } catch (error) {
     if (error instanceof RateLimitError) return jsonError("rate_limited", error.message, 429);
     if (error instanceof NotFoundError) return jsonError("not_found", "Job not found.", 404);

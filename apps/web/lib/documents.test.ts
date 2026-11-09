@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { buildMailto, canTransition, documentActions, documentNumber, isOverdue } from "@/lib/documents";
+import {
+  buildMailto,
+  canTransition,
+  documentActions,
+  documentNumber,
+  isOverdue,
+  leadDocumentActions,
+} from "@/lib/documents";
 
 describe("documents", () => {
   it("handles transitions and overdue", () => {
@@ -47,5 +54,13 @@ describe("documents", () => {
     expect(without).not.toContain("View it online");
     const withLink = decodeURIComponent(buildMailto({ ...base, link: "https://x.test/d/abc" }).replace(/\+/g, " "));
     expect(withLink).toContain("View it online: https://x.test/d/abc");
+  });
+
+  it("leads a draft with print, email when there is an address, then mark sent", () => {
+    const withEmail = documentActions({ type: "quote", status: "draft", hasClientEmail: true });
+    expect(leadDocumentActions(withEmail, "draft")).toEqual(["print", "email", "mark-sent"]);
+    const noEmail = documentActions({ type: "invoice", status: "draft", unbilledCount: 1 });
+    expect(leadDocumentActions(noEmail, "draft")).toEqual(["print", "mark-sent"]);
+    expect(leadDocumentActions(documentActions({ type: "quote", status: "sent" }), "sent")).toEqual([]);
   });
 });

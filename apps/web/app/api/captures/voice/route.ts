@@ -8,6 +8,8 @@ import { assertSameOrigin } from "@/lib/http/assert-same-origin";
 import { jsonError } from "@/lib/http/json-error";
 import { NotFoundError, RateLimitError } from "@/lib/services/context";
 import { createDescribeCapture } from "@/lib/services/describe-capture";
+import { assertPlanTarget, recordPlanTurn } from "@/lib/services/plans";
+import { describeReplyBody } from "@/lib/plans";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -44,6 +46,16 @@ export async function POST(request: Request) {
   const jobField = form.get("jobId");
   const jobId = typeof jobField === "string" && jobField.trim() ? jobField.trim() : undefined;
 
+  const planField = form.get("planId");
+  const planId = typeof planField === "string" && planField.trim() ? planField.trim() : undefined;
+  const ctx = { db, contractorId: contractor.id };
+  try {
+    await assertPlanTarget(ctx, planId);
+  } catch (error) {
+    if (error instanceof NotFoundError) return jsonError("not_found", "Plan not found.", 404);
+    throw error;
+  }
+
   const audioBytes = validated.bytes;
   const mimeType = validated.mimeType;
 
@@ -53,7 +65,16 @@ export async function POST(request: Request) {
       jobId,
       resolveTranscript: () => getTranscriptionProvider().transcribe({ audioBytes, mimeType }),
     });
-    return json(result);
+    // The plan keeps the transcript only. The audio is never stored.
+    const savedPlanId = planId
+      ? await recordPlanTurn(ctx, {
+            planId,
+            userBody: result.transcript || "Voice message",
+            replyBody: describeReplyBody({ status: result.status, previewTitle: result.preview?.title ?? null }),
+            captureId: result.captureId,
+          })
+        : null;
+    return json({ ...result, planId: savedPlanId });
   } catch (error) {
     if (error instanceof RateLimitError) return jsonError("rate_limited", error.message, 429);
     if (error instanceof NotFoundError) return jsonError("not_found", "Job not found.", 404);

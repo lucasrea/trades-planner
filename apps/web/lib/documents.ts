@@ -87,6 +87,12 @@ export function documentActions(doc: {
   return actions;
 }
 
+/** Actions shown first, in order, at the top of a draft document. Everything else follows below. */
+export function leadDocumentActions(actions: DocumentAction[], status: DocStatus): DocumentAction[] {
+  if (status !== "draft") return [];
+  return (["print", "email", "mark-sent"] as const).filter((a) => actions.includes(a));
+}
+
 export function buildMailto(input: {
   businessName: string;
   type: DocType;

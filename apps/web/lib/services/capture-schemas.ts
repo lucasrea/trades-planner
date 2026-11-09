@@ -47,6 +47,8 @@ export const confirmCaptureSchema = z.object({
 export const textCaptureBodySchema = z.object({
   text: z.string().trim().min(1).max(4000),
   jobId: z.string().min(1).optional(),
+  /** The open plan's id, or "new" to start one. Omit when the message is not part of a plan. */
+  planId: z.string().min(1).max(64).optional(),
 });
 
 export type ConfirmCaptureInputParsed = z.infer<typeof confirmCaptureSchema>;

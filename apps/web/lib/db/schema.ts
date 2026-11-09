@@ -130,3 +130,21 @@ export const captures = pgTable("captures", {
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   confirmedAt: bigint("confirmed_at", { mode: "number" }),
 });
+
+export const plans = pgTable("plans", {
+  id: text("id").primaryKey(),
+  contractorId: text("contractor_id").notNull(),
+  title: text("title").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
+});
+
+export const planMessages = pgTable("plan_messages", {
+  id: text("id").primaryKey(),
+  planId: text("plan_id").notNull(),
+  contractorId: text("contractor_id").notNull(),
+  role: text("role").notNull(),
+  body: text("body").notNull(),
+  captureId: text("capture_id"),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+});

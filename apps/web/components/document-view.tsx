@@ -15,7 +15,13 @@ import {
 } from "@/lib/actions/documents";
 import { FormSubmitButton } from "@/components/form-submit";
 import { ShareLinkControls } from "@/components/share-link-controls";
-import { buildMailto, documentActions, type DocStatus, type DocType } from "@/lib/documents";
+import {
+  buildMailto,
+  documentActions,
+  leadDocumentActions,
+  type DocStatus,
+  type DocType,
+} from "@/lib/documents";
 import { formatDisplayDate } from "@/lib/format";
 import { cad, matchingTaxPercentCaption, type LineKind } from "@/lib/money";
 
@@ -157,13 +163,23 @@ export function DocumentView({
         etransferInstructions,
       })
       : null;
-  const actions = new Set(
-    documentActions({
-      type: (isQuote ? "quote" : "invoice") as DocType,
-      status: document.status as DocStatus,
-      unbilledCount,
-      hasClientEmail: Boolean(clientEmail),
-    }),
+  const allActions = documentActions({
+    type: (isQuote ? "quote" : "invoice") as DocType,
+    status: document.status as DocStatus,
+    unbilledCount,
+    hasClientEmail: Boolean(clientEmail),
+  });
+  const lead = leadDocumentActions(allActions, document.status as DocStatus);
+  const actions = new Set(allActions.filter((a) => !lead.includes(a)));
+  const printLink = (
+    <Link
+      href={`/app/documents/${document.id}/print`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={lead.includes("print") ? "btn btn-primary" : "btn btn-ghost"}
+    >
+      Print
+    </Link>
   );
 
   return (
@@ -181,10 +197,22 @@ export function DocumentView({
         </p>
       ) : null}
 
+      {lead.length ? (
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap [&>*]:w-full sm:[&>*]:w-auto">
+          {printLink}
+          {lead.includes("email") && mailto ? (
+            <a href={mailto} className="btn btn-ghost">
+              Email
+            </a>
+          ) : null}
+          {lead.includes("mark-sent") ? (
+            <StatusButton documentId={document.id} next="sent" label="Mark sent" className="btn btn-navy w-full" />
+          ) : null}
+          {!mailto ? <span className="text-sm text-muted sm:self-center">No client email</span> : null}
+        </div>
+      ) : null}
+
       <div className="mb-6 flex flex-wrap gap-2">
-        {actions.has("mark-sent") ? (
-          <StatusButton documentId={document.id} next="sent" label="Mark sent" className="btn btn-navy" />
-        ) : null}
         {actions.has("approve") ? (
           <StatusButton documentId={document.id} next="approved" label="Approve" className="btn btn-primary" />
         ) : null}
@@ -234,21 +262,14 @@ export function DocumentView({
                 : null
             }
           />
-        ) : mailto ? (
+        ) : lead.length ? null : mailto ? (
           <a href={mailto} className="btn btn-ghost">
             Email
           </a>
         ) : (
           <span className="self-center text-sm text-muted">No client email</span>
         )}
-        <Link
-          href={`/app/documents/${document.id}/print`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-ghost"
-        >
-          Print
-        </Link>
+        {lead.length ? null : printLink}
       </div>
 
       <div className="card mb-6 grid gap-4 p-6 sm:grid-cols-3">
