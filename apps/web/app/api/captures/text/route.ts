@@ -70,6 +70,7 @@ export async function POST(request: Request) {
           replyBody: describeReplyBody({ status: result.status, previewTitle: result.preview?.title ?? null }),
           summaryTitle: result.preview?.title ?? null,
           jobTitle: result.preview?.jobTitle ?? null,
+          jobId: parsedBody.data.jobId,
           captureId: result.captureId,
         })
       : null;

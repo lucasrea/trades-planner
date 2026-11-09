@@ -110,7 +110,7 @@ export async function recordPlanTurn(
     captureId: string;
     /** Model summary of this exchange. Used as the sidebar name on the first message. */
     summaryTitle?: string | null;
-    /** Job this exchange is about. Shown as the sidebar tag, and kept once set. */
+    /** Job this exchange is about. Shown as the sidebar tag. A later message that names a job replaces it. */
     jobTitle?: string | null;
     /** Owned job to tag when the caller has an id but not the title. */
     jobId?: string | null;
