@@ -1,4 +1,4 @@
-import { padNumber } from "@/lib/money";
+import { cad, padNumber } from "@/lib/money";
 
 export type DocType = "quote" | "invoice";
 export type QuoteStatus = "draft" | "sent" | "approved" | "declined";
@@ -91,6 +91,27 @@ export function documentActions(doc: {
 export function leadDocumentActions(actions: DocumentAction[], status: DocStatus): DocumentAction[] {
   if (status !== "draft") return [];
   return (["print", "email", "mark-sent"] as const).filter((a) => actions.includes(a));
+}
+
+export function buildDocumentClientEmail(input: {
+  businessName: string;
+  type: DocType;
+  number: string;
+  total: number;
+  dueOrValid: string | null;
+  etransferInstructions: string;
+  link: string;
+}): { subject: string; text: string } {
+  const docLabel = input.type === "quote" ? "Quote" : "Invoice";
+  const subject = `${input.businessName} ${docLabel} ${input.number}`;
+  const dateLabel = input.type === "quote" ? "Valid until" : "Due date";
+  const dateLine = input.dueOrValid ? `${dateLabel}: ${input.dueOrValid}\n` : "";
+  const etransfer =
+    input.type === "invoice" && input.etransferInstructions
+      ? `\n${input.etransferInstructions}`
+      : "";
+  const text = `Hi,\n\nPlease find your ${docLabel.toLowerCase()} ${input.number} for ${cad(input.total)}.\nView it online: ${input.link}\n${dateLine}${etransfer}\n\nThank you,\n${input.businessName}`;
+  return { subject, text };
 }
 
 export function buildMailto(input: {

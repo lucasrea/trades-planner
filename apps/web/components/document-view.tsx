@@ -14,6 +14,7 @@ import {
   setDocumentStatusAction,
 } from "@/lib/actions/documents";
 import { FormSubmitButton } from "@/components/form-submit";
+import { EmailClientButton } from "@/components/email-client-button";
 import { ShareLinkControls } from "@/components/share-link-controls";
 import {
   buildMailto,
@@ -127,6 +128,7 @@ export function DocumentView({
   displayStatus,
   unbilledCount,
   shareToken,
+  emailClientEnabled,
   notice,
 }: {
   document: DocumentViewData;
@@ -139,6 +141,7 @@ export function DocumentView({
   displayStatus: string;
   unbilledCount: number;
   shareToken: string | null;
+  emailClientEnabled: boolean;
   notice?: string;
 }) {
   const isQuote = document.type === "quote";
@@ -170,6 +173,9 @@ export function DocumentView({
     hasClientEmail: Boolean(clientEmail),
   });
   const lead = leadDocumentActions(allActions, document.status as DocStatus);
+  const showEmailClient = emailClientEnabled && Boolean(clientEmail) && shareable;
+  const emailClientInLead = showEmailClient && lead.length > 0;
+  const emailClientInActions = showEmailClient && lead.length === 0;
   const actions = new Set(allActions.filter((a) => !lead.includes(a)));
   const printLink = (
     <Link
@@ -205,6 +211,7 @@ export function DocumentView({
               Email
             </a>
           ) : null}
+          {emailClientInLead ? <EmailClientButton documentId={document.id} /> : null}
           {lead.includes("mark-sent") ? (
             <StatusButton documentId={document.id} next="sent" label="Mark sent" className="btn btn-navy w-full" />
           ) : null}
@@ -246,6 +253,7 @@ export function DocumentView({
         ) : null}
         {shareable || shareToken ? (
           <>
+            {emailClientInActions ? <EmailClientButton documentId={document.id} /> : null}
             <ShareLinkControls
               documentId={document.id}
               initialToken={shareToken}

@@ -6,6 +6,7 @@ import { isOverdue, type DocStatus, type DocType } from "@/lib/documents";
 import { calendarDateInTimeZone } from "@/lib/format";
 import { ensureDb } from "@/lib/db";
 import { getDocument, getTrackedLines } from "@/lib/queries";
+import { isEmailProviderConfigured } from "@/lib/email";
 import { getActiveLinkToken } from "@/lib/services/document-links";
 
 export default async function DocumentDetailPage({
@@ -48,6 +49,7 @@ export default async function DocumentDetailPage({
       displayStatus={displayStatus}
       unbilledCount={unbilledCount}
       shareToken={shareToken}
+      emailClientEnabled={isEmailProviderConfigured()}
       notice={notice ?? undefined}
     />
   );
