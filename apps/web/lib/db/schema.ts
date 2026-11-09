@@ -83,6 +83,15 @@ export const documents = pgTable("documents", {
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });
 
+export const documentLinks = pgTable("document_links", {
+  id: text("id").primaryKey(),
+  contractorId: text("contractor_id").notNull(),
+  documentId: text("document_id").notNull(),
+  token: text("token").notNull().unique(),
+  revokedAt: bigint("revoked_at", { mode: "number" }),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+});
+
 export const lineItems = pgTable("line_items", {
   id: text("id").primaryKey(),
   contractorId: text("contractor_id").notNull(),
