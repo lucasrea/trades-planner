@@ -29,6 +29,24 @@ export function planTitle(firstMessage: string): string {
   return `${(lastSpace > TITLE_MAX / 2 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
 
+/** Sidebar sections. Plans are already newest-first, so the first time a job appears is its latest chat. */
+export function groupPlansByJob<T extends { jobTitle: string | null }>(plans: T[]): { jobTitle: string | null; plans: T[] }[] {
+  const groups: { jobTitle: string | null; plans: T[] }[] = [];
+  const index = new Map<string, number>();
+  for (const plan of plans) {
+    const jobTitle = plan.jobTitle?.trim() || null;
+    const key = jobTitle ?? "";
+    const at = index.get(key);
+    if (at == null) {
+      index.set(key, groups.length);
+      groups.push({ jobTitle, plans: [plan] });
+    } else {
+      groups[at]!.plans.push(plan);
+    }
+  }
+  return groups;
+}
+
 export type PlanOutcome = "waiting" | "confirmed" | "cancelled" | "failed";
 
 /** What happened to the capture behind a plan reply. Read from the capture, so it never goes stale. */

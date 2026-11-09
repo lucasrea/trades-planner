@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { PanelLeft, Plus } from "lucide-react";
+import { groupPlansByJob } from "@/lib/plans";
 import type { PlanSummary } from "@/lib/services/plans";
 
 const STORAGE_KEY = "tp-plans-sidebar";
@@ -23,26 +24,29 @@ function subscribeSidebar() {
 
 function PlanRows({ plans, currentId, onPick }: { plans: PlanSummary[]; currentId: string | null; onPick?: () => void }) {
   if (plans.length === 0) return <p className="px-3 py-2 text-sm text-muted">No plans yet.</p>;
+  const groups = groupPlansByJob(plans);
   return (
-    <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
-      {plans.map((plan) => (
-        <li key={plan.id}>
-          <Link
-            href={`/app?plan=${encodeURIComponent(plan.id)}`}
-            onClick={onPick}
-            className={`block rounded-lg px-3 py-2 hover:bg-elevated ${plan.id === currentId ? "bg-elevated" : ""}`}
-            aria-current={plan.id === currentId ? "page" : undefined}
-          >
-            <span className="block truncate text-sm">{plan.title}</span>
-            {plan.jobTitle ? (
-              <span className="mt-1 inline-block max-w-full truncate rounded-full bg-paper px-2 py-0.5 text-xs text-muted">
-                {plan.jobTitle}
-              </span>
-            ) : null}
-          </Link>
-        </li>
+    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 pb-3">
+      {groups.map((group) => (
+        <section key={group.jobTitle ?? ""}>
+          <h2 className="truncate px-3 pb-1 text-xs font-medium text-muted">{group.jobTitle ?? "No job"}</h2>
+          <ul className="space-y-0.5">
+            {group.plans.map((plan) => (
+              <li key={plan.id}>
+                <Link
+                  href={`/app?plan=${encodeURIComponent(plan.id)}`}
+                  onClick={onPick}
+                  className={`block truncate rounded-lg px-3 py-2 text-sm hover:bg-elevated ${plan.id === currentId ? "bg-elevated" : ""}`}
+                  aria-current={plan.id === currentId ? "page" : undefined}
+                >
+                  {plan.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       ))}
-    </ul>
+    </div>
   );
 }
 
