@@ -70,6 +70,7 @@ export async function POST(request: Request) {
           planId,
           userBody: receiptMessageBody(note),
           replyBody: receiptReplyBody(result.status),
+          jobId,
           captureId: result.captureId,
         })
       : null;

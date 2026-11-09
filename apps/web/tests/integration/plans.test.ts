@@ -5,6 +5,7 @@ import { POST as postText } from "@/app/api/captures/text/route";
 import { POST as postVoice } from "@/app/api/captures/voice/route";
 import * as auth from "@/lib/auth";
 import { captures, planMessages, plans } from "@/lib/db/schema";
+import { newId } from "@/lib/id";
 import { NotFoundError } from "@/lib/services/context";
 import { cancelPlanProposal, confirmPlanProposal } from "@/lib/services/plan-proposals";
 import { getPlanThread, listPlans, recordPlanTurn } from "@/lib/services/plans";
@@ -53,7 +54,8 @@ describe("saved plans", () => {
     expect((await second.json()).planId).toBe(planId);
 
     const thread = await getPlanThread(ctx, planId);
-    expect(thread.plan.title).toBe("Add a valve at $45 to the kitchen");
+    expect(thread.plan.title).toBe("Add these materials to kitchen");
+    expect((await listPlans(ctx))[0]?.jobTitle).toBe("kitchen");
     expect(thread.messages.map((m) => [m.role, m.captureType])).toEqual([
       ["user", "text"],
       ["plan", "text"],
@@ -63,6 +65,8 @@ describe("saved plans", () => {
     expect(thread.messages[0].body).toBe("Add a valve at $45 to the kitchen");
     expect(thread.messages[1].outcome).toBe("waiting");
     expect(thread.messages[2].body).toBe("Log 3 hours on the kitchen");
+    expect(thread.plan.title).toBe("Add these materials to kitchen");
+    expect((await listPlans(ctx))[0]?.jobTitle).toBe("kitchen");
     expect(await listPlans(ctx)).toHaveLength(1);
   });
 
@@ -121,6 +125,19 @@ describe("saved plans", () => {
     expect(rows.every((r) => r.contractorId === a.contractorId)).toBe(true);
     const [plan] = await getTestDb().select().from(plans).where(eq(plans.id, planId));
     expect(plan.contractorId).toBe(a.contractorId);
+  });
+
+  it("another contractor's job id does not set the tag", async () => {
+    const { a, b } = await seedTwoContractors();
+    const ctx = { db: getTestDb(), contractorId: a.contractorId };
+    const planId = await recordPlanTurn(ctx, {
+      planId: "new",
+      userBody: "hello",
+      replyBody: "hi",
+      captureId: newId(),
+      jobId: b.jobId,
+    });
+    expect((await listPlans(ctx)).find((plan) => plan.id === planId)?.jobTitle).toBeNull();
   });
 
   it("voice and receipt join the plan: transcript and a one-line receipt note, no audio stored", async () => {

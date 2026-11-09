@@ -71,6 +71,9 @@ export async function POST(request: Request) {
             planId,
             userBody: result.transcript || "Voice message",
             replyBody: describeReplyBody({ status: result.status, previewTitle: result.preview?.title ?? null }),
+            summaryTitle: result.preview?.title ?? null,
+            jobTitle: result.preview?.jobTitle ?? null,
+            jobId,
             captureId: result.captureId,
           })
         : null;

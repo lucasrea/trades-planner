@@ -135,6 +135,7 @@ export const plans = pgTable("plans", {
   id: text("id").primaryKey(),
   contractorId: text("contractor_id").notNull(),
   title: text("title").notNull(),
+  jobTitle: text("job_title"),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });
