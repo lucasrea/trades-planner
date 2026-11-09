@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canTransition, documentActions, documentNumber, isOverdue } from "@/lib/documents";
+import { canTransition, documentActions, documentNumber, isOverdue, leadDocumentActions } from "@/lib/documents";
 
 describe("documents", () => {
   it("handles transitions and overdue", () => {
@@ -31,5 +31,13 @@ describe("documents", () => {
     ]);
     expect(documentActions({ type: "invoice", status: "sent" })).toEqual(["mark-paid", "print"]);
     expect(documentActions({ type: "invoice", status: "paid" })).toEqual(["print"]);
+  });
+
+  it("leads a draft with print, email when there is an address, then mark sent", () => {
+    const withEmail = documentActions({ type: "quote", status: "draft", hasClientEmail: true });
+    expect(leadDocumentActions(withEmail, "draft")).toEqual(["print", "email", "mark-sent"]);
+    const noEmail = documentActions({ type: "invoice", status: "draft", unbilledCount: 1 });
+    expect(leadDocumentActions(noEmail, "draft")).toEqual(["print", "mark-sent"]);
+    expect(leadDocumentActions(documentActions({ type: "quote", status: "sent" }), "sent")).toEqual([]);
   });
 });
