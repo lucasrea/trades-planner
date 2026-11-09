@@ -1,11 +1,25 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { PanelLeft, Plus } from "lucide-react";
 import type { PlanSummary } from "@/lib/services/plans";
 
 const STORAGE_KEY = "tp-plans-sidebar";
+
+function readSidebarOpen() {
+  try {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    if (stored === "open" || stored === "closed") return stored === "open";
+    return window.matchMedia("(min-width: 1024px)").matches;
+  } catch {
+    return false;
+  }
+}
+
+function subscribeSidebar() {
+  return () => {};
+}
 
 function PlanRows({ plans, currentId, onPick }: { plans: PlanSummary[]; currentId: string | null; onPick?: () => void }) {
   if (plans.length === 0) return <p className="px-3 py-2 text-sm text-muted">No plans yet.</p>;
@@ -51,20 +65,17 @@ export function PlanSidebar({
   currentId: string | null;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    if (stored === "open" || stored === "closed") {
-      setOpen(stored === "open");
-      return;
-    }
-    setOpen(window.matchMedia("(min-width: 1024px)").matches);
-  }, []);
+  const persisted = useSyncExternalStore(subscribeSidebar, readSidebarOpen, () => false);
+  const [override, setOverride] = useState<boolean | null>(null);
+  const open = override ?? persisted;
 
   function setSidebar(next: boolean) {
-    setOpen(next);
-    sessionStorage.setItem(STORAGE_KEY, next ? "open" : "closed");
+    setOverride(next);
+    try {
+      sessionStorage.setItem(STORAGE_KEY, next ? "open" : "closed");
+    } catch {
+      // Private mode can block storage. The sidebar still toggles for this view.
+    }
   }
 
   function sidebar(closeOnPick: boolean) {
