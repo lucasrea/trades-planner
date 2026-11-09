@@ -36,7 +36,7 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
             href={link.href}
             onClick={onNavigate}
             className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
-              active ? "bg-white/15 text-white" : "text-white/75 hover:bg-white/10 hover:text-white"
+              active ? "bg-elevated text-ink" : "text-muted hover:bg-elevated hover:text-ink"
             }`}
           >
             <Icon size={16} />
@@ -65,22 +65,22 @@ export function AppShell({
 
   return (
     <div className="flex h-dvh overflow-hidden">
-      <aside className="no-print hidden w-60 flex-col border-r border-line bg-navy text-white lg:flex">
+      <aside className="no-print hidden w-60 flex-col border-r border-line bg-navy text-ink lg:flex">
         <div className="px-5 py-5">
           <Link href="/app" className="text-base font-semibold tracking-tight">
             Trades Planner
           </Link>
-          <p className="mt-1 truncate text-xs text-white/70">{businessName || "Your business"}</p>
+          <p className="mt-1 truncate text-xs text-muted">{businessName || "Your business"}</p>
         </div>
         <nav className="flex flex-1 flex-col gap-1 px-3">
           <NavLinks pathname={pathname} />
         </nav>
-        <div className="border-t border-white/10 p-3">
+        <div className="border-t border-line p-3">
           <div className="flex items-center gap-3 rounded-lg px-2 py-1.5">
             <UserAvatar user={user} size={32} />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{user.name || "Your account"}</p>
-              <p className="truncate text-xs text-white/60">{user.email}</p>
+              <p className="truncate text-xs text-muted">{user.email}</p>
             </div>
           </div>
         </div>
@@ -94,14 +94,14 @@ export function AppShell({
             aria-label="Close menu"
             onClick={() => setMenuOpen(false)}
           />
-          <aside className="relative flex h-full w-64 flex-col bg-navy text-white shadow-xl">
+          <aside className="relative flex h-full w-64 flex-col bg-navy text-ink shadow-xl">
             <div className="flex items-center justify-between px-5 py-4">
               <Link href="/app" className="text-base font-semibold" onClick={() => setMenuOpen(false)}>
                 Trades Planner
               </Link>
               <button
                 type="button"
-                className="rounded-lg p-1.5 hover:bg-white/10"
+                className="rounded-lg p-1.5 hover:bg-elevated"
                 aria-label="Close menu"
                 onClick={() => setMenuOpen(false)}
               >

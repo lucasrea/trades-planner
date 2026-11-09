@@ -13,14 +13,14 @@ export function statusClass(status: string) {
     case "active":
     case "done":
     case "completed":
-      return "bg-lime-950/60 text-lime-400 ring-1 ring-lime-900/50";
+      return "bg-lime-100 text-lime-900 ring-1 ring-lime-200";
     case "sent":
     case "quoted":
-      return "bg-sky-950/60 text-sky-400 ring-1 ring-sky-900/50";
+      return "bg-sky-100 text-sky-900 ring-1 ring-sky-200";
     case "declined":
     case "overdue":
     case "archived":
-      return "bg-orange-950/60 text-orange-400 ring-1 ring-orange-900/50";
+      return "bg-orange-100 text-orange-900 ring-1 ring-orange-200";
     default:
       return "bg-elevated text-muted ring-1 ring-line";
   }

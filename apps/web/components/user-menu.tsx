@@ -39,7 +39,7 @@ export function UserAvatar({
   }
   return (
     <span
-      className="inline-flex items-center justify-center rounded-full bg-ivory/15 text-xs font-semibold text-ivory ring-1 ring-ivory/25"
+      className="inline-flex items-center justify-center rounded-full bg-elevated text-xs font-semibold text-ink ring-1 ring-line"
       style={{ width: size, height: size }}
     >
       {initials(user.name, user.email)}
