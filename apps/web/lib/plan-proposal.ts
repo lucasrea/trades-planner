@@ -88,7 +88,7 @@ function trackedAction(lines: Pick<DescribeLine, "kind">[]): PlanAction {
  * One message, one action.
  * - Words that bill: Make an invoice.
  * - No lines: Create a job when something new is named, otherwise unclear.
- * - A job already selected in Plan: work on it (Add materials or Log hours).
+ * - A job already selected in Plan: quote or invoice when those words say so; otherwise Add materials or Log hours.
  * - A job only named in the words: a quote when pricing, otherwise Add materials or Log hours.
  * - No job: Make a quote when pricing new work; tracked work with no job still names its action so
  *   the card can ask for one.
@@ -102,7 +102,10 @@ export function chooseAction(input: {
 }): PlanAction | null {
   if (input.intent === "invoice") return "make_invoice";
   if (input.lines.length === 0) return input.namesWork && !input.job ? "create_job" : null;
-  if (input.job === "selected") return trackedAction(input.lines);
+  if (input.job === "selected") {
+    if (input.intent === "quote") return "make_quote";
+    return trackedAction(input.lines);
+  }
   if (input.job === "matched") return input.intent === "quote" ? "make_quote" : trackedAction(input.lines);
   if (input.intent === "log") return trackedAction(input.lines);
   return "make_quote";
