@@ -1,5 +1,16 @@
 import { and, eq, notExists } from "drizzle-orm";
-import { captures, clients, contractors, documents, jobs, lineItems, users } from "@/lib/db/schema";
+import {
+  captures,
+  clients,
+  contractors,
+  documentLinks,
+  documents,
+  jobs,
+  lineItems,
+  planMessages,
+  plans,
+  users,
+} from "@/lib/db/schema";
 import { NotFoundError, ValidationError, type ServiceContext } from "@/lib/services/context";
 import { receiptPathBelongsTo, type ReceiptStorage } from "@/lib/storage/receipts";
 
@@ -14,12 +25,15 @@ export async function exportAccountData({ db, contractorId }: ServiceContext) {
   const { stripeCustomerId: _stripeCustomerId, ...contractorRow } = contractor;
   void _stripeCustomerId;
 
-  const [clientRows, jobRows, documentRows, lineRows, captureRows] = await Promise.all([
+  const [clientRows, jobRows, documentRows, lineRows, captureRows, planRows, planMessageRows, linkRows] = await Promise.all([
     db.select().from(clients).where(eq(clients.contractorId, contractorId)),
     db.select().from(jobs).where(eq(jobs.contractorId, contractorId)),
     db.select().from(documents).where(eq(documents.contractorId, contractorId)),
     db.select().from(lineItems).where(eq(lineItems.contractorId, contractorId)),
     db.select().from(captures).where(eq(captures.contractorId, contractorId)),
+    db.select().from(plans).where(eq(plans.contractorId, contractorId)),
+    db.select().from(planMessages).where(eq(planMessages.contractorId, contractorId)),
+    db.select().from(documentLinks).where(eq(documentLinks.contractorId, contractorId)),
   ]);
 
   return {
@@ -30,6 +44,9 @@ export async function exportAccountData({ db, contractorId }: ServiceContext) {
     documents: documentRows,
     lineItems: lineRows,
     captures: captureRows,
+    plans: planRows,
+    planMessages: planMessageRows,
+    documentLinks: linkRows,
   };
 }
 
@@ -62,6 +79,9 @@ export async function deleteAccount(
       .from(captures)
       .where(eq(captures.contractorId, contractorId));
 
+    await tx.delete(planMessages).where(eq(planMessages.contractorId, contractorId));
+    await tx.delete(plans).where(eq(plans.contractorId, contractorId));
+    await tx.delete(documentLinks).where(eq(documentLinks.contractorId, contractorId));
     await tx.delete(lineItems).where(eq(lineItems.contractorId, contractorId));
     await tx.delete(documents).where(eq(documents.contractorId, contractorId));
     await tx.delete(captures).where(eq(captures.contractorId, contractorId));

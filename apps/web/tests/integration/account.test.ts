@@ -1,6 +1,17 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { captures, clients, contractors, documents, jobs, lineItems, users } from "@/lib/db/schema";
+import {
+  captures,
+  clients,
+  contractors,
+  documentLinks,
+  documents,
+  jobs,
+  lineItems,
+  planMessages,
+  plans,
+  users,
+} from "@/lib/db/schema";
 import { newId } from "@/lib/id";
 import { deleteAccount, exportAccountData } from "@/lib/services/account";
 import { ValidationError } from "@/lib/services/context";
@@ -15,7 +26,31 @@ async function seedData(tenant: { contractorId: string; jobId: string }, storage
   const db = getTestDb();
   const ctx = { db, contractorId: tenant.contractorId };
   await saveTrackedLine(ctx, { jobId: tenant.jobId, kind: "material", description: "Valve", quantity: 1, unit: "ea", unitPrice: 12 });
-  await createDraftDocument(ctx, tenant.jobId, "quote");
+  const document = await createDraftDocument(ctx, tenant.jobId, "quote");
+  const now = Date.now();
+  const planId = newId();
+  await db.insert(plans).values({
+    id: planId,
+    contractorId: tenant.contractorId,
+    title: "Kitchen",
+    createdAt: now,
+    updatedAt: now,
+  });
+  await db.insert(planMessages).values({
+    id: newId(),
+    planId,
+    contractorId: tenant.contractorId,
+    role: "user",
+    body: "add a valve",
+    createdAt: now,
+  });
+  await db.insert(documentLinks).values({
+    id: newId(),
+    contractorId: tenant.contractorId,
+    documentId: document.id,
+    token: newId(),
+    createdAt: now,
+  });
   const captureId = newId();
   const imagePath = receiptImagePath(tenant.contractorId, captureId);
   await storage.put({ path: imagePath, bytes: new Uint8Array([1, 2, 3]), mimeType: "image/jpeg" });
@@ -49,7 +84,10 @@ describe("account export and deletion", () => {
     expect(data.captures.length).toBe(1);
     expect(data.captures[0].transcript).toBe("two valves");
     expect(data.captures[0].imagePath).toBe(pathA);
-    for (const rows of [data.clients, data.jobs, data.documents, data.lineItems, data.captures]) {
+    expect(data.plans.map((row) => row.title)).toEqual(["Kitchen"]);
+    expect(data.planMessages.map((row) => row.body)).toEqual(["add a valve"]);
+    expect(data.documentLinks).toHaveLength(1);
+    for (const rows of [data.clients, data.jobs, data.documents, data.lineItems, data.captures, data.plans, data.planMessages, data.documentLinks]) {
       expect(rows.every((r) => r.contractorId === a.contractorId)).toBe(true);
     }
     expect(JSON.stringify(data)).not.toContain(b.contractorId);
@@ -67,6 +105,8 @@ describe("account export and deletion", () => {
     const db = getTestDb();
     expect(await db.select().from(contractors).where(eq(contractors.id, a.contractorId))).toHaveLength(1);
     expect(await db.select().from(captures).where(eq(captures.contractorId, a.contractorId))).toHaveLength(1);
+    expect(await db.select().from(plans).where(eq(plans.contractorId, a.contractorId))).toHaveLength(1);
+    expect(await db.select().from(documentLinks).where(eq(documentLinks.contractorId, a.contractorId))).toHaveLength(1);
     expect(storage.has(path)).toBe(true);
   });
 
@@ -80,7 +120,7 @@ describe("account export and deletion", () => {
     const result = await deleteAccount({ db, contractorId: a.contractorId }, { confirmBusinessName: " a ", storage });
     expect(result).toEqual({ receiptsRemoved: 1, receiptsFailed: 0 });
 
-    for (const table of [clients, jobs, documents, lineItems, captures]) {
+    for (const table of [clients, jobs, documents, lineItems, captures, plans, planMessages, documentLinks]) {
       expect(await db.select().from(table).where(eq(table.contractorId, a.contractorId))).toHaveLength(0);
       expect((await db.select().from(table).where(eq(table.contractorId, b.contractorId))).length).toBeGreaterThan(0);
     }
