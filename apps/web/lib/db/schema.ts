@@ -151,3 +151,12 @@ export const planMessages = pgTable("plan_messages", {
   captureId: text("capture_id"),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
+
+export const mobileSessions = pgTable("mobile_sessions", {
+  id: text("id").primaryKey(),
+  contractorId: text("contractor_id").notNull(),
+  userId: text("user_id").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
+});
