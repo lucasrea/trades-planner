@@ -15,6 +15,7 @@
     "test": "npm run test -w trades-planner-web",
     "typecheck": "npm run typecheck -w trades-planner-web && npm run typecheck -w trades-planner-mobile",
     "test:integration": "npm run test:integration -w trades-planner-web",
+    "e2e": "node tools/e2e/run.mjs",
     "db:push": "npm run db:push -w trades-planner-web",
     "db:studio": "npm run db:studio -w trades-planner-web"
   }
