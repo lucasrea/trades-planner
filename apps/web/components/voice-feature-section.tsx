@@ -145,7 +145,7 @@ export function VoiceFeatureSection() {
       <div className="voice-feature-grid" aria-hidden />
       <div className="relative mx-auto max-w-6xl px-6 py-20 lg:py-28">
         <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/8 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/90">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-elevated px-3 py-1 text-xs font-semibold uppercase tracking-wide text-ink">
             <Sparkles className="h-3.5 w-3.5 text-ivory" strokeWidth={2} />
             Coming soon
           </span>
@@ -153,7 +153,7 @@ export function VoiceFeatureSection() {
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
             From jobsite chatter to a numbered quote.
           </h2>
-          <p className="mt-4 text-lg leading-relaxed text-white/70">
+          <p className="mt-4 text-lg leading-relaxed text-muted">
             Talk through the job the way you already would — brands, rough quantities, hours on site. Same idea for
             typed notes. Trades Planner turns it into line items you review before anything hits the job or the
             client.
@@ -161,7 +161,7 @@ export function VoiceFeatureSection() {
         </div>
 
         <div className="mt-10 lg:mt-12">
-          <p className="text-center text-sm text-white/55">Pick a trade to preview</p>
+          <p className="text-center text-sm text-muted">Pick a trade to preview</p>
           <div
             className="mt-3 flex flex-wrap justify-center gap-2"
             role="tablist"
@@ -179,7 +179,7 @@ export function VoiceFeatureSection() {
                   className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                     selected
                       ? "bg-accent text-[#141414] shadow-sm"
-                      : "border border-white/15 bg-white/6 text-white/80 hover:bg-white/12 hover:text-white"
+                      : "border border-line bg-card text-muted hover:bg-elevated hover:text-ink"
                   }`}
                 >
                   {item.label}
@@ -244,7 +244,7 @@ export function VoiceFeatureSection() {
           <div className="flex flex-col items-center justify-center py-2 lg:flex-row lg:px-2 lg:py-0">
             <div className="voice-flow-line" aria-hidden />
             <div
-              className={`flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/8 ${
+              className={`flex h-11 w-11 items-center justify-center rounded-full border border-line bg-elevated ${
                 parsing ? "voice-parsing" : "voice-shimmer"
               }`}
             >
@@ -321,7 +321,7 @@ export function VoiceFeatureSection() {
           {["Works with trade slang", "Materials, labour & hours", "GST/HST ready PDF"].map((label) => (
             <span
               key={label}
-              className="rounded-full border border-white/12 bg-white/6 px-3.5 py-1.5 text-sm text-white/80"
+              className="rounded-full border border-line bg-elevated px-3.5 py-1.5 text-sm text-ink"
             >
               {label}
             </span>
@@ -332,7 +332,7 @@ export function VoiceFeatureSection() {
           <Link href="/signup" className="btn btn-primary px-5 py-3">
             Get started
           </Link>
-          <p className="text-sm text-white/50">
+          <p className="text-sm text-muted">
             Clients, jobs, quotes & invoices are live — voice and describe-by-text on the roadmap.
           </p>
         </div>

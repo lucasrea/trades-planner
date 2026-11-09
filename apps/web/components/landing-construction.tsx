@@ -44,7 +44,7 @@ export function ConstructionMarquee() {
   const loop = [...marqueeItems, ...marqueeItems];
 
   return (
-    <section className="border-y border-line bg-navy text-white" aria-hidden>
+    <section className="border-y border-line bg-navy text-ink" aria-hidden>
       <div className="construction-marquee py-3.5">
         <div className="construction-marquee-track">
           {loop.map((item, index) => {
