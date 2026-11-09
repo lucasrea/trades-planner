@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { confirmCaptureAction, discardCaptureAction } from "@/lib/actions/captures";
 import { applyMarkup, cad, roundMoney } from "@/lib/money";
+import { receiptConfirmBlockers } from "@/lib/line-items";
 
 type ClientOption = { id: string; name: string };
 type JobOption = { id: string; title: string };
@@ -13,6 +14,8 @@ export type ReceiptReviewLine = {
   quantity: number;
   /** Pre-tax price printed on the receipt, per unit. */
   cost: number;
+  /** Pre-tax amount printed for this line. Confirm stays off until quantity × cost matches it. */
+  printedLineTotal: number;
   jobId: string | null;
 };
 
@@ -22,6 +25,7 @@ type Line = {
   quantity: number;
   cost: number | null;
   price: number | null;
+  printedLineTotal: number;
   /** "" = not chosen, an existing job id, or "new:<key>". */
   jobId: string;
 };
@@ -54,7 +58,7 @@ export function ReceiptReviewForm({
   vendor,
   purchasedAt,
   note,
-  warnings,
+  subtotal,
   lines: initialLines,
   jobs,
   clients,
@@ -65,7 +69,7 @@ export function ReceiptReviewForm({
   vendor: string | null;
   purchasedAt: string | null;
   note: string | null;
-  warnings: string[];
+  subtotal: number | null;
   lines: ReceiptReviewLine[];
   jobs: JobOption[];
   clients: ClientOption[];
@@ -78,6 +82,7 @@ export function ReceiptReviewForm({
       quantity: line.quantity,
       cost: line.cost,
       price: applyMarkup(line.cost, markupPct),
+      printedLineTotal: line.printedLineTotal,
       jobId: line.jobId ?? "",
     })),
   );
@@ -87,7 +92,23 @@ export function ReceiptReviewForm({
 
   const usedKeys = new Set(lines.filter((l) => l.jobId.startsWith(NEW_PREFIX)).map((l) => l.jobId.slice(NEW_PREFIX.length)));
   const startedKeys = new Set(newJobs.map((job) => job.key));
+  const mathBlockers = receiptConfirmBlockers({
+    subtotal: lines.length === initialLines.length && lines.every((line) => line.cost != null) ? subtotal : null,
+    lines: lines.flatMap((line) =>
+      line.cost == null
+        ? []
+        : [
+            {
+              description: line.description,
+              quantity: line.quantity,
+              unitCost: line.cost,
+              printedLineTotal: line.printedLineTotal,
+            },
+          ],
+    ),
+  });
   const canConfirm =
+    mathBlockers.length === 0 &&
     lines.length > 0 &&
     lines.every((line) => lineIsComplete(line) && (!line.jobId.startsWith(NEW_PREFIX) || startedKeys.has(line.jobId.slice(NEW_PREFIX.length)))) &&
     newJobs
@@ -187,11 +208,11 @@ export function ReceiptReviewForm({
         </div>
       </div>
 
-      {warnings.length ? (
+      {mathBlockers.length ? (
         <div className="card border-accent/30 bg-accent/5 p-4 text-sm" role="status">
           <p className="font-medium text-accent">Check these</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
-            {warnings.map((warning) => (
+            {mathBlockers.map((warning) => (
               <li key={warning}>{warning}</li>
             ))}
           </ul>

@@ -43,7 +43,7 @@ async function seedProposal(contractorId: string, extraction: DescribeExtraction
     contractorId,
     type: "text",
     status: "needs_review",
-    transcript: "message",
+    transcript: "message $45",
     extraction,
     createdAt: Date.now(),
   });

@@ -181,6 +181,25 @@ describe("previewProposal", () => {
     expect(preview.canConfirm).toBe(true);
   });
 
+  it("blocks a material price that was not in the message", () => {
+    const preview = previewProposal(
+      { ...extraction({ intent: "log", lines: [valve] }), action: "add_materials", job_id: "job-kitchen", client_id: "client-chen" },
+      { ...ctx, jobTitle: "Kitchen reno", transcript: "Add a valve to the kitchen" },
+    )!;
+    expect(preview.lines[0]?.note).toBe("This price was not in what you said.");
+    expect(preview.canConfirm).toBe(false);
+    expect(preview.blockers).toContain("This price was not in what you said.");
+  });
+
+  it("allows a material price that the message named", () => {
+    const preview = previewProposal(
+      { ...extraction({ intent: "log", lines: [valve] }), action: "add_materials", job_id: "job-kitchen", client_id: "client-chen" },
+      { ...ctx, jobTitle: "Kitchen reno", transcript: "Add a valve at $45 to the kitchen" },
+    )!;
+    expect(preview.lines[0]).toMatchObject({ unitPrice: 45, note: null });
+    expect(preview.canConfirm).toBe(true);
+  });
+
   it("uses the labour rate when no price was spoken", () => {
     const preview = previewProposal(
       { ...extraction({ lines: [hours] }), action: "log_hours", job_id: "job-kitchen", client_id: "client-chen" },
