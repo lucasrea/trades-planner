@@ -289,11 +289,10 @@ select.input {
   background: linear-gradient(
     102deg,
     var(--paper) 0%,
-    var(--paper) 38%,
-    rgba(12, 12, 12, 0.97) 48%,
-    rgba(12, 12, 12, 0.72) 58%,
-    rgba(12, 12, 12, 0.15) 72%,
-    transparent 88%
+    var(--paper) 42%,
+    rgba(244, 239, 230, 0.94) 56%,
+    rgba(244, 239, 230, 0.45) 74%,
+    transparent 90%
   );
 }
 
@@ -607,9 +606,9 @@ select.input {
     background: linear-gradient(
       180deg,
       var(--paper) 0%,
-      var(--paper) 52%,
-      rgba(12, 12, 12, 0.94) 68%,
-      rgba(12, 12, 12, 0.55) 82%,
+      var(--paper) 58%,
+      rgba(244, 239, 230, 0.92) 74%,
+      rgba(244, 239, 230, 0.4) 88%,
       transparent 100%
     );
   }

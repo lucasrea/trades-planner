@@ -196,7 +196,7 @@ export function VoiceFeatureSection() {
                 <p className="text-xs font-medium uppercase tracking-wide text-muted">Step 1 · Record</p>
                 <p className="mt-1 font-semibold">{scenario.job}</p>
               </div>
-              <span className="shrink-0 rounded-full bg-ivory/10 px-2.5 py-1 text-xs font-semibold text-ivory">
+              <span className="shrink-0 rounded-full bg-elevated px-2.5 py-1 text-xs font-semibold text-ink">
                 {scenario.duration}
               </span>
             </div>
@@ -259,7 +259,7 @@ export function VoiceFeatureSection() {
                 <p className="text-xs font-medium uppercase tracking-wide text-muted">Step 2 · Review draft</p>
                 <p className="mt-1 font-semibold">Quote {scenario.quoteNumber}</p>
               </div>
-              <span className="shrink-0 rounded-full bg-ivory/10 px-2.5 py-1 text-xs font-medium text-ivory">
+              <span className="shrink-0 rounded-full bg-elevated px-2.5 py-1 text-xs font-medium text-ink">
                 {parsing ? "Parsing…" : "Draft"}
               </span>
             </div>
