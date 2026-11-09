@@ -126,7 +126,7 @@ async function pageScripts(origin, cookie, pathname) {
 
 function actionId(source, name) {
   // Dev bundles keep the name in an escaped action map a few characters after its id.
-  const found = source.match(new RegExp(`([0-9a-f]{42}).{0,40}${name}`));
+  const found = source.match(new RegExp(`([0-9a-f]{42}).{0,120}${name}`));
   return found?.[1] ?? null;
 }
 
@@ -293,11 +293,15 @@ async function main() {
   let receiptDetail = receipt.json?.error?.message ?? receipt.json?.status ?? String(receipt.status);
   if (receiptOk) {
     const review = await request(origin, receipt.json.reviewUrl, { cookie });
-    const expected = target === "local" ? expectedFakeReceipt(receiptBytes.length) : { vendor: "HOME DEPOT", description: "Valve" };
     const haystack = review.text.toUpperCase();
-    receiptOk = review.status === 200 && haystack.includes(expected.vendor.toUpperCase()) && haystack.includes(expected.description.toUpperCase());
-    if (target === "prod") receiptOk = receiptOk && haystack.includes("COPPER") && haystack.includes("12.5");
-    receiptDetail = receiptOk ? expected.vendor : `review ${review.status}, missing ${expected.vendor} / ${expected.description}`;
+    if (target === "local") {
+      const expected = expectedFakeReceipt(receiptBytes.length);
+      receiptOk = review.status === 200 && haystack.includes(expected.vendor.toUpperCase()) && haystack.includes(expected.description.toUpperCase());
+      receiptDetail = receiptOk ? expected.vendor : `review ${review.status}, missing ${expected.vendor} / ${expected.description}`;
+    } else {
+      receiptOk = review.status === 200 && haystack.includes("HOME DEPOT") && haystack.includes("COPPER") && haystack.includes("12.5");
+      receiptDetail = receiptOk ? "Home Depot" : `review ${review.status}, missing vendor, copper, or 12.50`;
+    }
   }
   check(results, "receipt capture", receiptOk, receiptDetail);
 
@@ -338,7 +342,11 @@ async function main() {
       );
     } else {
       for (const [name, body] of captures) {
-        const action = name === "receipt" ? discardId : cancelId;
+        let action = name === "receipt" ? discardId : cancelId;
+        if (name === "receipt" && !action) {
+          const review = await pageScripts(origin, cookie, body.reviewUrl);
+          action = actionId(review.source, "discardCaptureAction");
+        }
         if (!action) {
           check(results, `discard ${name}`, false, `${origin}${body.reviewUrl}`);
           continue;

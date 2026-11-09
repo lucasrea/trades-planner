@@ -33,7 +33,7 @@ Generated files go in `tools/e2e/out/`.
 - A file that is not a photo or a recording returns 400.
 - Text returns a preview. Locally that preview follows `apps/web/lib/ai/fake.ts`. On production, the probe sentence comes back as "create a job".
 - Voice returns a transcript and a preview. Locally the transcript is the fake one. On production it has to hear "valve".
-- The receipt review page shows the vendor and the lines. Locally those are the fake receipt. On production they are the generated Home Depot lines (valve at 12.50, copper elbow at 8.00).
+- The receipt review page shows the vendor and the lines. Locally those are the fake receipt. On production the page shows Home Depot, the copper line, and 12.50. A bitmap "VALVE" may be read as "VALUE".
 - Without `--confirm` or `--keep`, the captures are discarded. A receipt discard uses the review screen's discard action.
 
 ## What this does not do
