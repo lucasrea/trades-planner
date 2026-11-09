@@ -23,7 +23,11 @@ async function labourRateFor(ctx: ServiceContext) {
 }
 
 /** The preview card for a stored proposal. Looks up display names, scoped by contractor_id. */
-export async function previewStoredProposal(ctx: ServiceContext, proposal: DescribeExtraction): Promise<PlanPreview | null> {
+export async function previewStoredProposal(
+  ctx: ServiceContext,
+  proposal: DescribeExtraction,
+  transcript: string | null,
+): Promise<PlanPreview | null> {
   if (!proposal.action) return null;
   const [labourRate, job, client] = await Promise.all([
     labourRateFor(ctx),
@@ -37,7 +41,7 @@ export async function previewStoredProposal(ctx: ServiceContext, proposal: Descr
           .then((rows) => rows[0] ?? null)
       : null,
   ]);
-  return previewProposal(proposal, { labourRate, jobTitle: job?.title, clientName: client?.name });
+  return previewProposal(proposal, { labourRate, jobTitle: job?.title, clientName: client?.name, transcript });
 }
 
 /**
@@ -61,6 +65,7 @@ export async function confirmPlanProposal(ctx: ServiceContext, captureId: string
   const plan = toConfirmPlan(proposal, {
     labourRate: await labourRateFor(ctx),
     job: job ? { id: job.id, clientId: job.clientId } : null,
+    transcript: capture.transcript,
   });
   if (!plan.ok) throw new ValidationError(plan.reason);
 

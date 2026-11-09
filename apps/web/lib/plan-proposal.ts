@@ -7,6 +7,7 @@
  */
 import type { DescribeExtraction, DescribeLine, PlanAction } from "@/lib/ai/extraction-types";
 import { describeToDraft, fuzzyMatchClient, fuzzyMatchJob } from "@/lib/line-items";
+import { transcriptNamesPrice } from "@/lib/plan-stated-price";
 
 export type PlanJobRef = { id: string; title: string; clientId: string };
 export type PlanClientRef = { id: string; name: string };
@@ -172,12 +173,18 @@ function lineNote(line: DescribeLine, price: number | null, defaultRate: boolean
 /** The card the contractor reviews. Blockers disable Confirm; warnings do not. */
 export function previewProposal(
   proposal: DescribeExtraction,
-  context: { labourRate: number; jobTitle?: string | null; clientName?: string | null },
+  context: {
+    labourRate: number;
+    jobTitle?: string | null;
+    clientName?: string | null;
+    transcript?: string | null;
+  },
 ): PlanPreview | null {
   const action = proposal.action ?? null;
   if (!action) return null;
 
-  const drafts = describeToDraft(proposal, { labourRate: context.labourRate });
+  const statedPrice = transcriptNamesPrice(context.transcript);
+  const drafts = describeToDraft(proposal, { labourRate: context.labourRate, statedPriceInTranscript: statedPrice });
   const lines: PlanPreviewLine[] = proposal.lines.map((line, index) => {
     const draft = drafts[index]!;
     return {
@@ -205,7 +212,16 @@ export function previewProposal(
     if (!hasClient) blockers.push("Add a client.");
   } else {
     if (lines.length === 0) blockers.push("There are no lines to add.");
-    if (lines.some((line) => line.note === "No price")) blockers.push("Add a price to every line.");
+    const labourMissingStatedPrice =
+      statedPrice &&
+      proposal.lines.some(
+        (line) => line.kind === "labour" && (line.unit_price == null || line.unit_price === 0),
+      );
+    if (labourMissingStatedPrice) {
+      blockers.push("The named price was not put on the labour line.");
+    } else if (lines.some((line) => line.note === "No price")) {
+      blockers.push("Add a price to every line.");
+    }
     if (lines.some((line) => line.note === "No quantity")) blockers.push("Add a quantity to every line.");
     if (action === "add_materials" || action === "log_hours") {
       if (!hasJob) {
@@ -253,9 +269,9 @@ export function previewProposal(
  */
 export function toConfirmPlan(
   proposal: DescribeExtraction,
-  context: { labourRate: number; job: { id: string; clientId: string } | null },
+  context: { labourRate: number; job: { id: string; clientId: string } | null; transcript?: string | null },
 ): PlanConfirmPlan {
-  const preview = previewProposal(proposal, { labourRate: context.labourRate });
+  const preview = previewProposal(proposal, { labourRate: context.labourRate, transcript: context.transcript });
   if (!preview) return { ok: false, reason: "This message has no action to confirm." };
   if (!preview.canConfirm) return { ok: false, reason: preview.blockers[0]! };
 
@@ -276,7 +292,8 @@ export function toConfirmPlan(
     return { ok: false, reason: "That job is no longer available." };
   }
 
-  const drafts = describeToDraft(proposal, { labourRate: context.labourRate });
+  const statedPrice = transcriptNamesPrice(context.transcript);
+  const drafts = describeToDraft(proposal, { labourRate: context.labourRate, statedPriceInTranscript: statedPrice });
   const lines: PlanConfirmLine[] = proposal.lines.map((line, index) => ({
     kind: line.kind,
     description: line.description,

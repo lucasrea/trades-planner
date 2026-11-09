@@ -61,6 +61,7 @@ export async function getPlanThread(ctx: ServiceContext, planId: string) {
       captureStatus: captures.status,
       captureType: captures.type,
       extraction: captures.extraction,
+      transcript: captures.transcript,
     })
     .from(planMessages)
     .leftJoin(captures, and(eq(captures.id, planMessages.captureId), eq(captures.contractorId, ctx.contractorId)))
@@ -76,7 +77,7 @@ export async function getPlanThread(ctx: ServiceContext, planId: string) {
         const proposal = parseDescribeExtraction(row.extraction);
         if (proposal) {
           try {
-            preview = await previewStoredProposal(ctx, proposal);
+            preview = await previewStoredProposal(ctx, proposal, row.transcript);
           } catch {
             preview = null;
           }

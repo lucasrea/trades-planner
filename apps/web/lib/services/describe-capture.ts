@@ -115,7 +115,7 @@ export async function createDescribeCapture(
   let preview: PlanPreview | null = null;
   if (status === "needs_review" && extraction) {
     try {
-      preview = await previewStoredProposal({ db, contractorId: contractor.id }, extraction);
+      preview = await previewStoredProposal({ db, contractorId: contractor.id }, extraction, transcript);
     } catch {
       preview = null;
     }
