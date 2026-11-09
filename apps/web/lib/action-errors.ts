@@ -12,6 +12,8 @@ export const ACTION_ERROR_MESSAGES = {
   "missing-document": "Missing document.",
   invalid: "Something wasn't valid. Check the form and try again.",
   conflict: "That action couldn't be completed.",
+  "share-attempt-limit":
+    "Too many approve or decline attempts on this link. Wait an hour and try again.",
 } as const;
 
 export type ActionErrorCode = keyof typeof ACTION_ERROR_MESSAGES;
@@ -32,6 +34,7 @@ const SERVICE_MESSAGE_TO_CODE: Record<string, ActionErrorCode> = {
   "Billed tracked line cannot be deleted.": "billed-line",
   "Line job does not match document job.": "invalid",
   "Line job does not match.": "invalid",
+  "Too many approve or decline attempts on this link. Wait an hour and try again.": "share-attempt-limit",
 };
 
 export function actionErrorCode(raw: string | undefined): ActionErrorCode | null {

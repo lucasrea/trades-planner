@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PrintDocument } from "@/components/print-document";
 import { respondToSharedQuoteAction } from "@/lib/actions/share";
+import { actionErrorNotice } from "@/lib/action-errors";
 import { ensureDb } from "@/lib/db";
 import { formatDisplayDate } from "@/lib/format";
 import { cad, type LineKind } from "@/lib/money";
@@ -19,8 +20,16 @@ function asKind(kind: string): LineKind {
   return "material";
 }
 
-export default async function SharedDocumentPage({ params }: { params: Promise<{ token: string }> }) {
+export default async function SharedDocumentPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ error?: string | string[] }>;
+}) {
   const { token } = await params;
+  const raw = await searchParams;
+  const notice = actionErrorNotice(Array.isArray(raw.error) ? raw.error[0] : raw.error);
   const shared = await getSharedDocument(await ensureDb(), token);
   if (!shared) notFound();
   const { document, client, job, lines, business } = shared;
@@ -30,6 +39,11 @@ export default async function SharedDocumentPage({ params }: { params: Promise<{
   return (
     <div className="min-h-screen bg-paper py-8 print:bg-white print:py-0">
       <div className="no-print mx-auto mb-6 max-w-[820px] px-4">
+        {notice ? (
+          <p className="card mb-4 p-4 text-sm font-medium text-red-700" role="alert">
+            {notice}
+          </p>
+        ) : null}
         {isQuote ? (
           document.status === "approved" ? (
             <p className="card p-4 text-sm font-medium" role="status">

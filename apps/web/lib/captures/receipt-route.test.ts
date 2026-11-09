@@ -36,6 +36,16 @@ describe("POST /api/captures/receipt (no database)", () => {
     createReceiptCapture.mockReset().mockResolvedValue({ captureId: "cap1", status: "needs_review", reviewUrl: "/app/captures/cap1" });
   });
 
+  it("503 when capture is turned off", async () => {
+    process.env.AI_CAPTURE_ENABLED = "false";
+    const res = await request(new File([JPEG], "r.jpg", { type: "image/jpeg" }));
+    delete process.env.AI_CAPTURE_ENABLED;
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.error.message).toBe("Capture is turned off.");
+    expect(createReceiptCapture).not.toHaveBeenCalled();
+  });
+
   it("401 without a session", async () => {
     getSession.mockResolvedValue(null);
     expect((await request(new File([JPEG], "r.jpg", { type: "image/jpeg" }))).status).toBe(401);

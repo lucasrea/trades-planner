@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { validateAudioFile } from "@/lib/captures/audio";
 import { ensureDb } from "@/lib/db";
 import { contractors } from "@/lib/db/schema";
+import { assertCaptureEnabled } from "@/lib/captures/enabled";
 import { assertSameOrigin } from "@/lib/http/assert-same-origin";
 import { jsonError } from "@/lib/http/json-error";
 import { NotFoundError, RateLimitError } from "@/lib/services/context";
@@ -31,6 +32,9 @@ export async function POST(request: Request) {
   const db = await ensureDb();
   const [contractor] = await db.select().from(contractors).where(eq(contractors.id, session.contractorId)).limit(1);
   if (!contractor) return jsonError("unauthorized", "Sign in required.", 401);
+
+  const captureOff = assertCaptureEnabled();
+  if (captureOff) return captureOff;
 
   let form: FormData;
   try {
@@ -66,17 +70,26 @@ export async function POST(request: Request) {
       resolveTranscript: () => getTranscriptionProvider().transcribe({ audioBytes, mimeType }),
     });
     // The plan keeps the transcript only. The audio is never stored.
-    const savedPlanId = planId
-      ? await recordPlanTurn(ctx, {
-            planId,
-            userBody: result.transcript || "Voice message",
-            replyBody: describeReplyBody({ status: result.status, previewTitle: result.preview?.title ?? null }),
-            summaryTitle: result.preview?.title ?? null,
-            jobTitle: result.preview?.jobTitle ?? null,
-            jobId,
-            captureId: result.captureId,
-          })
-        : null;
+    let savedPlanId: string | null = null;
+    if (planId) {
+      try {
+        savedPlanId = await recordPlanTurn(ctx, {
+          planId,
+          userBody: result.transcript || "Voice message",
+          replyBody: describeReplyBody({ status: result.status, previewTitle: result.preview?.title ?? null }),
+          summaryTitle: result.preview?.title ?? null,
+          jobTitle: result.preview?.jobTitle ?? null,
+          jobId,
+          captureId: result.captureId,
+        });
+      } catch {
+        console.error({
+          event: "plan_turn_failed",
+          captureId: result.captureId,
+          contractorId: contractor.id,
+        });
+      }
+    }
     return json({ ...result, planId: savedPlanId });
   } catch (error) {
     if (error instanceof RateLimitError) return jsonError("rate_limited", error.message, 429);

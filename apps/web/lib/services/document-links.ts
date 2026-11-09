@@ -3,9 +3,17 @@ import type { Database } from "@/lib/db";
 import { clients, contractors, documentLinks, documents, jobs, lineItems } from "@/lib/db/schema";
 import type { DocStatus } from "@/lib/documents";
 import { isTokenShape, newId, newToken } from "@/lib/id";
+import {
+  advanceShareAttemptWindow,
+  SHARE_ATTEMPT_HOUR_MS,
+  SHARE_ATTEMPT_MAX,
+} from "@/lib/share-attempt-window";
 import { ConflictError, NotFoundError, ValidationError, type ServiceContext } from "@/lib/services/context";
 import { setDocumentStatus } from "@/lib/services/documents";
 import { requireDocument } from "@/lib/services/internal";
+
+export const SHARE_ATTEMPT_LIMIT_MESSAGE =
+  "Too many approve or decline attempts on this link. Wait an hour and try again.";
 
 /** Only drafts and sent documents can get a new link. */
 const SHAREABLE_STATUSES: readonly string[] = ["draft", "sent"];
@@ -133,9 +141,37 @@ export type SharedQuoteResponse = "approved" | "declined";
  * (setDocumentStatus), so approving moves the job from quoted to active. Repeating either,
  * or switching after the first answer, changes nothing and returns the stored result.
  */
+async function recordShareAttempt(db: Database, linkId: string) {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({
+        attemptCount: documentLinks.attemptCount,
+        attemptWindowStart: documentLinks.attemptWindowStart,
+      })
+      .from(documentLinks)
+      .where(eq(documentLinks.id, linkId))
+      .for("update");
+    if (!row) throw new NotFoundError("Document not found.");
+    const now = Date.now();
+    const next = advanceShareAttemptWindow({
+      now,
+      windowStart: row.attemptWindowStart,
+      count: row.attemptCount,
+      max: SHARE_ATTEMPT_MAX,
+      hourMs: SHARE_ATTEMPT_HOUR_MS,
+    });
+    if (!next.allow) throw new ValidationError(SHARE_ATTEMPT_LIMIT_MESSAGE);
+    await tx
+      .update(documentLinks)
+      .set({ attemptCount: next.count, attemptWindowStart: next.windowStart })
+      .where(eq(documentLinks.id, linkId));
+  });
+}
+
 export async function respondToSharedQuote(db: Database, token: string, response: SharedQuoteResponse) {
   const link = await findActiveLink(db, token);
   if (!link) throw new NotFoundError("Document not found.");
+  await recordShareAttempt(db, link.id);
   const ctx: ServiceContext = { db, contractorId: link.contractorId };
   const doc = await requireDocument(db, link.contractorId, link.documentId);
   if (doc.type !== "quote") throw new ValidationError("Document is not a quote.");

@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { codeFromServiceError } from "@/lib/action-errors";
 import { formText } from "@/lib/actions/form-data";
 import { getContractor } from "@/lib/auth";
 import { ensureDb } from "@/lib/db";
-import { ConflictError, NotFoundError } from "@/lib/services/context";
+import { ConflictError, NotFoundError, ValidationError } from "@/lib/services/context";
 import { createDocumentLink, respondToSharedQuote, revokeDocumentLink } from "@/lib/services/document-links";
 
 async function ctx() {
@@ -50,6 +51,9 @@ export async function respondToSharedQuoteAction(formData: FormData) {
     }
   } catch (error) {
     if (error instanceof NotFoundError) redirect(`/d/${encodeURIComponent(token)}`);
+    if (error instanceof ValidationError) {
+      redirect(`/d/${encodeURIComponent(token)}?error=${codeFromServiceError(error)}`);
+    }
     throw error;
   }
   redirect(`/d/${encodeURIComponent(token)}`);
