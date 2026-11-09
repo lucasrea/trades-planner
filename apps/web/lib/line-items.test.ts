@@ -29,6 +29,17 @@ describe("line-items", () => {
     expect(lines[0]?.defaultRate).toBe(true);
   });
 
+  it("describeToDraft skips labour default when the transcript named a price", () => {
+    const lines = describeToDraft(
+      {
+        lines: [{ kind: "labour", description: "Work", quantity: 1, unit: "hr", unit_price: null }],
+      },
+      { labourRate: 85, statedPriceInTranscript: true },
+    );
+    expect(lines[0]?.unitPrice).toBeNull();
+    expect(lines[0]?.defaultRate).toBe(false);
+  });
+
   it("receipt helpers warn and markup", () => {
     const extraction = {
       subtotal: 10,

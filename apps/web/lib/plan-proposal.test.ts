@@ -155,6 +155,40 @@ describe("previewProposal", () => {
     expect(preview.canConfirm).toBe(true);
   });
 
+  it("kitchen hours with no named price still uses the labour rate", () => {
+    const preview = previewProposal(
+      {
+        ...extraction({ lines: [{ ...hours, quantity: 1, description: "Kitchen" }] }),
+        action: "log_hours",
+        job_id: "job-kitchen",
+        client_id: "client-chen",
+      },
+      { ...ctx, jobTitle: "Kitchen reno", transcript: "Log 1 hour on the kitchen" },
+    )!;
+    expect(preview.lines[0]).toMatchObject({ unitPrice: 85, note: "Using your labour rate" });
+    expect(preview.canConfirm).toBe(true);
+  });
+
+  it("blocks confirm when a stated price is missing on labour", () => {
+    const preview = previewProposal(
+      { ...extraction({ lines: [hours] }), action: "log_hours", job_id: "job-kitchen", client_id: "client-chen" },
+      { ...ctx, jobTitle: "Kitchen reno", transcript: "Log 1 hour at 80 dollars" },
+    )!;
+    expect(preview.lines[0]).toMatchObject({ unitPrice: null, note: "No price" });
+    expect(preview.canConfirm).toBe(false);
+    expect(preview.blockers).toContain("The named price was not put on the labour line.");
+  });
+
+  it("confirms labour at the line price when the model set it, even if the text also names a price", () => {
+    const pricedHours = { kind: "labour", description: "Labour", quantity: 1, unit: "hr", unit_price: 80 } as const;
+    const preview = previewProposal(
+      { ...extraction({ lines: [pricedHours] }), action: "make_quote", job_title: "Deck", client_name: "Okafor" },
+      { ...ctx, transcript: "Quote one hour at 80 dollars" },
+    )!;
+    expect(preview.lines[0]).toMatchObject({ unitPrice: 80, note: null });
+    expect(preview.canConfirm).toBe(true);
+  });
+
   it("blocks Confirm and warns when a material has no price", () => {
     const preview = previewProposal(
       {
@@ -249,6 +283,27 @@ describe("toConfirmPlan", () => {
     );
     expect(plan.ok && plan.kind === "capture" && plan.input.createAs).toBe("log");
     expect(plan.ok && plan.kind === "capture" && plan.input.lines[0]).toMatchObject({ kind: "labour", quantity: 3, unitPrice: 85 });
+  });
+
+  it("refuses log hours when the transcript named a price but labour unit_price is empty", () => {
+    const plan = toConfirmPlan(
+      { ...extraction({ lines: [hours] }), action: "log_hours", job_id: "job-kitchen", client_id: "client-chen" },
+      { ...context, transcript: "Log 1 hour at 80 dollars" },
+    );
+    expect(plan.ok).toBe(false);
+  });
+
+  it("confirms labour at 80 when the line already has unit_price 80", () => {
+    const plan = toConfirmPlan(
+      {
+        ...extraction({ lines: [{ ...hours, quantity: 1, unit_price: 80 }] }),
+        action: "make_quote",
+        job_title: "Deck",
+        client_name: "Okafor",
+      },
+      { labourRate: 85, job: null, transcript: "Quote one hour at 80 dollars" },
+    );
+    expect(plan.ok && plan.kind === "capture" && plan.input.lines[0]).toMatchObject({ unitPrice: 80 });
   });
 
   it("make quote and make invoice map to draft documents with notes", () => {

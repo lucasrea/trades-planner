@@ -60,9 +60,14 @@ export type DescribeExtractionInput = {
 
 export type DescribeDraftLine = LineInput & { defaultRate?: boolean };
 
-export function describeToDraft(extraction: DescribeExtractionInput, options: { labourRate: number }): DescribeDraftLine[] {
+export function describeToDraft(
+  extraction: DescribeExtractionInput,
+  options: { labourRate: number; statedPriceInTranscript?: boolean },
+): DescribeDraftLine[] {
   return extraction.lines.map((line) => {
-    const useDefault = line.kind === "labour" && (line.unit_price == null || line.unit_price === 0);
+    const missingPrice = line.unit_price == null || line.unit_price === 0;
+    const useDefault =
+      line.kind === "labour" && missingPrice && !(options.statedPriceInTranscript && missingPrice);
     return {
       kind: line.kind,
       description: line.description,
