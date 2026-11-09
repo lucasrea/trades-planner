@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canTransition, documentActions, documentNumber, isOverdue } from "@/lib/documents";
+import { buildMailto, canTransition, documentActions, documentNumber, isOverdue } from "@/lib/documents";
 
 describe("documents", () => {
   it("handles transitions and overdue", () => {
@@ -31,5 +31,21 @@ describe("documents", () => {
     ]);
     expect(documentActions({ type: "invoice", status: "sent" })).toEqual(["mark-paid", "print"]);
     expect(documentActions({ type: "invoice", status: "paid" })).toEqual(["print"]);
+  });
+
+  it("puts the share link in the mailto body only when given", () => {
+    const base = {
+      businessName: "Acme",
+      type: "quote" as const,
+      number: "Q-0001",
+      clientEmail: "c@example.com",
+      total: 113,
+      dueOrValid: null,
+      etransferInstructions: "",
+    };
+    const without = decodeURIComponent(buildMailto(base).replace(/\+/g, " "));
+    expect(without).not.toContain("View it online");
+    const withLink = decodeURIComponent(buildMailto({ ...base, link: "https://x.test/d/abc" }).replace(/\+/g, " "));
+    expect(withLink).toContain("View it online: https://x.test/d/abc");
   });
 });

@@ -8,7 +8,7 @@ import {
   type DocStatus,
   type DocType,
 } from "@/lib/documents";
-import { contractors, documents, jobs, lineItems } from "@/lib/db/schema";
+import { contractors, documentLinks, documents, jobs, lineItems } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
 import { ConflictError, NotFoundError, ValidationError, type ServiceContext } from "@/lib/services/context";
 import {
@@ -75,10 +75,12 @@ export async function saveDocumentMeta(ctx: ServiceContext, input: { documentId:
 }
 
 export async function setDocumentStatus(ctx: ServiceContext, documentId: string, next: DocStatus) {
-  const doc = await requireDocument(ctx.db, ctx.contractorId, documentId);
-  if (!canTransition(doc.type as DocType, doc.status as DocStatus, next)) throw new ValidationError("Invalid status transition.");
-  const now = Date.now();
   await ctx.db.transaction(async (tx) => {
+    // Lock the row so two answers at once (for example a client double-tap) cannot both pass the check.
+    const [doc] = await tx.select().from(documents).where(and(eq(documents.id, documentId), eq(documents.contractorId, ctx.contractorId))).for("update");
+    if (!doc) throw new NotFoundError("Document not found.");
+    if (!canTransition(doc.type as DocType, doc.status as DocStatus, next)) throw new ValidationError("Invalid status transition.");
+    const now = Date.now();
     await tx.update(documents).set({
       status: next,
       sentAt: next === "sent" ? now : doc.sentAt,
@@ -99,6 +101,7 @@ export async function deleteDraftDocument(ctx: ServiceContext, documentId: strin
       await tx.update(lineItems).set({ billedDocumentId: null }).where(and(eq(lineItems.billedDocumentId, documentId), eq(lineItems.contractorId, ctx.contractorId)));
     }
     await tx.delete(lineItems).where(and(eq(lineItems.documentId, documentId), eq(lineItems.contractorId, ctx.contractorId)));
+    await tx.delete(documentLinks).where(and(eq(documentLinks.documentId, documentId), eq(documentLinks.contractorId, ctx.contractorId)));
     await tx.delete(documents).where(and(eq(documents.id, documentId), eq(documents.contractorId, ctx.contractorId)));
     await touchJob(tx, ctx.contractorId, doc.jobId);
   });

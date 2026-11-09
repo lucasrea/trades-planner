@@ -14,6 +14,7 @@ import {
   setDocumentStatusAction,
 } from "@/lib/actions/documents";
 import { FormSubmitButton } from "@/components/form-submit";
+import { ShareLinkControls } from "@/components/share-link-controls";
 import { buildMailto, documentActions, type DocStatus, type DocType } from "@/lib/documents";
 import { formatDisplayDate } from "@/lib/format";
 import { cad, matchingTaxPercentCaption, type LineKind } from "@/lib/money";
@@ -119,6 +120,7 @@ export function DocumentView({
   etransferNote,
   displayStatus,
   unbilledCount,
+  shareToken,
   notice,
 }: {
   document: DocumentViewData;
@@ -130,6 +132,7 @@ export function DocumentView({
   etransferNote: string;
   displayStatus: string;
   unbilledCount: number;
+  shareToken: string | null;
   notice?: string;
 }) {
   const isQuote = document.type === "quote";
@@ -142,6 +145,7 @@ export function DocumentView({
   const etransferInstructions = etransferEmail.trim()
     ? `Pay by e-transfer to ${etransferEmail.trim()}${etransferNote.trim() ? `. ${etransferNote.trim()}` : "."}`
     : "";
+  const shareable = document.status === "draft" || document.status === "sent";
   const mailto = clientEmail
     ? buildMailto({
         businessName,
@@ -212,7 +216,25 @@ export function DocumentView({
             <FormSubmitButton label="Delete draft" pendingLabel="Deleting…" className="btn btn-ghost" />
           </form>
         ) : null}
-        {mailto ? (
+        {shareable ? (
+          <ShareLinkControls
+            documentId={document.id}
+            initialToken={shareToken}
+            mail={
+              clientEmail
+                ? {
+                    businessName,
+                    type: (isQuote ? "quote" : "invoice") as DocType,
+                    number: document.number,
+                    clientEmail,
+                    total: document.total,
+                    dueOrValid: dateValue,
+                    etransferInstructions,
+                  }
+                : null
+            }
+          />
+        ) : mailto ? (
           <a href={mailto} className="btn btn-ghost">
             Email
           </a>

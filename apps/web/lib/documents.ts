@@ -95,6 +95,8 @@ export function buildMailto(input: {
   total: number;
   dueOrValid: string | null;
   etransferInstructions: string;
+  /** Public share link. When present it goes in the body. */
+  link?: string;
 }): string {
   const docLabel = input.type === "quote" ? "Quote" : "Invoice";
   const subject = `${input.businessName} ${docLabel} ${input.number}`;
@@ -104,7 +106,8 @@ export function buildMailto(input: {
     input.type === "invoice" && input.etransferInstructions
       ? `\n${input.etransferInstructions}`
       : "";
-  const body = `Hi,\n\nPlease find your ${docLabel.toLowerCase()} ${input.number} for $${input.total.toFixed(2)} CAD.\n${dateLine}${etransfer}\n\nThank you,\n${input.businessName}`;
+  const linkLine = input.link ? `View it online: ${input.link}\n` : "";
+  const body = `Hi,\n\nPlease find your ${docLabel.toLowerCase()} ${input.number} for $${input.total.toFixed(2)} CAD.\n${linkLine}${dateLine}${etransfer}\n\nThank you,\n${input.businessName}`;
   const params = new URLSearchParams();
   params.set("subject", subject);
   params.set("body", body);
