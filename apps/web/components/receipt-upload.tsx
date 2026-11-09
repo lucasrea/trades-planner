@@ -9,9 +9,12 @@ import { downscaleToJpeg } from "@/lib/captures/downscale";
 export function ReceiptUpload({
   jobs = [],
   lockedJob,
+  planId,
 }: {
   jobs?: CaptureJobOption[];
   lockedJob?: CaptureJobOption;
+  /** Plan screen only: the open plan's id, or "new". The receipt is added to that plan. */
+  planId?: string;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,6 +62,7 @@ export function ReceiptUpload({
       const assignedId = lockedJob?.id ?? jobId;
       if (assignedId) form.set("jobId", assignedId);
       if (note.trim()) form.set("note", note.trim());
+      if (planId) form.set("planId", planId);
       const response = await fetch("/api/captures/receipt", { method: "POST", body: form });
       const body = (await response.json().catch(() => null)) as { reviewUrl?: string; error?: { message?: string } } | null;
       if (!response.ok || !body?.reviewUrl) {
