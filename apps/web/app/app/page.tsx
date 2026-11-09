@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { CaptureBar } from "@/components/capture-bar";
+import { HomeLists } from "@/components/home-lists";
 import { PlanSidebar } from "@/components/plan-list";
 import { ReceiptUpload } from "@/components/receipt-upload";
 import { ensureDb } from "@/lib/db";
 import { getContractor } from "@/lib/auth";
-import { getJobs } from "@/lib/queries";
+import { getHome, getJobs } from "@/lib/queries";
 import { PLAN_NEW } from "@/lib/plans";
 import { getPlanThread, listPlans } from "@/lib/services/plans";
 import { NotFoundError } from "@/lib/services/context";
@@ -15,9 +16,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   const contractor = await getContractor();
   const ctx = { db: await ensureDb(), contractorId: contractor.id };
-  const [allJobs, plans, thread] = await Promise.all([
+  const [allJobs, plans, home, thread] = await Promise.all([
     getJobs(),
     listPlans(ctx),
+    getHome(),
     planId
       ? getPlanThread(ctx, planId).catch((error) => {
           if (error instanceof NotFoundError) return null;
@@ -38,9 +40,14 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   return (
     <PlanSidebar plans={plans} currentId={open.id}>
-      <CaptureBar key={open.id ?? PLAN_NEW} jobs={jobs} fill plan={open} />
-      <div className="pt-3">
-        <ReceiptUpload jobs={jobs} planId={open.id ?? PLAN_NEW} />
+      <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <CaptureBar key={open.id ?? PLAN_NEW} jobs={jobs} fill plan={open} />
+          <div className="pt-3">
+            <ReceiptUpload jobs={jobs} planId={open.id ?? PLAN_NEW} />
+          </div>
+        </div>
+        <HomeLists home={home} />
       </div>
     </PlanSidebar>
   );

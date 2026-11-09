@@ -70,8 +70,14 @@ export async function getTrackedLinesForContractor(db: Database, contractorId: s
 }
 
 export async function getHomeForContractor(db: Database, contractorId: string, today: string) {
-  const [quotesAwaitingResponse, openJobs, unpaidInvoices] = await Promise.all([
-    db.select().from(documents).where(and(eq(documents.contractorId, contractorId), eq(documents.type, "quote"), eq(documents.status, "sent"))).orderBy(desc(documents.updatedAt)).limit(10),
+  const [quoteRows, openJobs, unpaidInvoices] = await Promise.all([
+    db
+      .select({ document: documents, client: clients })
+      .from(documents)
+      .leftJoin(clients, and(eq(clients.id, documents.clientId), eq(clients.contractorId, contractorId)))
+      .where(and(eq(documents.contractorId, contractorId), eq(documents.type, "quote"), eq(documents.status, "sent")))
+      .orderBy(desc(documents.updatedAt))
+      .limit(10),
     db
       .select({ job: jobs, client: clients, unbilled: sql<number>`coalesce(sum(${lineItems.lineTotal}), 0)`.mapWith(Number) })
       .from(jobs)
@@ -90,7 +96,7 @@ export async function getHomeForContractor(db: Database, contractorId: string, t
       .limit(20),
   ]);
   return {
-    quotesAwaitingResponse,
+    quotesAwaitingResponse: quoteRows.map(({ document, client }) => ({ ...document, client })),
     openJobs: openJobs.map(({ job, client, unbilled }) => ({ ...job, client, unbilledTotal: unbilled })),
     unpaidInvoices: unpaidInvoices.map(({ document, client }) => ({
       ...document,
