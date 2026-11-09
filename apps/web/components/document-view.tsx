@@ -244,24 +244,28 @@ export function DocumentView({
             <FormSubmitButton label="Delete draft" pendingLabel="Deleting…" className="btn btn-ghost" />
           </form>
         ) : null}
-        {shareable ? (
-          <ShareLinkControls
-            documentId={document.id}
-            initialToken={shareToken}
-            mail={
-              clientEmail
-                ? {
-                    businessName,
-                    type: (isQuote ? "quote" : "invoice") as DocType,
-                    number: document.number,
-                    clientEmail,
-                    total: document.total,
-                    dueOrValid: dateValue,
-                    etransferInstructions,
-                  }
-                : null
-            }
-          />
+        {shareable || shareToken ? (
+          <>
+            <ShareLinkControls
+              documentId={document.id}
+              initialToken={shareToken}
+              allowCreate={shareable}
+              mail={
+                clientEmail
+                  ? {
+                      businessName,
+                      type: (isQuote ? "quote" : "invoice") as DocType,
+                      number: document.number,
+                      clientEmail,
+                      total: document.total,
+                      dueOrValid: dateValue,
+                      etransferInstructions,
+                    }
+                  : null
+              }
+            />
+            {!clientEmail && lead.length === 0 ? <span className="self-center text-sm text-muted">No client email</span> : null}
+          </>
         ) : lead.length ? null : mailto ? (
           <a href={mailto} className="btn btn-ghost">
             Email

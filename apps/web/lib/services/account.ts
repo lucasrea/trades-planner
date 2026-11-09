@@ -101,6 +101,9 @@ export async function deleteAccount(
   });
 
   const results = await Promise.allSettled(receiptPaths.map((path) => input.storage.remove(path)));
-  const receiptsFailed = results.filter((r) => r.status === "rejected").length;
-  return { receiptsRemoved: results.length - receiptsFailed, receiptsFailed };
+  const failedPaths = results.flatMap((result, index) => (result.status === "rejected" ? [receiptPaths[index]] : []));
+  if (failedPaths.length > 0) {
+    console.error("Receipt objects left after account deletion", failedPaths);
+  }
+  return { receiptsRemoved: results.length - failedPaths.length, receiptsFailed: failedPaths.length };
 }

@@ -13,7 +13,7 @@ export function AccountSection({ businessName }: { businessName: string }) {
       <div>
         <h2 className="text-base font-semibold text-ink">Your data</h2>
         <p className="mt-1 text-sm text-muted">
-          One JSON file with your business, clients, jobs, documents, lines, and captures. No audio or photos.
+          One JSON file with your business, clients, jobs, documents, lines, plans, share links, and captures. No audio or photos.
         </p>
         <a href="/api/account/export" download className="btn btn-ghost mt-3 inline-flex">
           Download my data
