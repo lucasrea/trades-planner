@@ -1,22 +1,98 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { Notice, Screen } from "../../src/ui";
+import { confirmCapture, sendTextCapture, type ConfirmResult, type TextCaptureResult } from "../../src/api";
+import { getBearer } from "../../src/session";
+import { GhostButton, Notice, PrimaryButton, Screen } from "../../src/ui";
 import { colors } from "../../src/theme";
 
 export default function HomeScreen() {
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState<TextCaptureResult | null>(null);
+  const [confirmed, setConfirmed] = useState<ConfirmResult | null>(null);
 
-  function submit() {
+  const submit = useCallback(async () => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    setError("Phone sign-in isn’t connected yet. Your text is still here.");
+    setBusy(true);
+    setError(null);
+    setConfirmed(null);
+    try {
+      const bearer = await getBearer();
+      if (!bearer) {
+        setError("Sign in on the Settings tab first.");
+        return;
+      }
+      const result = await sendTextCapture(bearer, trimmed);
+      setPreview(result);
+      if (result.status === "failed") setError("We could not read that message.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Send failed.");
+      setPreview(null);
+    } finally {
+      setBusy(false);
+    }
+  }, [text]);
+
+  async function onConfirm() {
+    if (!preview?.captureId || !preview.preview?.canConfirm) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const bearer = await getBearer();
+      if (!bearer) {
+        setError("Sign in on the Settings tab first.");
+        return;
+      }
+      const result = await confirmCapture(bearer, preview.captureId);
+      setConfirmed(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Confirm failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function resetPreview() {
+    setPreview(null);
+    setConfirmed(null);
+    setError(null);
   }
 
   return (
     <Screen>
       <View style={styles.thread}>
         {error ? <Notice>{error}</Notice> : null}
+        {preview?.preview ? (
+          <View style={styles.card}>
+            <Text style={styles.previewTitle}>{preview.preview.title}</Text>
+            {preview.preview.lines.map((line, index) => (
+              <Text key={index} style={styles.line}>
+                {line.quantity} {line.unit} · {line.description}
+                {line.unitPrice != null ? ` · $${line.unitPrice}` : ""}
+              </Text>
+            ))}
+            {confirmed ? (
+              <Text style={styles.done}>
+                {confirmed.kind === "document"
+                  ? `Document ${confirmed.documentId}`
+                  : confirmed.kind === "job"
+                    ? `Job ${confirmed.jobId}`
+                    : `Logged on ${confirmed.jobIds.length} job(s)`}
+              </Text>
+            ) : (
+              <View style={styles.actions}>
+                <GhostButton label="Cancel" onPress={resetPreview} />
+                <PrimaryButton
+                  label={busy ? "Working…" : "Confirm"}
+                  disabled={busy || !preview.preview.canConfirm}
+                  onPress={() => void onConfirm()}
+                />
+              </View>
+            )}
+          </View>
+        ) : null}
       </View>
       <View style={styles.composer}>
         <TextInput
@@ -40,11 +116,11 @@ export default function HomeScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Send"
-            disabled={!text.trim()}
-            onPress={submit}
-            style={[styles.send, !text.trim() ? styles.disabled : null]}
+            disabled={!text.trim() || busy}
+            onPress={() => void submit()}
+            style={[styles.send, !text.trim() || busy ? styles.disabled : null]}
           >
-            <Text style={styles.sendLabel}>Send</Text>
+            <Text style={styles.sendLabel}>{busy ? "…" : "Send"}</Text>
           </Pressable>
         </View>
       </View>
@@ -53,7 +129,19 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  thread: { flexGrow: 1, justifyContent: "flex-end", minHeight: 160 },
+  thread: { flexGrow: 1, justifyContent: "flex-end", minHeight: 160, gap: 12 },
+  card: {
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 8,
+    padding: 12,
+  },
+  previewTitle: { color: colors.ink, fontSize: 16, fontWeight: "600" },
+  line: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+  done: { color: colors.accent, fontSize: 14, fontWeight: "600", marginTop: 4 },
+  actions: { flexDirection: "row", gap: 8, justifyContent: "flex-end", marginTop: 8 },
   composer: {
     backgroundColor: colors.card,
     borderColor: colors.line,
