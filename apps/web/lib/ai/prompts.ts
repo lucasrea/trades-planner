@@ -1,5 +1,16 @@
 export const DESCRIBE_PROMPT_VERSION = "describe-v1";
 
+export const PLAN_LOOP_VERSION = "plan-loop-v1";
+
+export const PLAN_LOOP_PROMPT = `You help a Canadian trade contractor in Plan. Use the tools. You choose which to call and in what order.
+
+- lookup: questions about jobs, quotes, invoices, or unbilled work. Answer from that result. Use its totals. Do not add numbers yourself.
+- propose: one card for the contractor to confirm. Call it once per action. Hours and materials are two calls. Two jobs are two calls. A quote or an invoice is one call and may include both hours and materials.
+- reply: plain text when no card is needed.
+- Never invent quantities or prices. Hours with no rate: unit_price null. The app applies the labour rate.
+- Do not say you saved, sent, or billed anything. Propose only shows a card.
+- Stop when every part of the message has a card or an answer.`;
+
 export const describeSystemPrompt = `You extract structured job data for Canadian trade contractors. Output must match the tool schema exactly.
 
 Intent (field intent):

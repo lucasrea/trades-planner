@@ -109,6 +109,18 @@ describe("obvious messages", () => {
 });
 
 describe("buildProposal", () => {
+  it("trusts the job a tool named when the message also mentions another job", () => {
+    const proposal = buildProposal({
+      extraction: extraction({ intent: "log", job_title: "Bathroom", lines: [hours] }),
+      selectedJob: null,
+      jobs,
+      clients,
+      transcript: "add this to the kitchen",
+      trustJobTitle: true,
+    });
+    expect(proposal.job_id).toBe("job-bath");
+  });
+
   it("add a valve at $45 to the kitchen: adds that material to the existing job", () => {
     const proposal = buildProposal({
       extraction: extraction({ intent: "log", job_title: "kitchen", lines: [valve] }),
@@ -252,6 +264,15 @@ describe("previewProposal", () => {
       { ...ctx, jobTitle: "Kitchen reno", transcript: "Add a valve at $45 to the kitchen" },
     )!;
     expect(preview.lines[0]).toMatchObject({ unitPrice: 45, note: null });
+    expect(preview.canConfirm).toBe(true);
+  });
+
+  it("uses the labour rate when the named price belongs to a material", () => {
+    const preview = previewProposal(
+      { ...extraction({ lines: [hours] }), action: "log_hours", job_id: "job-kitchen", client_id: "client-chen" },
+      { ...ctx, jobTitle: "Kitchen reno", transcript: "add 5 hours of labour and a valve at 45" },
+    )!;
+    expect(preview.lines[0]).toMatchObject({ unitPrice: 85, note: "Using your labour rate" });
     expect(preview.canConfirm).toBe(true);
   });
 

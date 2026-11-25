@@ -109,6 +109,8 @@ export async function recordPlanTurn(
     userBody: string;
     replyBody: string;
     captureId: string | null;
+    /** More than one Plan message for this turn. Each card is its own row. */
+    replies?: { body: string; captureId: string | null }[];
     /** Model summary of this exchange. Used as the sidebar name on the first message. */
     summaryTitle?: string | null;
     /** Job this exchange is about. Shown as the sidebar tag. A later message that names a job replaces it. */
@@ -149,9 +151,18 @@ export async function recordPlanTurn(
         .set({ updatedAt: now, ...(jobTitle ? { jobTitle } : {}) })
         .where(and(eq(plans.id, planId), eq(plans.contractorId, ctx.contractorId)));
     }
+    const replyRows = input.replies?.length ? input.replies : [{ body: input.replyBody, captureId: input.captureId }];
     await tx.insert(planMessages).values([
       { id: newId(), planId, contractorId: ctx.contractorId, role: "user", body: userBody, captureId: input.captureId, createdAt: now },
-      { id: newId(), planId, contractorId: ctx.contractorId, role: "plan", body: input.replyBody, captureId: input.captureId, createdAt: now + 1 },
+      ...replyRows.map((reply, index) => ({
+        id: newId(),
+        planId,
+        contractorId: ctx.contractorId,
+        role: "plan" as const,
+        body: reply.body,
+        captureId: reply.captureId,
+        createdAt: now + 1 + index,
+      })),
     ]);
     return planId;
   });

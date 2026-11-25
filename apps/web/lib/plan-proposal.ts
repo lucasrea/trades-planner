@@ -8,7 +8,7 @@
 import type { DescribeExtraction, DescribeLine, PlanAction } from "@/lib/ai/extraction-types";
 import { describeToDraft, fuzzyMatchClient, fuzzyMatchJob, matchJobInText } from "@/lib/line-items";
 import { messageAsksToInvoice, messageAsksToQuote } from "@/lib/plan-message";
-import { priceAppearsInTranscript, transcriptNamesPrice, UNSAID_PRICE } from "@/lib/plan-stated-price";
+import { priceAppearsInTranscript, transcriptNamesLabourPrice, UNSAID_PRICE } from "@/lib/plan-stated-price";
 
 export type PlanJobRef = { id: string; title: string; clientId: string };
 export type PlanClientRef = { id: string; name: string };
@@ -136,13 +136,16 @@ export function buildProposal(input: {
   jobs: PlanJobRef[];
   clients: PlanClientRef[];
   transcript?: string | null;
+  /** A tool named this job. Prefer it over a different job mentioned elsewhere in the message. */
+  trustJobTitle?: boolean;
 }): DescribeExtraction {
   const { extraction } = input;
   const jobTitle = clean(extraction.job_title);
   const clientName = clean(extraction.client_name);
   const fromText = input.transcript && extraction.lines.length > 0 ? matchJobInText(input.transcript, input.jobs) : null;
   const fromTitle = jobTitle && extraction.lines.length > 0 ? fuzzyMatchJob(jobTitle, input.jobs)?.id : undefined;
-  const namedJob = input.jobs.find((job) => job.id === (fromText ?? fromTitle)) ?? null;
+  const namedId = input.trustJobTitle ? (fromTitle ?? fromText) : (fromText ?? fromTitle);
+  const namedJob = input.jobs.find((job) => job.id === namedId) ?? null;
   const matchedJob = input.selectedJob ?? namedJob;
 
   const action = chooseAction({
@@ -203,7 +206,7 @@ export function previewProposal(
   const action = proposal.action ?? null;
   if (!action) return null;
 
-  const statedPrice = transcriptNamesPrice(context.transcript);
+  const statedPrice = transcriptNamesLabourPrice(context.transcript);
   const drafts = describeToDraft(proposal, { labourRate: context.labourRate, statedPriceInTranscript: statedPrice });
   const hasTranscript = Boolean(context.transcript?.trim());
   const lines: PlanPreviewLine[] = proposal.lines.map((line, index) => {
@@ -324,7 +327,7 @@ export function toConfirmPlan(
     return { ok: false, reason: "That job is no longer available." };
   }
 
-  const statedPrice = transcriptNamesPrice(context.transcript);
+  const statedPrice = transcriptNamesLabourPrice(context.transcript);
   const drafts = describeToDraft(proposal, { labourRate: context.labourRate, statedPriceInTranscript: statedPrice });
   const lines: PlanConfirmLine[] = proposal.lines.map((line, index) => ({
     kind: line.kind,
