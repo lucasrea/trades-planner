@@ -201,16 +201,16 @@ export async function runPlanAgent(
           scope_notes: args.notes ?? null,
           warnings: [],
           lines: args.lines.map((line) => ({
-          kind: line.kind,
-          description: line.description,
-          quantity: line.quantity,
-          unit: line.unit,
-          unit_cost: line.unit_cost ?? null,
-          unit_price:
-            line.unit_cost != null && line.markup_amount != null
-              ? addMoney(line.unit_cost, line.markup_amount)
-              : (line.unit_price ?? null),
-        })),
+            kind: line.kind,
+            description: line.description,
+            quantity: line.quantity,
+            unit: line.unit,
+            unit_cost: line.unit_cost ?? null,
+            unit_price:
+              line.unit_cost != null && line.markup_amount != null
+                ? addMoney(line.unit_cost, line.markup_amount)
+                : (line.unit_price ?? null),
+          })),
         },
         trustJobTitle: Boolean(args.job_title),
         model,

@@ -56,6 +56,15 @@ describe("parseObviousAct", () => {
     });
   });
 
+  it("leaves an unrecognised markup or an extra priced item for the model", () => {
+    const sink = "we need 4 hours of labour and adding the sink which cost me 500";
+    expect(parseCompoundWork(`${sink}, put it in for a 20% markup`)).toBeNull();
+    expect(parseCompoundWork(`${sink} with a $150 markup`)).toBeNull();
+    expect(parseCompoundWork(`${sink}, markup of 150`)).toBeNull();
+    expect(parseCompoundWork(`${sink}, put it in for a +150 markup and also add a tank at 45`)).toBeNull();
+    expect(parseCompoundWork(`${sink}, put it in for a +150 markup on the quote`)).toBeNull();
+  });
+
   it("reads a cost with the dollar sign after the number", () => {
     expect(parseObviousAct("need to add an expense, new granite countertops costing 2000$")?.lines[0]).toMatchObject({
       kind: "material",

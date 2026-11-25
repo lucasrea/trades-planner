@@ -106,8 +106,10 @@ export function parseCompoundWork(text: string) {
   const hours = HOURS_CLAUSE.exec(text);
   const item = COST_ITEM.exec(text);
   if (!hours || !item) return null;
-  const cost = Number(item[2]);
+  if (/\b(quote|invoice)\b/i.test(text) || /\bat\s+\$?\d/.test(text)) return null;
   const markupMatch = DOLLAR_MARKUP.exec(text);
+  if ((/markup|%/i.test(text)) && !markupMatch) return null;
+  const cost = Number(item[2]);
   const markup = markupMatch ? Number(markupMatch[1]) : 0;
   const base = { intent: "log" as const, client_name: null, job_title: null, site_address: null, scope_notes: null, warnings: [] as string[] };
   return [
