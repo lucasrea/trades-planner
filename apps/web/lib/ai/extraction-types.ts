@@ -6,6 +6,8 @@ export type DescribeLine = {
   quantity: number;
   unit: string;
   unit_price: number | null;
+  /** What the contractor paid, when they named a cost separately from the sell price. */
+  unit_cost?: number | null;
   uncertain?: boolean | null;
   /** Set when the contractor edits the line on the plan card. */
   accepted?: boolean | null;

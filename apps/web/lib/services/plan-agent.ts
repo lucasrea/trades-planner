@@ -8,7 +8,8 @@ import type { Database } from "@/lib/db";
 import { captures, clients, documents, jobs, lineItems } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
 import { pickLookupJob, unbilledSummary } from "@/lib/plan-lookup";
-import { classifyPlanMessage, formatJobPaperwork, parseObviousAct } from "@/lib/plan-message";
+import { addMoney } from "@/lib/money";
+import { classifyPlanMessage, formatJobPaperwork, parseCompoundWork, parseObviousAct } from "@/lib/plan-message";
 import { buildProposal, type PlanClientRef, type PlanJobRef, type PlanPreview } from "@/lib/plan-proposal";
 import { describeReplyBody } from "@/lib/plans";
 import { answerPlanQuestion, chatPlanReply } from "@/lib/services/plan-answers";
@@ -18,6 +19,15 @@ import { previewStoredProposal } from "@/lib/services/plan-proposals";
 import { EXTRACTION_FAILED_MESSAGE } from "@/lib/services/describe-capture";
 
 const MAX_PROPOSES = 4;
+
+function loopFailureKind(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  if (/schema|invalid_function|parameters/i.test(message)) return "schema";
+  if (/abort|timeout/i.test(message)) return "timeout";
+  if (/429|rate limit/i.test(message)) return "rate";
+  if (/401|api key/i.test(message)) return "auth";
+  return "unknown";
+}
 
 export type PlanAgentPart =
   | { kind: "card"; captureId: string; body: string; jobTitle: string | null }
@@ -105,6 +115,38 @@ export async function runPlanAgent(
   const jobRefs: PlanJobRef[] = jobRows.map((row) => ({ id: row.id, title: row.title, clientId: row.clientId }));
   const clientRefs: PlanClientRef[] = clientRows;
 
+  async function draftExtractions(extractions: NonNullable<ReturnType<typeof parseCompoundWork>>) {
+    if (extractions.length === 0) return null;
+    const cards = [];
+    for (const extraction of extractions) {
+      status(extraction.lines[0]?.kind === "labour" ? "Drafting the hours" : "Drafting the materials");
+      const card = await storeProposal(db, contractor, {
+        transcript,
+        jobId: input.jobId,
+        selected,
+        extraction,
+        trustJobTitle: false,
+        model: null,
+        jobs: jobRefs,
+        clients: clientRefs,
+      });
+      if (card) cards.push(card);
+    }
+    const first = cards[0];
+    if (!first) return null;
+    return {
+      ...resultFrom(cards.map((card) => card.part), transcript, "needs_review"),
+      preview: first.preview,
+      jobTitle: first.part.jobTitle,
+    };
+  }
+
+  const compound = parseCompoundWork(transcript);
+  if (compound) {
+    const drafted = await draftExtractions(compound);
+    if (drafted) return drafted;
+  }
+
   const obvious = parseObviousAct(transcript);
   if (obvious) {
     status(obvious.lines[0]?.kind === "labour" ? "Drafting the hours" : "Drafting the materials");
@@ -158,7 +200,17 @@ export async function runPlanAgent(
           site_address: args.site_address ?? null,
           scope_notes: args.notes ?? null,
           warnings: [],
-          lines: args.lines,
+          lines: args.lines.map((line) => ({
+            kind: line.kind,
+            description: line.description,
+            quantity: line.quantity,
+            unit: line.unit,
+            unit_cost: line.unit_cost ?? null,
+            unit_price:
+              line.unit_cost != null && line.markup_amount != null
+                ? addMoney(line.unit_cost, line.markup_amount)
+                : (line.unit_price ?? null),
+          })),
         },
         trustJobTitle: Boolean(args.job_title),
         model,
@@ -184,12 +236,24 @@ export async function runPlanAgent(
   try {
     await runPlanLoop({ client, contextNote, userText: transcript, execute, onStatus: status });
   } catch (caught) {
-    console.error({ event: "plan_loop_failed", name: caught instanceof Error ? caught.name : "Error" });
-    if (parts.length === 0) return failed(db, contractor.id, input.jobId, transcript);
+    console.error({
+      event: "plan_loop_failed",
+      name: caught instanceof Error ? caught.name : "Error",
+      kind: loopFailureKind(caught),
+    });
+    if (parts.length === 0) {
+      const drafted = await draftExtractions(parseCompoundWork(transcript) ?? []);
+      if (drafted) return drafted;
+      return failed(db, contractor.id, input.jobId, transcript);
+    }
     parts.push({ kind: "text", body: "I couldn't finish the rest of that." });
   }
 
-  if (parts.length === 0) return failed(db, contractor.id, input.jobId, transcript);
+  if (parts.length === 0) {
+    const drafted = await draftExtractions(parseCompoundWork(transcript) ?? []);
+    if (drafted) return drafted;
+    return failed(db, contractor.id, input.jobId, transcript);
+  }
   const built = resultFrom(parts, transcript, "needs_review");
   return { ...built, preview };
 }

@@ -1,3 +1,5 @@
+import { addMoney } from "@/lib/money";
+
 /** Decide whether a Plan message should change the books, answer from them, or just talk. */
 
 const STARTS_WITH_QUESTION = /^(what|which|who|when|where|why|how|show|list|tell me|do i|are there|is there)\b/i;
@@ -93,6 +95,43 @@ export function parseObviousAct(text: string): {
     };
   }
   return null;
+}
+
+const HOURS_CLAUSE = /(\d+(?:\.\d+)?)\s+hours?\s+of\s+(?:labour|labor)/i;
+const COST_ITEM = /(?:adding|add)\s+(?:the\s+)?([a-z][a-z\s]{1,50}?)\s+which\s+cost(?:s)?(?:\s+me)?\s+\$?(\d+(?:\.\d+)?)/i;
+const DOLLAR_MARKUP = /\+\s*(\d+(?:\.\d+)?)\s+markup/i;
+
+/** Hours plus a material whose cost and dollar markup are both written out. */
+export function parseCompoundWork(text: string) {
+  const hours = HOURS_CLAUSE.exec(text);
+  const item = COST_ITEM.exec(text);
+  if (!hours || !item) return null;
+  if (/\b(quote|invoice)\b/i.test(text) || /\bat\s+\$?\d/.test(text)) return null;
+  const markupMatch = DOLLAR_MARKUP.exec(text);
+  if ((/markup|%/i.test(text)) && !markupMatch) return null;
+  const cost = Number(item[2]);
+  const markup = markupMatch ? Number(markupMatch[1]) : 0;
+  const base = { intent: "log" as const, client_name: null, job_title: null, site_address: null, scope_notes: null, warnings: [] as string[] };
+  return [
+    {
+      ...base,
+      lines: [{ kind: "labour" as const, description: "Labour", quantity: Number(hours[1]), unit: "hr", unit_price: null, uncertain: null }],
+    },
+    {
+      ...base,
+      lines: [
+        {
+          kind: "material" as const,
+          description: item[1]!.trim(),
+          quantity: 1,
+          unit: "ea",
+          unit_cost: cost,
+          unit_price: markup > 0 ? addMoney(cost, markup) : cost,
+          uncertain: null,
+        },
+      ],
+    },
+  ];
 }
 
 export function planChatReply() {

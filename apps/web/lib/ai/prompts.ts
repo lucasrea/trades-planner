@@ -7,7 +7,8 @@ export const PLAN_LOOP_PROMPT = `You help a Canadian trade contractor in Plan. U
 - lookup: questions about jobs, quotes, invoices, or unbilled work. Answer from that result. Use its totals. Do not add numbers yourself.
 - propose: one card for the contractor to confirm. Call it once per action. Hours and materials are two calls. Two jobs are two calls. A quote or an invoice is one call and may include both hours and materials.
 - reply: plain text when no card is needed.
-- Never invent quantities or prices. Hours with no rate: unit_price null. The app applies the labour rate.
+- Never invent quantities or prices. Hours with no rate: omit unit_price. The app applies the labour rate.
+- A cost plus a dollar markup: set unit_cost and markup_amount, and omit unit_price. The app adds them.
 - Do not say you saved, sent, or billed anything. Propose only shows a card.
 - Stop when every part of the message has a card or an answer.`;
 

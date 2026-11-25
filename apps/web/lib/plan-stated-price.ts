@@ -32,6 +32,18 @@ export function transcriptNamesPrice(transcript: string | null | undefined): boo
   return false;
 }
 
+/** True when the sell price is the named cost plus the named dollar markup. */
+export function priceComesFromCostAndMarkup(
+  transcript: string | null | undefined,
+  cost: number | null | undefined,
+  price: number | null | undefined,
+): boolean {
+  if (cost == null || price == null) return false;
+  const markup = roundMoney(price - cost);
+  if (markup < 0) return false;
+  return priceAppearsInTranscript(transcript, cost) && (markup === 0 || priceAppearsInTranscript(transcript, markup));
+}
+
 /** True when the digits of this price appear in the message ($45, 45, 45.00, 1,265.60). */
 export function priceAppearsInTranscript(transcript: string | null | undefined, price: number): boolean {
   const text = transcript ?? "";
