@@ -29,6 +29,13 @@ export function planTitle(firstMessage: string): string {
   return `${(lastSpace > TITLE_MAX / 2 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
 
+/** The job id whose title matches the plan's tag, ignoring case. */
+export function jobIdForPlanTitle(title: string | null | undefined, jobs: { id: string; title: string }[]): string | null {
+  const wanted = title?.trim().toLowerCase();
+  if (!wanted) return null;
+  return jobs.find((job) => job.title.trim().toLowerCase() === wanted)?.id ?? null;
+}
+
 /** Sidebar sections. Plans are already newest-first, so the first time a job appears is its latest chat. */
 export function groupPlansByJob<T extends { jobTitle: string | null }>(plans: T[]): { jobTitle: string | null; plans: T[] }[] {
   const groups: { jobTitle: string | null; plans: T[] }[] = [];

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeReplyBody, groupPlansByJob, planOutcome, planSummaryTitle, planTitle, receiptMessageBody, receiptReplyBody } from "@/lib/plans";
+import { describeReplyBody, groupPlansByJob, jobIdForPlanTitle, planOutcome, planSummaryTitle, planTitle, receiptMessageBody, receiptReplyBody } from "@/lib/plans";
 
 describe("planTitle", () => {
   it("uses a short first message as is", () => {
@@ -30,6 +30,20 @@ describe("planTitle", () => {
   it("falls back to the message when the model had nothing to say", () => {
     expect(planSummaryTitle("I couldn't tell what to do with that.", "Fix the tap")).toBe("Fix the tap");
     expect(planSummaryTitle(null, "Fix the tap")).toBe("Fix the tap");
+  });
+});
+
+describe("jobIdForPlanTitle", () => {
+  const jobs = [
+    { id: "k", title: "Kitchen" },
+    { id: "b", title: "Bathroom" },
+  ];
+
+  it("matches the plan tag to a job, ignoring case", () => {
+    expect(jobIdForPlanTitle("kitchen", jobs)).toBe("k");
+    expect(jobIdForPlanTitle("  Bathroom ", jobs)).toBe("b");
+    expect(jobIdForPlanTitle(null, jobs)).toBeNull();
+    expect(jobIdForPlanTitle("Garage", jobs)).toBeNull();
   });
 });
 

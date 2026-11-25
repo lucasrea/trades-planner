@@ -17,7 +17,7 @@ export type CaptureJobOption = {
 };
 
 /** The open plan on the Plan screen. `id` is null for a new, empty thread. */
-export type OpenPlan = { id: string | null; messages: PlanThreadMessage[] };
+export type OpenPlan = { id: string | null; messages: PlanThreadMessage[]; jobId?: string | null };
 
 function PlanReply({ message, onCancelled }: { message: PlanThreadMessage; onCancelled: () => void }) {
   const reviewUrl = message.reviewUrl;
@@ -77,7 +77,7 @@ export function CaptureBar({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [answer, setAnswer] = useState<string | null>(null);
-  const [jobId, setJobId] = useState<string | null>(lockedJob?.id ?? null);
+  const [jobId, setJobId] = useState<string | null>(lockedJob?.id ?? plan?.jobId ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [unsentAudio, setUnsentAudio] = useState<RecordedAudio | null>(null);
   const [reading, setReading] = useState(false);

@@ -95,7 +95,7 @@ export async function getPlanThread(ctx: ServiceContext, planId: string) {
       };
     }),
   );
-  return { plan: { id: plan.id, title: plan.title }, messages };
+  return { plan: { id: plan.id, title: plan.title, jobTitle: plan.jobTitle }, messages };
 }
 
 /**
