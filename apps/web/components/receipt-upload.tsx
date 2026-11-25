@@ -10,12 +10,15 @@ export function ReceiptUpload({
   jobs = [],
   lockedJob,
   planId,
+  initialJobId,
   compact = false,
 }: {
   jobs?: CaptureJobOption[];
   lockedJob?: CaptureJobOption;
   /** Plan screen only: the open plan's id, or "new". The receipt is added to that plan. */
   planId?: string;
+  /** Job already chosen for this plan, so a receipt starts on it. */
+  initialJobId?: string | null;
   /** Tighter spacing when shown above the plan composer. */
   compact?: boolean;
 }) {
@@ -23,7 +26,7 @@ export function ReceiptUpload({
   const inputRef = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState<{ blob: Blob; previewUrl: string } | null>(null);
   const [note, setNote] = useState("");
-  const [jobId, setJobId] = useState("");
+  const [jobId, setJobId] = useState(initialJobId ?? "");
   const [busy, setBusy] = useState<"preparing" | "sending" | null>(null);
   const [error, setError] = useState<string | null>(null);
 

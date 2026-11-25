@@ -6,7 +6,7 @@ import { ReceiptUpload } from "@/components/receipt-upload";
 import { ensureDb } from "@/lib/db";
 import { getContractor } from "@/lib/auth";
 import { getHome, getJobs } from "@/lib/queries";
-import { PLAN_NEW } from "@/lib/plans";
+import { jobIdForPlanTitle, PLAN_NEW } from "@/lib/plans";
 import { getPlanThread, listPlans } from "@/lib/services/plans";
 import { NotFoundError } from "@/lib/services/context";
 
@@ -36,7 +36,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       title: job.title,
       clientName: job.client?.name ?? null,
     }));
-  const open = { id: thread?.plan.id ?? null, messages: thread?.messages ?? [] };
+  const open = {
+    id: thread?.plan.id ?? null,
+    messages: thread?.messages ?? [],
+    jobId: jobIdForPlanTitle(thread?.plan.jobTitle, jobs),
+  };
 
   return (
     <PlanSidebar plans={plans} currentId={open.id}>
@@ -47,7 +51,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             jobs={jobs}
             fill
             plan={open}
-            dock={<ReceiptUpload jobs={jobs} planId={open.id ?? PLAN_NEW} compact />}
+            dock={<ReceiptUpload jobs={jobs} planId={open.id ?? PLAN_NEW} initialJobId={open.jobId} compact />}
           />
         </div>
         <div className="order-1 max-h-[min(38vh,14rem)] shrink-0 overflow-y-auto lg:order-2 lg:max-h-none lg:overflow-visible">
