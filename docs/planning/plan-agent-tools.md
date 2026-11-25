@@ -1,5 +1,7 @@
 # Plan agent tools
 
+**Status:** built in the pull request that adds this file's tools (branch `task/agent-tools-plan`). Each "Done when" item has a scripted-model test in `apps/web/tests/integration/plan-tools.test.ts`. The live-model conversation eval (Tests, last item) is not built yet.
+
 The Plan agent can read three things today: the job list, one job's paperwork, and unbilled work. It can write one kind of card. Most questions a contractor asks about their own business fall outside that, so the agent dead-ends ("Which job?") or ends with nothing and shows "I couldn't read that. Add it yourself."
 
 This plan gives the agent tools that cover the whole paperwork loop: finding things, answering about money, changing paperwork, sending it, and undoing a mistake. It also fixes the places a conversation can dead-end. Every write still goes through a card the contractor confirms, and every card confirms through an existing service. Two small services are new and are named below. It ships as **one pull request**.

@@ -14,11 +14,16 @@ export async function sendDocumentEmailToClient(
   input: {
     authUrl: string;
     send?: (message: EmailMessage) => Promise<void>;
+    /** Payment reminder wording. Only for an invoice that was sent and is not paid. */
+    reminder?: boolean;
   },
 ): Promise<void> {
   const doc = await requireDocument(ctx.db, ctx.contractorId, documentId);
   if (!SENDABLE_STATUSES.has(doc.status)) {
     throw new ValidationError("This document cannot be emailed.");
+  }
+  if (input.reminder && !(doc.type === "invoice" && doc.status === "sent")) {
+    throw new ValidationError("Only a sent, unpaid invoice gets a reminder.");
   }
   if (!doc.clientId) throw new ValidationError("No client email.");
   const [client] = await ctx.db
@@ -60,6 +65,7 @@ export async function sendDocumentEmailToClient(
     dueOrValid,
     etransferInstructions,
     link,
+    reminder: input.reminder,
   });
 
   const deliver = input.send ?? sendEmail;

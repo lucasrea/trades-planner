@@ -17,8 +17,8 @@ afterEach(() => {
   process.env = { ...env };
 });
 
-describe("plan agent lookup", () => {
-  it("answers about the named job, not the open one, and only this contractor's jobs", async () => {
+describe("plan agent reads", () => {
+  it("finds the named job, not the open one, and only this contractor.s jobs", async () => {
     const { a, b } = await seedTwoContractors();
     const db = getTestDb();
     const now = Date.now();
@@ -41,7 +41,7 @@ describe("plan agent lookup", () => {
         }
         return {
           content: null,
-          toolCalls: [{ id: "1", name: "lookup", arguments: JSON.stringify({ what: "paperwork", job: "kitchen" }) }],
+          toolCalls: [{ id: "1", name: "find_jobs", arguments: JSON.stringify({ query: "kitchen" }) }],
         };
       },
     };
@@ -51,10 +51,9 @@ describe("plan agent lookup", () => {
       { id: a.contractorId, labourRateHourly: 85 },
       { text: "add a valve and what paperwork is on the kitchen", jobId: a.jobId, client },
     );
-    const body = JSON.parse(looked) as { job: string; message: string };
-    expect(body.job).toBe("Kitchen reno");
-    expect(body.message).toContain("Quotes:");
-    expect(body.message).not.toContain("Job A");
+    const body = JSON.parse(looked) as { count: number; jobs: { title: string }[] };
+    expect(body.jobs.map((job) => job.title)).toEqual(["Kitchen reno"]);
+    expect(looked).not.toContain("Job A");
     expect(looked).not.toContain("Job B");
   });
 
@@ -70,7 +69,7 @@ describe("plan agent lookup", () => {
           looked = tool.content ?? "";
           return { content: null, toolCalls: [] };
         }
-        return { content: null, toolCalls: [{ id: "1", name: "lookup", arguments: JSON.stringify({ what: "jobs" }) }] };
+        return { content: null, toolCalls: [{ id: "1", name: "find_jobs", arguments: "{}" }] };
       },
     };
     await runPlanAgent(db, { id: a.contractorId, labourRateHourly: 85 }, { text: "add a note and list my jobs", client });

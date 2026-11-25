@@ -31,7 +31,8 @@ export type TextCaptureResult = {
 export type ConfirmResult =
   | { kind: "job"; jobId: string }
   | { kind: "document"; documentId: string }
-  | { kind: "log"; jobIds: string[] };
+  | { kind: "log"; jobIds: string[] }
+  | { kind: "done"; message: string };
 
 async function parseJson(res: Response) {
   const body = (await res.json()) as { error?: { message?: string } };

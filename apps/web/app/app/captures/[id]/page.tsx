@@ -4,6 +4,7 @@ import { CaptureReview } from "@/components/capture-review";
 import { ReceiptReviewForm } from "@/components/receipt-review-form";
 import { actionErrorNotice } from "@/lib/action-errors";
 import { parseDescribeExtraction, parseReceiptExtraction } from "@/lib/ai/extraction-types";
+import { changeHref, parsePlanChange } from "@/lib/plan-changes";
 import { getContractor } from "@/lib/auth";
 import { receiptToDraft } from "@/lib/line-items";
 import { captureProcessingIsStale } from "@/lib/captures-display";
@@ -36,6 +37,16 @@ export default async function CaptureReviewPage({
   const notice = actionErrorNotice(Array.isArray(raw.error) ? raw.error[0] : raw.error);
   const capture = await getCapture(id);
   if (!capture) notFound();
+  const planCard = capture.type === "receipt" ? null : parseDescribeExtraction(capture.extraction);
+  if (planCard?.action === "change") {
+    // A change card has nothing to review here; its document, job or page is where to look.
+    const change = parsePlanChange(planCard.change);
+    redirect(change ? changeHref(change) : "/app");
+  }
+  if (planCard?.action === "invoice_tracked") {
+    // The lines are the job's tracked rows. Retyping them here would bill them twice.
+    redirect(planCard.document_id ? `/app/documents/${planCard.document_id}` : planCard.job_id ? `/app/jobs/${planCard.job_id}` : "/app");
+  }
   const contractor = await getContractor();
   const [clients, jobs] = await Promise.all([getClients(), getJobs()]);
 
@@ -132,12 +143,6 @@ export default async function CaptureReviewPage({
         </a>
       </div>
     );
-  }
-
-  const planCard = capture.type === "receipt" ? null : parseDescribeExtraction(capture.extraction);
-  if (planCard?.action === "invoice_tracked") {
-    // The lines are the job's tracked rows. Retyping them here would bill them twice.
-    redirect(planCard.job_id ? `/app/jobs/${planCard.job_id}` : "/app");
   }
 
   if (capture.type === "receipt") {

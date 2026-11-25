@@ -55,9 +55,12 @@ export type PlanActionResult = { error: string } | { ok: true };
 export async function confirmPlanProposalAction(captureId: string): Promise<PlanActionResult> {
   let target: string;
   try {
-    const result = await confirmPlanProposal(await ctx(), captureId);
+    const result = await confirmPlanProposal(await ctx(), captureId, { authUrl: process.env.AUTH_URL });
     revalidatePath("/app/documents");
     revalidatePath("/app/jobs");
+    revalidatePath("/app");
+    // A change to a status, a client, settings, an email or an undo stays in Plan; the card shows it done.
+    if (result.kind === "done") return { ok: true };
     if (result.kind === "document") target = `/app/documents/${result.documentId}`;
     else if (result.kind === "job") target = `/app/jobs/${result.jobId}`;
     else target = result.jobIds.length === 1 ? `/app/jobs/${result.jobIds[0]}` : "/app/jobs";

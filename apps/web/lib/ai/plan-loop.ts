@@ -1,7 +1,7 @@
 import { PLAN_LOOP_PROMPT } from "@/lib/ai/prompts";
 import { statusForTool } from "@/lib/ai/plan-tools";
 
-export const PLAN_LOOP_MAX_STEPS = 4;
+export const PLAN_LOOP_MAX_STEPS = 6;
 
 export type PlanToolCall = { id: string; name: string; arguments: string };
 
@@ -17,10 +17,18 @@ export type PlanLoopStep = {
   toolCalls: PlanToolCall[];
 };
 
+/** `tools` limits the step to those tools and requires the model to call one. */
+export type PlanStepOptions = { tools?: string[] };
+
 /** The model client. Tests pass a script. Live code calls the OpenAI SDK. */
 export type PlanLoopClient = {
-  complete(messages: PlanLoopMessage[], signal: AbortSignal): Promise<PlanLoopStep>;
+  complete(messages: PlanLoopMessage[], signal: AbortSignal, options?: PlanStepOptions): Promise<PlanLoopStep>;
 };
+
+/** The last step when a turn would otherwise end with nothing for the contractor. */
+export const FINAL_STEP_TOOLS = ["reply", "ask"];
+const FINAL_STEP_NUDGE =
+  "You have not answered the contractor yet. Answer now from the tool results above with reply, or ask one question with choices with ask. Do not call any other tool.";
 
 const STEP_TIMEOUT_MS = 20_000;
 /**
@@ -28,6 +36,8 @@ const STEP_TIMEOUT_MS = 20_000;
  * mid-stream and the contractor sees nothing. Four 20 s steps would not fit.
  */
 export const PLAN_LOOP_BUDGET_MS = 40_000;
+/** Tool calls run per step. More are answered "send the rest next". */
+const MAX_CALLS_PER_STEP = 6;
 /** Do not start a retry with less than this left. */
 const MIN_RETRY_MS = 3_000;
 
@@ -64,6 +74,8 @@ export async function runPlanLoop(input: {
   history?: PlanHistoryMessage[];
   execute: (call: PlanToolCall) => Promise<string>;
   onStatus?: (text: string) => void;
+  /** True once the turn has a card, a reply or a question. Without it the loop takes one final step. */
+  hasOutput?: () => boolean;
   maxSteps?: number;
   budgetMs?: number;
   stepTimeoutMs?: number;
@@ -80,7 +92,7 @@ export async function runPlanLoop(input: {
   const stopAt = Date.now() + (input.budgetMs ?? PLAN_LOOP_BUDGET_MS);
   const stepTimeout = input.stepTimeoutMs ?? STEP_TIMEOUT_MS;
 
-  async function attempt(): Promise<PlanLoopStep> {
+  async function attempt(options?: PlanStepOptions): Promise<PlanLoopStep> {
     const remaining = stopAt - Date.now();
     if (remaining <= 0) throw new PlanLoopTimeoutError();
     const controller = new AbortController();
@@ -90,7 +102,7 @@ export async function runPlanLoop(input: {
       controller.abort();
     }, Math.min(stepTimeout, remaining));
     try {
-      return await input.client.complete(messages, controller.signal);
+      return await input.client.complete(messages, controller.signal, options);
     } catch (error) {
       const failure = timedOut ? new PlanLoopTimeoutError() : error instanceof Error ? error : new Error(String(error));
       (failure as { retryable?: boolean }).retryable = isRetryable(error, timedOut);
@@ -100,28 +112,25 @@ export async function runPlanLoop(input: {
     }
   }
 
-  async function completeStep(): Promise<PlanLoopStep> {
+  async function completeStep(options?: PlanStepOptions): Promise<PlanLoopStep> {
     try {
-      return await attempt();
+      return await attempt(options);
     } catch (first) {
       const retryable = typeof first === "object" && first !== null && (first as { retryable?: boolean }).retryable;
       if (!retryable || stopAt - Date.now() < MIN_RETRY_MS) throw first;
       await new Promise((resolve) => setTimeout(resolve, 250 + Math.floor(Math.random() * 250)));
-      return attempt();
+      return attempt(options);
     }
   }
 
-  for (let step = 0; step < maxSteps; step += 1) {
-    const next = await completeStep();
-    if (next.toolCalls.length === 0) {
-      const text = next.content?.trim();
-      if (text) input.onStatus?.("Writing a reply");
-      if (text) await input.execute({ id: `reply-${step}`, name: "reply", arguments: JSON.stringify({ text }) });
-      return;
-    }
-    messages.push({ role: "assistant", content: next.content, toolCalls: next.toolCalls });
-    const calls = next.toolCalls.slice(0, 4);
+  async function runCalls(step: PlanLoopStep, allowed?: string[]) {
+    messages.push({ role: "assistant", content: step.content, toolCalls: step.toolCalls });
+    const calls = step.toolCalls.slice(0, MAX_CALLS_PER_STEP);
     for (const call of calls) {
+      if (allowed && !allowed.includes(call.name)) {
+        messages.push({ role: "tool", content: JSON.stringify({ error: "Only reply or ask now." }), toolCallId: call.id });
+        continue;
+      }
       input.onStatus?.(statusForTool(call.name, call.arguments));
       let result: string;
       try {
@@ -131,8 +140,34 @@ export async function runPlanLoop(input: {
       }
       messages.push({ role: "tool", content: result, toolCallId: call.id });
     }
-    for (const call of next.toolCalls.slice(4)) {
+    for (const call of step.toolCalls.slice(MAX_CALLS_PER_STEP)) {
       messages.push({ role: "tool", content: JSON.stringify({ error: "Skipped. Send the rest next." }), toolCallId: call.id });
     }
+  }
+
+  async function replyWith(text: string | null | undefined, step: number) {
+    const trimmed = text?.trim();
+    if (!trimmed) return;
+    input.onStatus?.("Writing a reply");
+    await input.execute({ id: `reply-${step}`, name: "reply", arguments: JSON.stringify({ text: trimmed }) });
+  }
+
+  let step = 0;
+  for (; step < maxSteps; step += 1) {
+    const next = await completeStep();
+    if (next.toolCalls.length === 0) {
+      await replyWith(next.content, step);
+      break;
+    }
+    await runCalls(next);
+  }
+
+  // The model stopped, or ran out of steps, without a card, an answer or a question. One more step
+  // that may only answer or ask, so the contractor never gets an empty turn.
+  if (input.hasOutput && !input.hasOutput() && stopAt - Date.now() >= MIN_RETRY_MS) {
+    messages.push({ role: "user", content: FINAL_STEP_NUDGE });
+    const last = await completeStep({ tools: FINAL_STEP_TOOLS });
+    if (last.toolCalls.length === 0) await replyWith(last.content, step + 1);
+    else await runCalls(last, FINAL_STEP_TOOLS);
   }
 }

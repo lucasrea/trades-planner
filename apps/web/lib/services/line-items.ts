@@ -1,4 +1,4 @@
-import { and, eq, isNull, max } from "drizzle-orm";
+import { and, eq, inArray, isNull, max } from "drizzle-orm";
 import { isLocked, type DocStatus } from "@/lib/documents";
 import { lineItems } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
@@ -66,5 +66,39 @@ export async function deleteLine(ctx: ServiceContext, lineId: string) {
     await tx.delete(lineItems).where(and(eq(lineItems.id, lineId), eq(lineItems.contractorId, ctx.contractorId)));
     if (existing.documentId) await recomputeDocumentTotals(tx, ctx.contractorId, existing.documentId);
     await touchJob(tx, ctx.contractorId, existing.jobId);
+  });
+}
+
+/**
+ * Move unbilled tracked lines to another of the contractor's jobs ("that receipt was for the bathroom").
+ * Billed lines and lines on a document stay where they are.
+ */
+export async function moveTrackedLines(ctx: ServiceContext, input: { fromJobId: string; toJobId: string; lineIds: string[] }) {
+  const lineIds = [...new Set(input.lineIds)];
+  if (!lineIds.length) throw new ValidationError("Pick the lines to move.");
+  if (input.fromJobId === input.toJobId) throw new ValidationError("Pick a different job.");
+  await requireJob(ctx.db, ctx.contractorId, input.fromJobId);
+  await requireJob(ctx.db, ctx.contractorId, input.toJobId);
+  await ctx.db.transaction(async (tx) => {
+    const rows = await tx
+      .select({ id: lineItems.id })
+      .from(lineItems)
+      .where(
+        and(
+          eq(lineItems.contractorId, ctx.contractorId),
+          eq(lineItems.jobId, input.fromJobId),
+          inArray(lineItems.id, lineIds),
+          isNull(lineItems.documentId),
+          isNull(lineItems.billedDocumentId),
+        ),
+      )
+      .for("update");
+    if (rows.length !== lineIds.length) throw new ValidationError("Only unbilled lines on that job can be moved.");
+    await tx
+      .update(lineItems)
+      .set({ jobId: input.toJobId })
+      .where(and(eq(lineItems.contractorId, ctx.contractorId), inArray(lineItems.id, lineIds)));
+    await touchJob(tx, ctx.contractorId, input.fromJobId);
+    await touchJob(tx, ctx.contractorId, input.toJobId);
   });
 }

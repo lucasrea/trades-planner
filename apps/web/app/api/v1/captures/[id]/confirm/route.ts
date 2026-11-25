@@ -14,7 +14,8 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   const serviceCtx = { db: auth.db, contractorId: auth.contractorId };
 
   try {
-    const result = await confirmPlanProposal(serviceCtx, captureId);
+    const result = await confirmPlanProposal(serviceCtx, captureId, { authUrl: process.env.AUTH_URL });
+    if (result.kind === "done") return Response.json({ kind: "done", message: result.message });
     if (result.kind === "document") {
       return Response.json({ kind: "document", documentId: result.documentId });
     }
@@ -25,8 +26,8 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   } catch (error) {
     if (error instanceof NotFoundError) return jsonError("not_found", ACTION_ERROR_MESSAGES["not-found"], 404);
     if (error instanceof ValidationError) {
-      const code = codeFromServiceError(error);
-      return jsonError(code, ACTION_ERROR_MESSAGES[code], 400);
+      // Service validation messages are written for the contractor ("Q-0004 is sent, so its lines can't change.").
+      return jsonError(codeFromServiceError(error), error.message, 400);
     }
     if (error instanceof ConflictError) {
       const code = codeFromServiceError(error);

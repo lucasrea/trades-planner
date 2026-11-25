@@ -240,11 +240,13 @@ export default function HomeScreen() {
                       <StatusPill
                         tone="ok"
                         label={
-                          confirmed.kind === "document"
-                            ? "Document saved"
-                            : confirmed.kind === "job"
-                              ? "Job created"
-                              : `Logged on ${confirmed.jobIds.length} job${confirmed.jobIds.length === 1 ? "" : "s"}`
+                          confirmed.kind === "done"
+                            ? confirmed.message
+                            : confirmed.kind === "document"
+                              ? "Document saved"
+                              : confirmed.kind === "job"
+                                ? "Job created"
+                                : `Logged on ${confirmed.jobIds.length} job${confirmed.jobIds.length === 1 ? "" : "s"}`
                         }
                       />
                     ) : (

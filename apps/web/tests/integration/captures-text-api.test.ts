@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { MAX_CAPTURES_PER_HOUR } from "@/lib/services/capture-rate-limit";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/captures/text/route";
 import { parsePlanStreamLine } from "@/lib/http/plan-events";
@@ -57,7 +58,7 @@ describe("POST /api/captures/text", () => {
     expect(row?.contractorId).toBe(tenant.contractorId);
     expect(row?.status).toBe("needs_review");
     expect(row?.model).toBe("fake");
-    expect(row?.promptVersion).toBe("plan-loop-v1");
+    expect(row?.promptVersion).toBe("plan-loop-v2");
     expect(row?.latencyMs).not.toBeNull();
   });
 
@@ -102,7 +103,7 @@ describe("POST /api/captures/text", () => {
     vi.spyOn(auth, "getSession").mockResolvedValue({ userId: tenant.userId, contractorId: tenant.contractorId });
     const db = getTestDb();
     const now = Date.now();
-    for (let i = 0; i < 30; i += 1) {
+    for (let i = 0; i < MAX_CAPTURES_PER_HOUR; i += 1) {
       await db.insert(captures).values({
         id: newId(),
         contractorId: tenant.contractorId,

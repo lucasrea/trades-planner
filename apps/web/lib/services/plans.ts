@@ -5,7 +5,7 @@ import { newId } from "@/lib/id";
 import type { PlanPreview } from "@/lib/plan-proposal";
 import { describeReplyBody, PLAN_NEW, planOutcome, planSummaryTitle, type PlanOutcome } from "@/lib/plans";
 import { NotFoundError, ValidationError, type ServiceContext } from "@/lib/services/context";
-import type { PlanAgentResult } from "@/lib/services/plan-agent";
+import type { PlanAgentResult, PlanAskOption } from "@/lib/services/plan-agent";
 import { previewStoredProposal } from "@/lib/services/plan-proposals";
 
 const LIST_LIMIT = 100;
@@ -23,7 +23,18 @@ export type PlanThreadMessage = {
   outcome: PlanOutcome | null;
   /** The review card, only while the proposal is waiting. Rebuilt from the capture, never stored. */
   preview: PlanPreview | null;
+  /** Choices offered with a Plan question. Empty for everything else. */
+  options: PlanAskOption[];
 };
+
+function readOptions(value: unknown): PlanAskOption[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((option) =>
+    option && typeof option === "object" && typeof (option as { label?: unknown }).label === "string"
+      ? [{ label: (option as { label: string }).label, jobId: typeof (option as { jobId?: unknown }).jobId === "string" ? (option as { jobId: string }).jobId : null }]
+      : [],
+  );
+}
 
 export async function requirePlan(ctx: ServiceContext, planId: string) {
   const [plan] = await ctx.db
@@ -48,7 +59,7 @@ export async function listRecentPlanHistory(
 ): Promise<{ role: "user" | "assistant"; content: string }[]> {
   if (!planId || planId === PLAN_NEW) return [];
   const rows = await ctx.db
-    .select({ role: planMessages.role, body: planMessages.body })
+    .select({ role: planMessages.role, body: planMessages.body, options: planMessages.options })
     .from(planMessages)
     .where(and(eq(planMessages.planId, planId), eq(planMessages.contractorId, ctx.contractorId)))
     .orderBy(desc(planMessages.createdAt))
@@ -58,7 +69,12 @@ export async function listRecentPlanHistory(
     .filter((row) => row.body.trim().length > 0)
     .map((row) => ({
       role: row.role === "plan" ? ("assistant" as const) : ("user" as const),
-      content: row.body,
+      // A question keeps its choices, so "the second one" still means something on the next message.
+      content: readOptions(row.options).length
+        ? `${row.body}\nChoices: ${readOptions(row.options)
+            .map((option) => option.label)
+            .join("; ")}`
+        : row.body,
     }));
 }
 
@@ -81,6 +97,7 @@ export async function getPlanThread(ctx: ServiceContext, planId: string) {
       role: planMessages.role,
       body: planMessages.body,
       captureId: planMessages.captureId,
+      options: planMessages.options,
       captureStatus: captures.status,
       captureType: captures.type,
       extraction: captures.extraction,
@@ -115,6 +132,7 @@ export async function getPlanThread(ctx: ServiceContext, planId: string) {
         captureType: row.captureType,
         outcome,
         preview,
+        options: isReply ? readOptions(row.options) : [],
       };
     }),
   );
@@ -133,7 +151,7 @@ export async function recordPlanTurn(
     replyBody: string;
     captureId: string | null;
     /** More than one Plan message for this turn. Each card is its own row. */
-    replies?: { body: string; captureId: string | null }[];
+    replies?: { body: string; captureId: string | null; options?: PlanAskOption[] | null }[];
     /** Model summary of this exchange. Used as the sidebar name on the first message. */
     summaryTitle?: string | null;
     /** Job this exchange is about. Shown as the sidebar tag. A later message that names a job replaces it. */
@@ -174,7 +192,9 @@ export async function recordPlanTurn(
         .set({ updatedAt: now, ...(jobTitle ? { jobTitle } : {}) })
         .where(and(eq(plans.id, planId), eq(plans.contractorId, ctx.contractorId)));
     }
-    const replyRows = input.replies?.length ? input.replies : [{ body: input.replyBody, captureId: input.captureId }];
+    const replyRows: { body: string; captureId: string | null; options?: PlanAskOption[] | null }[] = input.replies?.length
+      ? input.replies
+      : [{ body: input.replyBody, captureId: input.captureId }];
     await tx.insert(planMessages).values([
       { id: newId(), planId, contractorId: ctx.contractorId, role: "user", body: userBody, captureId: input.captureId, createdAt: now },
       ...replyRows.map((reply, index) => ({
@@ -184,6 +204,7 @@ export async function recordPlanTurn(
         role: "plan" as const,
         body: reply.body,
         captureId: reply.captureId,
+        options: reply.options?.length ? reply.options : null,
         createdAt: now + 1 + index,
       })),
     ]);
@@ -202,7 +223,11 @@ export async function recordAgentTurn(
 ): Promise<string | null> {
   const { result } = input;
   if (!input.planId) return null;
-  const replies = result.parts.map((part) => ({ body: part.body, captureId: part.kind === "card" ? part.captureId : null }));
+  const replies = result.parts.map((part) => ({
+    body: part.body,
+    captureId: part.kind === "card" ? part.captureId : null,
+    options: part.kind === "ask" ? part.options : null,
+  }));
   if (replies.length === 1 && !replies[0]!.captureId && result.captureId) replies[0]!.captureId = result.captureId;
   const first = replies[0] ?? {
     body: describeReplyBody({ status: result.status, previewTitle: result.preview?.title ?? null }),
@@ -215,7 +240,7 @@ export async function recordAgentTurn(
       userBody: input.userBody,
       replyBody: first.body,
       captureId: replies.length > 1 ? result.captureId || null : first.captureId,
-      replies: replies.length > 1 ? replies : undefined,
+      replies: replies.length > 1 || replies.some((reply) => reply.options?.length) ? replies : undefined,
       summaryTitle: result.reply ? null : (card?.body ?? result.preview?.title ?? null),
       jobTitle: result.jobTitle ?? result.preview?.jobTitle ?? null,
       jobId: input.jobId,

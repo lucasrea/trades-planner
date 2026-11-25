@@ -47,6 +47,11 @@ export function asksToInvoiceTrackedWork(text: string | null | undefined) {
   return ASKS_TO_INVOICE.test(value) && TRACKED_WORK.test(value) && !/\d/.test(value);
 }
 
+/** The message asks to add, log, quote or invoice something, as opposed to asking about the books. */
+export function messageAsksForWork(text: string) {
+  return /\d/.test(text) || ACTION.test(text) || ASKS_TO_INVOICE.test(text) || ASKS_TO_QUOTE.test(text);
+}
+
 export function messageAsksToInvoice(text: string | null | undefined) {
   return ASKS_TO_INVOICE.test(text ?? "");
 }

@@ -101,16 +101,21 @@ export function buildDocumentClientEmail(input: {
   dueOrValid: string | null;
   etransferInstructions: string;
   link: string;
+  /** A payment reminder for an invoice that is already out. */
+  reminder?: boolean;
 }): { subject: string; text: string } {
   const docLabel = input.type === "quote" ? "Quote" : "Invoice";
-  const subject = `${input.businessName} ${docLabel} ${input.number}`;
+  const subject = `${input.reminder ? "Reminder: " : ""}${input.businessName} ${docLabel} ${input.number}`;
   const dateLabel = input.type === "quote" ? "Valid until" : "Due date";
   const dateLine = input.dueOrValid ? `${dateLabel}: ${input.dueOrValid}\n` : "";
   const etransfer =
     input.type === "invoice" && input.etransferInstructions
       ? `\n${input.etransferInstructions}`
       : "";
-  const text = `Hi,\n\nPlease find your ${docLabel.toLowerCase()} ${input.number} for ${cad(input.total)}.\nView it online: ${input.link}\n${dateLine}${etransfer}\n\nThank you,\n${input.businessName}`;
+  const opening = input.reminder
+    ? `This is a reminder that ${docLabel.toLowerCase()} ${input.number} for ${cad(input.total)} is still unpaid.`
+    : `Please find your ${docLabel.toLowerCase()} ${input.number} for ${cad(input.total)}.`;
+  const text = `Hi,\n\n${opening}\nView it online: ${input.link}\n${dateLine}${etransfer}\n\nThank you,\n${input.businessName}`;
   return { subject, text };
 }
 

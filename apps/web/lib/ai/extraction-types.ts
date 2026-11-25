@@ -11,9 +11,11 @@ export type DescribeLine = {
   uncertain?: boolean | null;
   /** Set when the contractor edits the line on the plan card. */
   accepted?: boolean | null;
+  /** Set by app code when the price was copied from the contractor's own records ("from Q-0003, 2026-03-12"). */
+  source_note?: string | null;
 };
 
-export const PLAN_ACTIONS = ["create_job", "add_materials", "log_hours", "make_quote", "make_invoice", "invoice_tracked"] as const;
+export const PLAN_ACTIONS = ["create_job", "add_materials", "log_hours", "make_quote", "make_invoice", "invoice_tracked", "change"] as const;
 export type PlanAction = (typeof PLAN_ACTIONS)[number];
 
 export type DescribeExtraction = {
@@ -32,6 +34,10 @@ export type DescribeExtraction = {
   evidence?: string | null;
   /** invoice_tracked only: the invoice a confirm created, so a second confirm opens it again. */
   document_id?: string | null;
+  /** action "change" only: what the card changes. Parsed with parsePlanChange. */
+  change?: unknown;
+  /** action "change" only: what the confirm did, so a second confirm returns it again. */
+  result?: unknown;
 };
 
 export type ReceiptLine = {
@@ -74,6 +80,8 @@ export function parseDescribeExtraction(value: unknown): DescribeExtraction | nu
     client_id: typeof value.client_id === "string" ? value.client_id : null,
     evidence: typeof value.evidence === "string" ? value.evidence : null,
     document_id: typeof value.document_id === "string" ? value.document_id : null,
+    change: value.change ?? null,
+    result: value.result ?? null,
   };
 }
 

@@ -113,6 +113,9 @@ export function PlanProposalCard({
       if ("error" in result) {
         setError(result.error);
         setWorking(null);
+      } else {
+        // A change that stays in Plan (a status, an email, settings, an undo): show the thread as it is now.
+        router.refresh();
       }
     });
   }
@@ -138,8 +141,9 @@ export function PlanProposalCard({
   }, [lines]);
 
   // Invoicing tracked lines bills the job's own rows. They are edited on the job, not on this card.
-  const readOnly = preview.action === "invoice_tracked";
-  const changeHref = readOnly && preview.jobId ? `/app/jobs/${preview.jobId}` : reviewUrl;
+  const isChange = preview.action === "change";
+  const readOnly = preview.action === "invoice_tracked" || isChange;
+  const changeHref = isChange ? (preview.href ?? reviewUrl) : readOnly && preview.jobId ? `/app/jobs/${preview.jobId}` : reviewUrl;
 
   const details: { label: string; value: string }[] = [];
   if (preview.jobTitle) {
@@ -152,6 +156,7 @@ export function PlanProposalCard({
     details.push({ label: "Client", value: `${preview.clientName}${preview.clientIsNew ? " (new client)" : ""}` });
   }
   if (preview.siteAddress) details.push({ label: "Site", value: preview.siteAddress });
+  for (const row of preview.changes ?? []) details.push(row);
   if (preview.notes) details.push({ label: "Notes", value: preview.notes });
 
   return (
@@ -170,8 +175,9 @@ export function PlanProposalCard({
 
       {details.length > 0 ? (
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-xl border border-line bg-navy-2/70 px-3 py-2.5">
-          {details.map((row) => (
-            <div key={row.label} className="contents">
+          {details.map((row, index) => (
+            // Two rows can share a label ("Remove" twice), so the index is part of the key.
+            <div key={`${row.label}-${index}`} className="contents">
               <dt className="text-xs font-medium text-muted">{row.label}</dt>
               <dd className="whitespace-pre-line text-ink">{row.value}</dd>
             </div>
@@ -278,7 +284,7 @@ export function PlanProposalCard({
           aria-disabled={pending}
           tabIndex={pending ? -1 : undefined}
         >
-          {readOnly ? "Open job" : "Change"}
+          {isChange ? "Open" : readOnly ? "Open job" : "Change"}
         </Link>
         <button type="button" className="btn btn-ghost btn-sm" disabled={pending} onClick={cancel}>
           {pending && working === "cancel" ? "Cancelling…" : "Cancel"}

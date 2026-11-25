@@ -10,6 +10,7 @@ import { newId } from "@/lib/id";
 import { createMobileSession } from "@/lib/mobile/sessions";
 import { PLAN_NEW } from "@/lib/plans";
 import { createInvoiceFromTrackedLines } from "@/lib/services/documents";
+import { MAX_CAPTURES_PER_HOUR } from "@/lib/services/capture-rate-limit";
 import { runPlanAgent } from "@/lib/services/plan-agent";
 import { confirmPlanProposal, updatePlanProposalLines } from "@/lib/services/plan-proposals";
 import { getTestDb } from "../helpers/db";
@@ -206,12 +207,12 @@ describe("the hourly limit", () => {
     expect(result.preview?.action).toBe("log_hours");
   });
 
-  it("still stops model work after 30 captures", async () => {
+  it("still stops model work at the hourly limit", async () => {
     const tenant = await seedTenant("limited");
     const db = getTestDb();
     const now = Date.now();
     await db.insert(captures).values(
-      Array.from({ length: 30 }, () => ({
+      Array.from({ length: MAX_CAPTURES_PER_HOUR }, () => ({
         id: newId(),
         contractorId: tenant.contractorId,
         type: "text",
