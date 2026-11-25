@@ -26,6 +26,8 @@ export type TextCaptureResult = {
   preview: PlanPreview | null;
   transcript?: string | null;
   reply?: string | null;
+  planId?: string | null;
+  cards?: { captureId: string; title: string; preview: PlanPreview }[];
 };
 
 export type ConfirmResult =
@@ -52,16 +54,37 @@ export async function exchangeGoogleIdToken(idToken: string): Promise<string> {
   return body.token;
 }
 
-export async function sendTextCapture(bearer: string, text: string): Promise<TextCaptureResult> {
+export async function sendTextCapture(
+  bearer: string,
+  text: string,
+  options?: { planId?: string; jobId?: string },
+): Promise<TextCaptureResult> {
   const res = await fetch(`${API_URL}/api/v1/captures/text`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${bearer}`,
     },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, planId: options?.planId, jobId: options?.jobId }),
   });
   return (await parseJson(res)) as TextCaptureResult;
+}
+
+export async function listPlans(bearer: string) {
+  const body = await bearerGet<{ plans: import("./plans").PlanSummary[] }>(bearer, "/api/v1/plans");
+  return body.plans;
+}
+
+export type PlanThreadPayload = {
+  id: string;
+  title: string;
+  jobTitle: string | null;
+  jobId: string | null;
+  messages: import("./plans").PlanThreadMessage[];
+};
+
+export async function fetchPlanThread(bearer: string, planId: string) {
+  return bearerGet<PlanThreadPayload>(bearer, `/api/v1/plans/${encodeURIComponent(planId)}/thread`);
 }
 
 export async function confirmCapture(bearer: string, captureId: string): Promise<ConfirmResult> {

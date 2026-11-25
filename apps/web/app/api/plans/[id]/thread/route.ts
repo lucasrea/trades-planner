@@ -1,10 +1,9 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { ensureDb } from "@/lib/db";
-import { contractors, jobs as jobsTable, clients } from "@/lib/db/schema";
-import { jobIdForPlanTitle } from "@/lib/plans";
-import { getPlanThread } from "@/lib/services/plans";
+import { contractors } from "@/lib/db/schema";
 import { NotFoundError } from "@/lib/services/context";
+import { planThreadPayload } from "@/lib/services/plan-thread-payload";
 
 export const runtime = "nodejs";
 
@@ -24,20 +23,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const ctx = { db: auth.db, contractorId: auth.contractor.id };
   try {
-    const thread = await getPlanThread(ctx, id);
-    const jobRows = await auth.db
-      .select({ id: jobsTable.id, title: jobsTable.title, clientName: clients.name })
-      .from(jobsTable)
-      .leftJoin(clients, and(eq(clients.id, jobsTable.clientId), eq(clients.contractorId, auth.contractor.id)))
-      .where(and(eq(jobsTable.contractorId, auth.contractor.id), inArray(jobsTable.status, ["quoted", "active"])));
-    const jobs = jobRows
-      .filter((row) => row.title)
-      .map((row) => ({ id: row.id, title: row.title, clientName: row.clientName }));
-    return Response.json({
-      id: thread.plan.id,
-      messages: thread.messages,
-      jobId: jobIdForPlanTitle(thread.plan.jobTitle, jobs),
-    });
+    const payload = await planThreadPayload(ctx, id);
+    return Response.json(payload);
   } catch (error) {
     if (error instanceof NotFoundError) return Response.json({ error: "Plan not found." }, { status: 404 });
     throw error;

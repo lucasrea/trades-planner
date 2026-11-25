@@ -1,10 +1,20 @@
-import { type ComponentRef, useCallback, useMemo, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { type ComponentRef, useCallback, useRef, useState } from "react";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { confirmCapture, sendTextCapture, type ConfirmResult, type TextCaptureResult } from "../../src/api";
+import {
+  confirmCapture,
+  fetchPlanThread,
+  listPlans,
+  sendTextCapture,
+  type ConfirmResult,
+  type TextCaptureResult,
+} from "../../src/api";
+import { PlanPickerSheet } from "../../src/plan-picker-sheet";
+import { PlanProposalCard } from "../../src/plan-proposal-card";
+import { PLAN_NEW, type PlanSummary, type PlanThreadMessage } from "../../src/plans";
 import { getBearer } from "../../src/session";
-import { GhostButton, Notice, PrimaryButton, StatusPill } from "../../src/ui";
+import { GhostButton, Notice, StatusPill } from "../../src/ui";
 import { colors } from "../../src/theme";
 
 const STARTER_PROMPTS = [
@@ -13,21 +23,85 @@ const STARTER_PROMPTS = [
   "Quote a water heater replacement for a new client",
 ];
 
-function formatCad(amount: number) {
-  const rounded = Math.round((amount + Number.EPSILON) * 100) / 100;
-  return `$${rounded.toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function confirmLabel(result: ConfirmResult): string {
+  if (result.kind === "done") return result.message;
+  if (result.kind === "document") return "Document saved";
+  if (result.kind === "job") return "Job created";
+  return `Logged on ${result.jobIds.length} job${result.jobIds.length === 1 ? "" : "s"}`;
 }
 
 export default function HomeScreen() {
   const [text, setText] = useState("");
+  const [planId, setPlanId] = useState<string | null>(null);
+  const [threadMessages, setThreadMessages] = useState<PlanThreadMessage[]>([]);
+  const [threadLoading, setThreadLoading] = useState(false);
+  const [plans, setPlans] = useState<PlanSummary[]>([]);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
   const [sentText, setSentText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<TextCaptureResult | null>(null);
   const [confirmed, setConfirmed] = useState<ConfirmResult | null>(null);
+
   const inputRef = useRef<ComponentRef<typeof TextInput>>(null);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const submittingRef = useRef(false);
+
+  const syncThread = useCallback(async (id: string) => {
+    const bearer = await getBearer();
+    if (!bearer) return;
+    const thread = await fetchPlanThread(bearer, id);
+    setPlanId(thread.id);
+    setThreadMessages(thread.messages);
+  }, []);
+
+  const openPlans = useCallback(async () => {
+    setPickerOpen(true);
+    setPlansLoading(true);
+    try {
+      const bearer = await getBearer();
+      if (!bearer) {
+        setPlans([]);
+        return;
+      }
+      setPlans(await listPlans(bearer));
+    } catch {
+      setPlans([]);
+    } finally {
+      setPlansLoading(false);
+    }
+  }, []);
+
+  const selectPlan = useCallback(
+    async (id: string) => {
+      setError(null);
+      setPreview(null);
+      setConfirmed(null);
+      setSentText(null);
+      setThreadLoading(true);
+      try {
+        await syncThread(id);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not load this plan.");
+        setThreadMessages([]);
+        setPlanId(null);
+      } finally {
+        setThreadLoading(false);
+      }
+    },
+    [syncThread],
+  );
+
+  const startNewPlan = useCallback(() => {
+    setPlanId(null);
+    setThreadMessages([]);
+    setPreview(null);
+    setConfirmed(null);
+    setSentText(null);
+    setError(null);
+  }, []);
 
   const submit = useCallback(async () => {
     const trimmed = text.trim();
@@ -47,9 +121,16 @@ export default function HomeScreen() {
         setError("Sign in on the Settings tab first.");
         return;
       }
-      const result = await sendTextCapture(bearer, trimmed);
+      const result = await sendTextCapture(bearer, trimmed, { planId: planId ?? PLAN_NEW });
       setPreview(result);
-      if (result.status === "failed") {
+      if (result.planId && result.planId !== planId) {
+        setPlanId(result.planId);
+      }
+      if (result.planId) {
+        await syncThread(result.planId);
+        setSentText(null);
+        setPreview(null);
+      } else if (result.status === "failed") {
         setText((current) => current || trimmed);
         setError("We could not read that message.");
       }
@@ -62,48 +143,36 @@ export default function HomeScreen() {
       setBusy(false);
       submittingRef.current = false;
     }
-  }, [text]);
+  }, [planId, syncThread, text]);
 
-  async function onConfirm() {
-    if (!preview?.captureId || !preview.preview?.canConfirm) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const bearer = await getBearer();
-      if (!bearer) {
-        setError("Sign in on the Settings tab first.");
-        return;
+  const onConfirm = useCallback(
+    async (captureId: string, canConfirm: boolean) => {
+      if (!canConfirm) return;
+      setBusy(true);
+      setError(null);
+      try {
+        const bearer = await getBearer();
+        if (!bearer) {
+          setError("Sign in on the Settings tab first.");
+          return;
+        }
+        const result = await confirmCapture(bearer, captureId);
+        setConfirmed(result);
+        if (planId) await syncThread(planId);
+        if (result.kind === "document") router.push(`/documents/${result.documentId}`);
+        if (result.kind === "job") router.push(`/jobs/${result.jobId}`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Confirm failed.");
+      } finally {
+        setBusy(false);
       }
-      const result = await confirmCapture(bearer, preview.captureId);
-      setConfirmed(result);
-      if (result.kind === "document") router.push(`/documents/${result.documentId}`);
-      if (result.kind === "job") router.push(`/jobs/${result.jobId}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Confirm failed.");
-    } finally {
-      setBusy(false);
-    }
-  }
+    },
+    [planId, syncThread],
+  );
 
-  function resetPreview() {
-    setPreview(null);
-    setConfirmed(null);
-    setSentText(null);
-    setError(null);
-  }
-
-  const linesSubtotal = useMemo(() => {
-    const lines = preview?.preview?.lines ?? [];
-    if (lines.length === 0) return null;
-    if (lines.some((line) => line.unitPrice == null || !Number.isFinite(line.quantity))) return null;
-    return lines.reduce(
-      (sum, line) => sum + Math.round((line.quantity * (line.unitPrice ?? 0) + Number.EPSILON) * 100) / 100,
-      0,
-    );
-  }, [preview]);
-
-  const isEmpty = !sentText && !preview && !error;
-  const alerts = [...(preview?.preview?.blockers ?? []), ...(preview?.preview?.warnings ?? [])];
+  const hasThread = threadMessages.length > 0;
+  const hasPending = Boolean(sentText || preview || error);
+  const isEmpty = !hasThread && !hasPending && !threadLoading;
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -113,8 +182,11 @@ export default function HomeScreen() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
       >
         <View style={styles.topBar}>
+          <Pressable accessibilityRole="button" onPress={() => void openPlans()} style={styles.plansBtn}>
+            <Text style={styles.plansBtnLabel}>Plans</Text>
+          </Pressable>
           <Text style={styles.brand}>Trades Planner</Text>
-          {!isEmpty ? <GhostButton label="New plan" onPress={resetPreview} /> : null}
+          {!isEmpty ? <GhostButton label="New plan" onPress={startNewPlan} /> : <View style={styles.topSpacer} />}
         </View>
 
         <ScrollView
@@ -126,6 +198,13 @@ export default function HomeScreen() {
             if (!isEmpty) scrollRef.current?.scrollToEnd({ animated: true });
           }}
         >
+          {threadLoading ? (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color={colors.accent} />
+              <Text style={styles.loadingText}>Loading conversation…</Text>
+            </View>
+          ) : null}
+
           {isEmpty ? (
             <View style={styles.welcome}>
               <Text style={styles.welcomeTitle}>What are we working on?</Text>
@@ -150,6 +229,37 @@ export default function HomeScreen() {
             </View>
           ) : (
             <View style={styles.thread}>
+              {threadMessages.map((message) => (
+                <View key={message.id}>
+                  {message.role === "user" ? (
+                    <View style={styles.userRow}>
+                      <View style={styles.userBubble}>
+                        <Text style={styles.userText}>{message.body}</Text>
+                      </View>
+                    </View>
+                  ) : message.preview ? (
+                    <PlanProposalCard
+                      preview={message.preview}
+                      busy={busy}
+                      confirmedLabel={
+                        message.outcome === "confirmed"
+                          ? "Saved"
+                          : message.outcome === "cancelled"
+                            ? "Cancelled"
+                            : message.outcome === "failed"
+                              ? "Failed"
+                              : null
+                      }
+                      onConfirm={() => void onConfirm(message.captureId!, message.preview!.canConfirm)}
+                    />
+                  ) : (
+                    <View style={styles.replyBox}>
+                      <Text style={styles.replyText}>{message.body}</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+
               {sentText ? (
                 <View style={styles.userRow}>
                   <View style={styles.userBubble}>
@@ -172,100 +282,17 @@ export default function HomeScreen() {
                 </View>
               ) : null}
 
-              {preview?.preview ? (
-                <View style={styles.proposalCard}>
-                  <View style={styles.proposalHead}>
-                    <View style={styles.proposalHeadCopy}>
-                      <Text style={styles.eyebrow}>Review before saving</Text>
-                      <Text style={styles.previewTitle}>{preview.preview.title}</Text>
-                    </View>
-                    {linesSubtotal != null ? (
-                      <View style={styles.subtotalBadge}>
-                        <Text style={styles.subtotalText}>{formatCad(linesSubtotal)}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-
-                  {preview.preview.jobTitle || preview.preview.clientName ? (
-                    <View style={styles.metaBox}>
-                      {preview.preview.jobTitle ? (
-                        <View style={styles.metaRow}>
-                          <Text style={styles.metaLabel}>Job</Text>
-                          <Text style={styles.metaValue}>{preview.preview.jobTitle}</Text>
-                        </View>
-                      ) : null}
-                      {preview.preview.clientName ? (
-                        <View style={styles.metaRow}>
-                          <Text style={styles.metaLabel}>Client</Text>
-                          <Text style={styles.metaValue}>{preview.preview.clientName}</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  ) : null}
-
-                  {preview.preview.lines.length > 0 ? (
-                    <View style={styles.linesBox}>
-                      {preview.preview.lines.map((line, index) => {
-                        const lineAmount =
-                          line.unitPrice != null ? formatCad(line.quantity * line.unitPrice) : null;
-                        return (
-                          <View
-                            key={index}
-                            style={[styles.lineRow, index > 0 ? styles.lineRowBorder : null]}
-                          >
-                            <View style={styles.lineCopy}>
-                              <Text style={styles.lineDesc}>{line.description}</Text>
-                              <Text style={styles.lineMeta}>
-                                {line.quantity} {line.unit}
-                                {line.unitPrice != null ? ` × ${formatCad(line.unitPrice)}` : ""}
-                              </Text>
-                              {line.note ? <Text style={styles.lineNote}>{line.note}</Text> : null}
-                            </View>
-                            {lineAmount ? <Text style={styles.lineAmount}>{lineAmount}</Text> : null}
-                          </View>
-                        );
-                      })}
-                    </View>
-                  ) : null}
-
-                  {alerts.length > 0 ? (
-                    <View style={styles.alertBox}>
-                      {alerts.map((message, index) => (
-                        <Text key={index} style={styles.alertText}>
-                          {message}
-                        </Text>
-                      ))}
-                    </View>
-                  ) : null}
-
-                  <View style={styles.proposalFooter}>
-                    {confirmed ? (
-                      <StatusPill
-                        tone="ok"
-                        label={
-                          confirmed.kind === "done"
-                            ? confirmed.message
-                            : confirmed.kind === "document"
-                              ? "Document saved"
-                              : confirmed.kind === "job"
-                                ? "Job created"
-                                : `Logged on ${confirmed.jobIds.length} job${confirmed.jobIds.length === 1 ? "" : "s"}`
-                        }
-                      />
-                    ) : (
-                      <View style={styles.actions}>
-                        <GhostButton label="Cancel" disabled={busy} onPress={resetPreview} />
-                        <PrimaryButton
-                          size="sm"
-                          fullWidth={false}
-                          label={busy ? "Confirming…" : "Confirm"}
-                          disabled={busy || !preview.preview.canConfirm}
-                          onPress={() => void onConfirm()}
-                        />
-                      </View>
-                    )}
-                  </View>
-                </View>
+              {preview?.preview && !preview.planId ? (
+                <PlanProposalCard
+                  preview={preview.preview}
+                  busy={busy}
+                  confirmedLabel={confirmed ? confirmLabel(confirmed) : null}
+                  onCancel={() => {
+                    setPreview(null);
+                    setSentText(null);
+                  }}
+                  onConfirm={() => void onConfirm(preview.captureId, preview.preview!.canConfirm)}
+                />
               ) : null}
             </View>
           )}
@@ -309,6 +336,19 @@ export default function HomeScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <PlanPickerSheet
+        visible={pickerOpen}
+        plans={plans}
+        currentId={planId}
+        loading={plansLoading}
+        onClose={() => setPickerOpen(false)}
+        onSelect={(id) => void selectPlan(id)}
+        onNewPlan={() => {
+          startNewPlan();
+          setPickerOpen(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -326,10 +366,22 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.line,
     backgroundColor: colors.navy,
   },
+  plansBtn: {
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    minWidth: 64,
+  },
+  plansBtnLabel: { color: colors.ink, fontSize: 13, fontWeight: "600" },
+  topSpacer: { width: 64 },
   brand: { color: colors.ink, fontSize: 16, fontWeight: "600", letterSpacing: -0.2 },
   scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingVertical: 20 },
   scrollCentered: { justifyContent: "center" },
   scrollEnd: { justifyContent: "flex-end" },
+  loadingRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12 },
+  loadingText: { color: colors.muted, fontSize: 14 },
   welcome: { alignItems: "center", gap: 10, paddingVertical: 12 },
   welcomeTitle: { color: colors.ink, fontSize: 24, fontWeight: "600", letterSpacing: -0.4, textAlign: "center" },
   welcomeBody: { color: colors.muted, fontSize: 14, lineHeight: 20, textAlign: "center", maxWidth: 320 },
@@ -359,76 +411,6 @@ const styles = StyleSheet.create({
   thinkingRow: { flexDirection: "row", alignItems: "center" },
   replyBox: { paddingHorizontal: 2, paddingVertical: 4 },
   replyText: { color: colors.ink, fontSize: 14, lineHeight: 21 },
-  proposalCard: {
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    gap: 12,
-  },
-  proposalHead: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
-  proposalHeadCopy: { flex: 1, gap: 3 },
-  eyebrow: {
-    color: colors.accent,
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
-  previewTitle: { color: colors.ink, fontSize: 16, fontWeight: "600" },
-  subtotalBadge: {
-    backgroundColor: colors.navy2,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-  },
-  subtotalText: {
-    color: colors.ink,
-    fontSize: 12,
-    fontWeight: "600",
-    fontVariant: ["tabular-nums"],
-  },
-  metaBox: {
-    backgroundColor: colors.navy2,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    gap: 6,
-  },
-  metaRow: { flexDirection: "row", gap: 12 },
-  metaLabel: { color: colors.muted, fontSize: 12, fontWeight: "500", width: 52 },
-  metaValue: { color: colors.ink, fontSize: 13, flex: 1 },
-  linesBox: {
-    backgroundColor: colors.navy2,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  lineRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12, padding: 11 },
-  lineRowBorder: { borderTopWidth: 1, borderTopColor: colors.line },
-  lineCopy: { flex: 1, gap: 2 },
-  lineDesc: { color: colors.ink, fontSize: 14, fontWeight: "500" },
-  lineMeta: { color: colors.muted, fontSize: 12, fontVariant: ["tabular-nums"] },
-  lineNote: { color: colors.danger, fontSize: 12, marginTop: 2 },
-  lineAmount: { color: colors.ink, fontSize: 14, fontWeight: "600", fontVariant: ["tabular-nums"] },
-  alertBox: {
-    backgroundColor: colors.dangerBg,
-    borderColor: colors.dangerBorder,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 4,
-  },
-  alertText: { color: colors.danger, fontSize: 12, lineHeight: 17 },
-  proposalFooter: { borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 12 },
-  actions: { flexDirection: "row", gap: 8, justifyContent: "flex-end" },
   composerWrap: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 14, backgroundColor: colors.paper },
   composer: {
     backgroundColor: colors.card,
