@@ -16,6 +16,7 @@
   --ivory: #f4f4f5;
   --ivory-muted: rgba(244, 244, 245, 0.62);
   --ok: #86efac;
+  --danger: #fca5a5;
   --blueprint-ink: #c4c4cc;
   --blueprint-grid-major: rgba(255, 255, 255, 0.08);
   --blueprint-grid-minor: rgba(255, 255, 255, 0.04);
@@ -33,6 +34,7 @@
   --color-accent-2: var(--accent-2);
   --color-ivory: var(--ivory);
   --color-ok: var(--ok);
+  --color-danger: var(--danger);
   --color-elevated: var(--elevated);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);

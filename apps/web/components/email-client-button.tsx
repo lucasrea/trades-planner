@@ -17,7 +17,7 @@ export function EmailClientButton({ documentId }: { documentId: string }) {
       </span>
     ) : null}
     {state && "error" in state ? (
-      <span className="self-center text-sm text-accent" role="alert">
+      <span className="self-center text-sm text-danger" role="alert">
         {state.error}
       </span>
     ) : null}

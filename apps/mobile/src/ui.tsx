@@ -115,5 +115,5 @@ const styles = StyleSheet.create({
   empty: { alignItems: "center", gap: 8, paddingVertical: 28 },
   emptyTitle: { color: colors.ink, fontSize: 18, fontWeight: "600" },
   emptyBody: { color: colors.muted, fontSize: 14, lineHeight: 20, textAlign: "center" },
-  notice: { color: colors.accent, fontSize: 14, lineHeight: 20 },
+  notice: { color: colors.danger, fontSize: 14, lineHeight: 20 },
 });

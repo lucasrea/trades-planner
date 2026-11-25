@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   previewTitle: { color: colors.ink, fontSize: 16, fontWeight: "600" },
   line: { color: colors.muted, fontSize: 14, lineHeight: 20 },
-  done: { color: colors.accent, fontSize: 14, fontWeight: "600", marginTop: 4 },
+  done: { color: colors.ok, fontSize: 14, fontWeight: "600", marginTop: 4 },
   actions: { flexDirection: "row", gap: 8, justifyContent: "flex-end", marginTop: 8 },
   composer: {
     backgroundColor: colors.card,
@@ -172,6 +172,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  sendLabel: { color: "#141414", fontSize: 14, fontWeight: "600" },
+  sendLabel: { color: "#ffffff", fontSize: 14, fontWeight: "600" },
   disabled: { opacity: 0.55 },
 });

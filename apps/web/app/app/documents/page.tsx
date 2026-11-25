@@ -70,7 +70,7 @@ export default async function DocumentsPage({
     <div>
       <PageHeader title="Documents" subtitle="Quotes and invoices in one list." />
       {notice ? (
-        <p className="mb-4 text-sm text-accent" role="alert">
+        <p className="mb-4 text-sm text-danger" role="alert">
           {notice}
         </p>
       ) : null}

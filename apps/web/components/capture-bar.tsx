@@ -416,7 +416,7 @@ export function CaptureBar({
         ) : null}
         {answer && !fill ? <p className="whitespace-pre-line text-sm leading-relaxed">{answer}</p> : null}
         {recorder.error || error ? (
-          <p className="text-sm text-accent" role="alert">
+          <p className="text-sm text-danger" role="alert">
             {error ?? recorder.error}
           </p>
         ) : null}

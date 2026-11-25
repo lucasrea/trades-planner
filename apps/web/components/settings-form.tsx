@@ -199,7 +199,7 @@ function SettingsFields({
       ) : null}
 
       {state?.error ? (
-        <p className="text-sm text-accent" role="alert">
+        <p className="text-sm text-danger" role="alert">
           {state.error}
         </p>
       ) : null}

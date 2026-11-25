@@ -7,4 +7,6 @@ export const colors = {
   input: "#1b1b1b",
   navy: "#1b1b1b",
   accent: "#5167fc",
+  danger: "#fca5a5",
+  ok: "#86efac",
 };

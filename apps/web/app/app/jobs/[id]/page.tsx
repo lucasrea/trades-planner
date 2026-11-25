@@ -56,7 +56,7 @@ export default async function JobDetailPage({
       />
       <JobDocumentActions jobId={job.id} unbilledCount={unbilled.length} unbilledTotal={cad(unbilledTotal)} />
       {notice ? (
-        <p className="text-sm text-accent" role="alert">
+        <p className="text-sm text-danger" role="alert">
           {notice}
         </p>
       ) : null}

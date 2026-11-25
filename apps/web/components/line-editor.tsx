@@ -169,7 +169,7 @@ function EditableLineRow({
             )}
           </div>
           {state?.error ? (
-            <p className="mt-1 text-xs text-accent" role="alert">
+            <p className="mt-1 text-xs text-danger" role="alert">
               {state.error}
             </p>
           ) : null}

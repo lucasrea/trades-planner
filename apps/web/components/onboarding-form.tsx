@@ -154,7 +154,7 @@ export function OnboardingForm({ email }: { email: string }) {
       </div>
 
       {localError || state?.error ? (
-        <p className="mt-4 text-sm text-accent" role="alert">
+        <p className="mt-4 text-sm text-danger" role="alert">
           {localError || state?.error}
         </p>
       ) : null}

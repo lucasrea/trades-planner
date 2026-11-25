@@ -260,7 +260,7 @@ export function CaptureReviewForm({
 
       {allWarnings.length ? (
         <div className="card border-accent/30 bg-accent/5 p-4 text-sm" role="status">
-          <p className="font-medium text-accent">Warnings</p>
+          <p className="font-medium text-danger">Warnings</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
             {allWarnings.map((warning) => (
               <li key={warning}>{warning}</li>
@@ -365,7 +365,7 @@ export function CaptureReviewForm({
               Preview total: {cad(totals.total)} ({taxLabel})
             </p>
           ) : null}
-          <ul className="mt-2 space-y-1 text-sm text-accent">
+          <ul className="mt-2 space-y-1 text-sm text-danger">
             {captureLines.map((line, index) => {
               if (line.defaultRate) {
                 return (

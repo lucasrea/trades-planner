@@ -40,7 +40,7 @@ export default async function SharedDocumentPage({
     <div className="min-h-screen bg-paper py-8 print:bg-white print:py-0">
       <div className="no-print mx-auto mb-6 max-w-[820px] px-4">
         {notice ? (
-          <p className="card mb-4 p-4 text-sm font-medium text-red-700" role="alert">
+          <p className="card mb-4 p-4 text-sm font-medium text-danger" role="alert">
             {notice}
           </p>
         ) : null}

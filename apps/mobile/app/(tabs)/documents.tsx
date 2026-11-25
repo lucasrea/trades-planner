@@ -59,5 +59,5 @@ const styles = StyleSheet.create({
   },
   filterOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   filterLabel: { color: colors.ink, fontSize: 14 },
-  filterLabelOn: { color: "#1a100c", fontWeight: "600" },
+  filterLabelOn: { color: "#ffffff", fontWeight: "600" },
 });
