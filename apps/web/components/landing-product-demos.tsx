@@ -26,7 +26,7 @@ function DemoChrome({
   return (
     <div className="hero-showcase overflow-hidden">
       <div className="flex items-center gap-3 border-b border-line bg-paper px-4 py-3">
-        <div className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-xs font-semibold text-[#141414] sm:flex">
+        <div className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-xs font-semibold text-white sm:flex">
           RP
         </div>
         <div className="min-w-0 flex-1">
@@ -96,7 +96,7 @@ export function WorkflowDemo() {
               onClick={() => setStep(item.id)}
               className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                 selected
-                  ? "bg-accent text-[#141414] shadow-sm"
+                  ? "bg-accent text-white shadow-sm"
                   : "border border-line bg-card text-muted hover:bg-elevated hover:text-ink"
               }`}
             >
@@ -297,7 +297,7 @@ export function PaperworkDemo() {
               onClick={() => setKind(item.id)}
               className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                 selected
-                  ? "bg-accent text-[#141414] shadow-sm"
+                  ? "bg-accent text-white shadow-sm"
                   : "border border-line bg-card text-muted hover:bg-elevated hover:text-ink"
               }`}
             >
@@ -385,7 +385,7 @@ export function CaptureDemo() {
               onClick={() => setTab(item.id)}
               className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition ${
                 selected
-                  ? "bg-accent text-[#141414] shadow-sm"
+                  ? "bg-accent text-white shadow-sm"
                   : "border border-line bg-card text-muted hover:bg-elevated hover:text-ink"
               }`}
             >
@@ -412,7 +412,7 @@ export function CaptureDemo() {
                 <span
                   key={label}
                   className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    i === 0 ? "bg-accent text-[#141414]" : "border border-line text-muted"
+                    i === 0 ? "bg-accent text-white" : "border border-line text-muted"
                   }`}
                 >
                   {label}

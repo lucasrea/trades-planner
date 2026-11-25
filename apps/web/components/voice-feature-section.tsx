@@ -178,7 +178,7 @@ export function VoiceFeatureSection() {
                   onClick={() => selectScenario(item.id)}
                   className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                     selected
-                      ? "bg-accent text-[#141414] shadow-sm"
+                      ? "bg-accent text-white shadow-sm"
                       : "border border-line bg-card text-muted hover:bg-elevated hover:text-ink"
                   }`}
                 >
@@ -234,7 +234,7 @@ export function VoiceFeatureSection() {
             </p>
             <p className="mt-2 text-xs text-muted">Tap a phrase to see the matching line item →</p>
             <div className="mt-4 flex items-center gap-3">
-              <div className="mic-pulse flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-[#141414]">
+              <div className="mic-pulse flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-white">
                 <Mic className="h-5 w-5" strokeWidth={2.25} />
               </div>
               <p className="text-sm text-muted">Hands free on site. No forms in the driveway.</p>

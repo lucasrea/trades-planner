@@ -259,7 +259,7 @@ export function HeroProductShowcase() {
       }}
     >
       <div className="hero-showcase-chrome flex items-center gap-3 border-b border-line bg-paper px-4 py-3">
-        <div className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-xs font-semibold text-[#141414] sm:flex">
+        <div className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-xs font-semibold text-white sm:flex">
           RP
         </div>
         <div className="min-w-0 flex-1">
@@ -284,7 +284,7 @@ export function HeroProductShowcase() {
               aria-selected={selected}
               onClick={() => setActiveIndex(index)}
               className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition sm:text-sm ${
-                selected ? "bg-accent text-[#141414] shadow-sm" : "text-muted hover:bg-elevated hover:text-ivory"
+                selected ? "bg-accent text-white shadow-sm" : "text-muted hover:bg-elevated hover:text-ivory"
               }`}
             >
               <Icon className="h-3.5 w-3.5" strokeWidth={2} />

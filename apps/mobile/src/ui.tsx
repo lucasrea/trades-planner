@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
   },
-  primaryLabel: { color: "#1a100c", fontSize: 16, fontWeight: "600" },
+  primaryLabel: { color: "#ffffff", fontSize: 16, fontWeight: "600" },
   disabled: { opacity: 0.45 },
   ghost: {
     alignSelf: "flex-start",
