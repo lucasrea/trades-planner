@@ -198,7 +198,7 @@ export function DocumentView({
       />
 
       {notice ? (
-        <p className="mb-4 text-sm text-accent" role="alert">
+        <p className="mb-4 text-sm text-danger" role="alert">
           {notice}
         </p>
       ) : null}

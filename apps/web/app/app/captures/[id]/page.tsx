@@ -45,7 +45,7 @@ export default async function CaptureReviewPage({
     return (
       <>
         {notice ? (
-          <p className="mb-4 text-sm text-accent" role="alert">
+          <p className="mb-4 text-sm text-danger" role="alert">
             {notice}
           </p>
         ) : null}
@@ -143,7 +143,7 @@ export default async function CaptureReviewPage({
     return (
       <div>
         {notice ? (
-          <p className="mb-4 text-sm text-accent" role="alert">
+          <p className="mb-4 text-sm text-danger" role="alert">
             {notice}
           </p>
         ) : null}
@@ -177,7 +177,7 @@ export default async function CaptureReviewPage({
   return (
     <div>
       {notice ? (
-        <p className="mb-4 text-sm text-accent" role="alert">
+        <p className="mb-4 text-sm text-danger" role="alert">
           {notice}
         </p>
       ) : null}

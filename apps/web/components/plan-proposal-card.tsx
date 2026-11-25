@@ -139,14 +139,14 @@ export function PlanProposalCard({
                 }
                 onBlur={() => saveLines(lines)}
               />
-              {line.note ? <p className="text-xs text-accent sm:col-span-4">{line.note}</p> : null}
+              {line.note ? <p className="text-xs text-danger sm:col-span-4">{line.note}</p> : null}
             </li>
           ))}
         </ul>
       ) : null}
 
       {preview.warnings.length > 0 || preview.blockers.length > 0 ? (
-        <ul className="space-y-1 text-accent" role="status">
+        <ul className="space-y-1 text-danger" role="status">
           {[...preview.blockers, ...preview.warnings].map((message, index) => (
             <li key={index}>{message}</li>
           ))}
@@ -154,7 +154,7 @@ export function PlanProposalCard({
       ) : null}
 
       {error ? (
-        <p className="text-accent" role="alert">
+        <p className="text-danger" role="alert">
           {error}
         </p>
       ) : null}

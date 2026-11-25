@@ -32,7 +32,7 @@ export function GoogleAuthCard({
             : "One Google account per business. You’ll set rates and GST/HST next."}
         </p>
       </div>
-      {message ? <p className="text-sm text-accent">{message}</p> : null}
+      {message ? <p className="text-sm text-danger">{message}</p> : null}
       <form action={googleSignInAction}>
         {next ? <input type="hidden" name="next" value={next} /> : null}
         <GoogleSignInButton

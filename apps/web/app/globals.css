@@ -1,24 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  /* Warm paper, near-black text. Coral stays on the main button. */
-  --paper: #f4efe6;
-  --ink: #1c1917;
-  --muted: #6f675f;
-  --line: #e4d9cc;
-  --card: #fffdf8;
-  --elevated: #efe6d8;
-  --input-bg: #fffdf8;
-  --navy: #ebe3d6;
-  --navy-2: #e3d9c8;
-  --accent: #d97757;
-  --accent-2: #c86545;
-  --ivory: #1c1917;
-  --ivory-muted: rgba(28, 25, 23, 0.62);
-  --ok: #4d7c0f;
-  --blueprint-ink: #3d5c70;
-  --blueprint-grid-major: rgba(28, 25, 23, 0.08);
-  --blueprint-grid-minor: rgba(28, 25, 23, 0.04);
+  /* Black page, charcoal panels, blue actions. */
+  --paper: #000000;
+  --ink: #f4f4f5;
+  --muted: #a1a1aa;
+  --line: #2a2a2a;
+  --card: #1b1b1b;
+  --elevated: #1b1b1b;
+  --input-bg: #1b1b1b;
+  --navy: #1b1b1b;
+  --navy-2: #141414;
+  --accent: #5167fc;
+  --accent-2: #3f54ea;
+  --ivory: #f4f4f5;
+  --ivory-muted: rgba(244, 244, 245, 0.62);
+  --ok: #86efac;
+  --danger: #fca5a5;
+  --blueprint-ink: #c4c4cc;
+  --blueprint-grid-major: rgba(255, 255, 255, 0.08);
+  --blueprint-grid-minor: rgba(255, 255, 255, 0.04);
 }
 
 @theme inline {
@@ -33,6 +34,7 @@
   --color-accent-2: var(--accent-2);
   --color-ivory: var(--ivory);
   --color-ok: var(--ok);
+  --color-danger: var(--danger);
   --color-elevated: var(--elevated);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -40,7 +42,7 @@
 
 html {
   scroll-behavior: smooth;
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 html,
@@ -72,7 +74,7 @@ a {
 select.input {
   appearance: none;
   background-color: var(--input-bg);
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236f675f' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>");
   background-repeat: no-repeat;
   background-position: right 0.7rem center;
   padding-right: 2.1rem;
@@ -80,7 +82,7 @@ select.input {
 
 .input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.22);
+  box-shadow: 0 0 0 3px rgba(81, 103, 252, 0.28);
 }
 
 .btn {
@@ -116,12 +118,12 @@ select.input {
 
 .btn-primary {
   background: var(--accent);
-  color: #141414;
+  color: #ffffff;
 }
 
 .btn-primary:hover {
   background: var(--accent-2);
-  color: #141414;
+  color: #ffffff;
 }
 
 .btn-secondary {
@@ -137,12 +139,12 @@ select.input {
 }
 
 .btn-navy {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--accent);
+  color: #ffffff;
 }
 
 .btn-navy:hover {
-  background: #292524;
+  background: var(--accent-2);
 }
 
 .btn-ghost {
@@ -166,11 +168,11 @@ select.input {
   0%,
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(217, 119, 87, 0.45);
+    box-shadow: 0 0 0 0 rgba(81, 103, 252, 0.45);
   }
   50% {
     transform: scale(1.04);
-    box-shadow: 0 0 0 12px rgba(217, 119, 87, 0);
+    box-shadow: 0 0 0 12px rgba(81, 103, 252, 0);
   }
 }
 
@@ -206,7 +208,7 @@ select.input {
   position: absolute;
   inset: 0;
   opacity: 0.4;
-  background-image: radial-gradient(rgba(28, 25, 23, 0.12) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
   background-size: 22px 22px;
   mask-image: radial-gradient(ellipse 85% 75% at 50% 35%, #000 15%, transparent 72%);
 }
@@ -226,14 +228,14 @@ select.input {
 }
 
 .voice-flow-line {
-  background: linear-gradient(180deg, transparent, rgba(28, 25, 23, 0.22), transparent);
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.16), transparent);
   height: 2.5rem;
   width: 1px;
 }
 
 @media (min-width: 1024px) {
   .voice-flow-line {
-    background: linear-gradient(90deg, transparent, rgba(28, 25, 23, 0.22), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
     height: 1px;
     width: 2.5rem;
   }
@@ -327,7 +329,7 @@ select.input {
 }
 
 .hero-accent-glow {
-  background: radial-gradient(ellipse 70% 55% at 78% 18%, rgba(217, 119, 87, 0.14), transparent 68%);
+  background: radial-gradient(ellipse 70% 55% at 78% 18%, rgba(81, 103, 252, 0.14), transparent 68%);
 }
 
 .hero-showcase {
@@ -429,10 +431,10 @@ select.input {
   pointer-events: none;
   background-color: var(--paper);
   background-image:
-    linear-gradient(rgba(28, 25, 23, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(28, 25, 23, 0.06) 1px, transparent 1px),
-    linear-gradient(rgba(28, 25, 23, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(28, 25, 23, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
   background-position: 0 0, 0 0, 0 0, 0 0;
 }
@@ -441,9 +443,9 @@ select.input {
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(217, 119, 87, 0.03) 48%,
-    rgba(217, 119, 87, 0.05) 50%,
-    rgba(217, 119, 87, 0.03) 52%,
+    rgba(81, 103, 252, 0.03) 48%,
+    rgba(81, 103, 252, 0.05) 50%,
+    rgba(81, 103, 252, 0.03) 52%,
     transparent 100%
   );
   background-size: 100% 220%;
@@ -658,6 +660,7 @@ select.input {
   }
   body {
     background: white;
+    color: #111111;
   }
   .print-doc {
     box-shadow: none !important;
