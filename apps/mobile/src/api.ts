@@ -5,11 +5,18 @@ export type PlanPreviewLine = {
   quantity: number;
   unit: string;
   unitPrice: number | null;
+  note?: string | null;
 };
 
 export type PlanPreview = {
   title: string;
+  jobTitle?: string | null;
+  clientName?: string | null;
+  siteAddress?: string | null;
+  notes?: string | null;
   lines: PlanPreviewLine[];
+  warnings?: string[];
+  blockers?: string[];
   canConfirm: boolean;
 };
 
@@ -17,6 +24,8 @@ export type TextCaptureResult = {
   captureId: string;
   status: "needs_review" | "failed";
   preview: PlanPreview | null;
+  transcript?: string | null;
+  reply?: string | null;
 };
 
 export type ConfirmResult =

@@ -8,6 +8,7 @@ export default function JobsLayout() {
         contentStyle: { backgroundColor: colors.paper },
         headerStyle: { backgroundColor: colors.navy },
         headerTintColor: colors.ink,
+        headerTitleStyle: { fontWeight: "600" },
         headerShadowVisible: false,
       }}
     >

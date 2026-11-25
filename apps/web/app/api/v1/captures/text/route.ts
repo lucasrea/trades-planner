@@ -51,6 +51,7 @@ export async function POST(request: Request) {
       status: result.status,
       preview: result.preview,
       transcript: result.transcript,
+      reply: result.reply ?? null,
     });
   } catch (error) {
     if (error instanceof RateLimitError) return jsonError("rate_limited", error.message, 429);
