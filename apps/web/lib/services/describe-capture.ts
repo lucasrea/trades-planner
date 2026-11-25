@@ -64,7 +64,7 @@ export async function createDescribeCapture(
   if (spoken && classifyPlanMessage(spoken) !== "act") {
     const answered =
       classifyPlanMessage(spoken) === "question"
-        ? await answerPlanQuestion(db, contractor.id, spoken, selectedJob?.id)
+        ? await answerPlanQuestion(db, contractor.id, spoken, selectedJob?.id, contractor.labourRateHourly)
         : chatPlanReply();
     await db.insert(captures).values({
       id: newId(),

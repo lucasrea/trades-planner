@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PlanLoopClient } from "@/lib/ai/plan-loop";
-import { jobs } from "@/lib/db/schema";
+import { jobs, lineItems } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
 import { runPlanAgent } from "@/lib/services/plan-agent";
 import { getTestDb } from "../helpers/db";
@@ -76,5 +76,47 @@ describe("plan agent lookup", () => {
     await runPlanAgent(db, { id: a.contractorId, labourRateHourly: 85 }, { text: "add a note and list my jobs", client });
     expect(looked).toContain("Job A");
     expect(looked).not.toContain("Job B");
+  });
+
+  it("summarises unbilled work across all of this contractor's jobs when no job is named", async () => {
+    const { a, b } = await seedTwoContractors();
+    const db = getTestDb();
+    const now = Date.now();
+    await db.insert(lineItems).values([
+      {
+        id: newId(),
+        contractorId: a.contractorId,
+        jobId: a.jobId,
+        kind: "labour",
+        description: "Site work",
+        quantity: 2,
+        unit: "hr",
+        unitPrice: 0,
+        sortOrder: 0,
+        createdAt: now,
+      },
+      {
+        id: newId(),
+        contractorId: b.contractorId,
+        jobId: b.jobId,
+        kind: "material",
+        description: "Secret part",
+        quantity: 1,
+        unit: "ea",
+        unitPrice: 999,
+        sortOrder: 0,
+        createdAt: now,
+      },
+    ]);
+
+    const answered = await runPlanAgent(
+      db,
+      { id: a.contractorId, labourRateHourly: 85 },
+      { text: "What unbilled work do I have?" },
+    );
+    expect(answered.reply).toContain("Unbilled work — $170.00 total");
+    expect(answered.reply).toContain("Job A");
+    expect(answered.reply).not.toContain("Job B");
+    expect(answered.reply).not.toContain("Secret part");
   });
 });

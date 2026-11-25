@@ -121,6 +121,29 @@ describe("runPlanLoop", () => {
     });
     expect(calls).toBe(4);
   });
+
+  it("includes prior conversation history before the current message", async () => {
+    let seenRoles: string[] = [];
+    const client: PlanLoopClient = {
+      async complete(messages) {
+        seenRoles = messages.map((message) => `${message.role}:${message.content ?? ""}`);
+        return { content: "All set.", toolCalls: [] };
+      },
+    };
+    await runPlanLoop({
+      client,
+      contextNote: "Open job: none",
+      userText: "for anything",
+      history: [
+        { role: "user", content: "What unbilled work do I have?" },
+        { role: "assistant", content: "Which job?" },
+      ],
+      execute: async () => "{}",
+    });
+    expect(seenRoles[1]).toBe("user:What unbilled work do I have?");
+    expect(seenRoles[2]).toBe("assistant:Which job?");
+    expect(seenRoles[3]).toContain("Message:\nfor anything");
+  });
 });
 
 describe("fake mixed proposes", () => {

@@ -7,12 +7,12 @@ export const PLAN_TOOLS = [
     function: {
       name: "lookup",
       description:
-        "Look up this contractor's jobs, a job's quotes and invoices, or its unbilled lines. Call this before answering a question about existing work. Use the totals in the result. Do not add them yourself.",
+        "Look up this contractor's jobs, a job's quotes and invoices, or unbilled work (for one job or across all jobs when job is omitted). Call this before answering a question about existing work. Use the totals in the result. Do not add them yourself.",
       parameters: {
         type: "object",
         properties: {
           what: { type: "string", enum: ["jobs", "paperwork", "unbilled"] },
-          job: { type: "string", description: "Job title. Omit to use the open job, or to list jobs." },
+          job: { type: "string", description: "Job title. Omit to use the open job, list all jobs, or check unbilled work across all jobs." },
         },
         required: ["what"],
       },

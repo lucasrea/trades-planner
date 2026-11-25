@@ -24,6 +24,11 @@ export type PlanLoopClient = {
 
 const STEP_TIMEOUT_MS = 20_000;
 
+export type PlanHistoryMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 /**
  * Run tool calls until the model stops or the step cap is hit.
  * The sequence is whatever the model asks for. This only carries the results back.
@@ -32,12 +37,17 @@ export async function runPlanLoop(input: {
   client: PlanLoopClient;
   contextNote: string;
   userText: string;
+  history?: PlanHistoryMessage[];
   execute: (call: PlanToolCall) => Promise<string>;
   onStatus?: (text: string) => void;
   maxSteps?: number;
 }): Promise<void> {
+  const prior: PlanLoopMessage[] = (input.history ?? [])
+    .filter((entry) => entry.content.trim().length > 0)
+    .map((entry) => ({ role: entry.role, content: entry.content }));
   const messages: PlanLoopMessage[] = [
     { role: "system", content: PLAN_LOOP_PROMPT },
+    ...prior,
     { role: "user", content: `${input.contextNote}\n\nMessage:\n${input.userText}` },
   ];
   const maxSteps = input.maxSteps ?? PLAN_LOOP_MAX_STEPS;

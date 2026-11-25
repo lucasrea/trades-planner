@@ -17,7 +17,17 @@ export function readExtractionModelFallback() {
   return process.env.EXTRACTION_MODEL_FALLBACK?.trim() || null;
 }
 
-/** Newer models spend output tokens on reasoning unless this is set. Older models reject the field. */
-export function modelRequestOptions(model: string): { reasoning_effort?: "none" } {
-  return /^gpt-[5-9]/.test(model) ? { reasoning_effort: "none" } : {};
+/**
+ * Lower reasoning effort on GPT-5 models to avoid slow/expensive thinking tokens.
+ * GPT-5 / gpt-5-mini / gpt-5-nano accept "minimal" (they reject "none" with HTTP 400).
+ * GPT-5.1+ non-pro/non-codex models accept "none". Older models reject the field.
+ */
+export function modelRequestOptions(model: string): { reasoning_effort?: "none" | "minimal" } {
+  if (/^gpt-5(?:-(?:mini|nano))?(?:-\d{4}-\d{2}-\d{2})?$/.test(model)) {
+    return { reasoning_effort: "minimal" };
+  }
+  if (/^gpt-(?:5\.[1-9]|[6-9])/.test(model) && !/(?:pro|codex)/i.test(model)) {
+    return { reasoning_effort: "none" };
+  }
+  return {};
 }
