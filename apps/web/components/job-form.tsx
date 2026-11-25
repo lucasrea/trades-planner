@@ -30,6 +30,10 @@ export function JobForm({
 
   return (
     <form action={formAction} className="card max-w-xl space-y-4 p-6">
+      <div>
+        <h2 className="text-lg font-semibold">New job</h2>
+        <p className="mt-1 text-sm text-muted">A title and who it’s for. You can add lines after.</p>
+      </div>
       <Field label="Title">
         <input className="input" name="title" required placeholder="Kitchen rough-in" />
       </Field>
@@ -109,6 +113,10 @@ export function JobEditForm({
   return (
     <form action={formAction} className="card max-w-xl space-y-4 p-6">
       <input type="hidden" name="id" value={job.id} />
+      <div>
+        <h2 className="text-lg font-semibold">Job details</h2>
+        <p className="mt-1 text-sm text-muted">Title, client, and site. Lines are below.</p>
+      </div>
       <Field label="Title">
         <input className="input" name="title" required defaultValue={job.title} />
       </Field>

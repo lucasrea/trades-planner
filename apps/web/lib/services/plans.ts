@@ -108,7 +108,7 @@ export async function recordPlanTurn(
     planId: string;
     userBody: string;
     replyBody: string;
-    captureId: string;
+    captureId: string | null;
     /** Model summary of this exchange. Used as the sidebar name on the first message. */
     summaryTitle?: string | null;
     /** Job this exchange is about. Shown as the sidebar tag. A later message that names a job replaces it. */

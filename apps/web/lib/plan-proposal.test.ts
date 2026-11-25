@@ -29,6 +29,12 @@ describe("chooseAction", () => {
   const material = [{ kind: "material" as const }];
   const labour = [{ kind: "labour" as const }];
 
+  it("logs materials when the model says invoice but the words only add", () => {
+    expect(
+      chooseAction({ intent: "invoice", lines: material, job: "matched", namesWork: true, asksToInvoice: false }),
+    ).toBe("add_materials");
+  });
+
   it("bills when the words ask to bill", () => {
     for (const job of ["selected", "matched", null] as const) {
       expect(chooseAction({ intent: "invoice", lines: material, job, namesWork: true })).toBe("make_invoice");
@@ -119,6 +125,19 @@ describe("buildProposal", () => {
     });
     expect(proposal).toMatchObject({ action: "make_quote", job_id: "job-kitchen" });
     expect(proposal.lines).toEqual([hours, valve]);
+  });
+
+  it("uses the job named in the message instead of creating one", () => {
+    const proposal = buildProposal({
+      extraction: extraction({ intent: "invoice", lines: [valve] }),
+      selectedJob: null,
+      jobs,
+      clients,
+      transcript: "add a valve at 45 to the kitchen reno",
+    });
+    expect(proposal.action).toBe("add_materials");
+    expect(proposal.job_id).toBe("job-kitchen");
+    expect(proposal.job_title).toBe("Kitchen reno");
   });
 
   it("does one action: keeps materials now and says what is left for the next message", () => {

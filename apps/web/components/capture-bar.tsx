@@ -35,6 +35,9 @@ function PlanReply({ message, onCancelled }: { message: PlanThreadMessage; onCan
       </p>
     );
   }
+  if (!message.captureId) {
+    return <p className="max-w-[40rem] whitespace-pre-line text-sm leading-relaxed">{message.body}</p>;
+  }
   if (message.preview && message.captureId && reviewUrl) {
     return (
       <PlanProposalCard captureId={message.captureId} reviewUrl={reviewUrl} preview={message.preview} onCancelled={onCancelled} />
@@ -73,6 +76,7 @@ export function CaptureBar({
   const [text, setText] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [answer, setAnswer] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(lockedJob?.id ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [unsentAudio, setUnsentAudio] = useState<RecordedAudio | null>(null);
@@ -164,6 +168,7 @@ export function CaptureBar({
         status?: string;
         reviewUrl?: string;
         planId?: string | null;
+        reply?: string | null;
         error?: { message?: string };
       } | null;
       if (response.status === 429) {
@@ -172,6 +177,11 @@ export function CaptureBar({
       }
       if (!response.ok || !body?.reviewUrl) {
         setError(body?.error?.message ?? "Couldn't send that. Your text is still here.");
+        return;
+      }
+      if (body.reply && !fill) {
+        setAnswer(body.reply);
+        setText("");
         return;
       }
       if (!fill) {
@@ -308,7 +318,16 @@ export function CaptureBar({
             <p className="max-w-[36rem] whitespace-pre-line rounded-2xl bg-elevated px-4 py-3 text-sm leading-relaxed">{sentText}</p>
           </div>
         ) : null}
-        {busy ? <p className="text-sm text-muted">Reading…</p> : null}
+        {busy ? (
+          <div className="mb-3 flex" role="status" aria-label="Reading">
+            <span className="inline-flex items-center gap-1 rounded-2xl bg-card px-4 py-3">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted [animation-delay:0ms]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted [animation-delay:150ms]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted [animation-delay:300ms]" />
+            </span>
+          </div>
+        ) : null}
+        {answer && !fill ? <p className="whitespace-pre-line text-sm leading-relaxed">{answer}</p> : null}
         {recorder.error || error ? (
           <p className="text-sm text-accent" role="alert">
             {error ?? recorder.error}

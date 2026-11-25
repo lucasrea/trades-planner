@@ -4,7 +4,9 @@ import type { DescribeExtraction } from "@/lib/ai/extraction-types";
 import type { Database } from "@/lib/db";
 import { captures, clients, jobs } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
+import { classifyPlanMessage } from "@/lib/plan-message";
 import { buildProposal, type PlanPreview } from "@/lib/plan-proposal";
+import { answerPlanQuestion, chatPlanReply } from "@/lib/services/plan-answers";
 import { assertCaptureRateLimit } from "@/lib/services/capture-rate-limit";
 import { requireJob } from "@/lib/services/internal";
 import { previewStoredProposal } from "@/lib/services/plan-proposals";
@@ -18,6 +20,9 @@ export type DescribeCaptureResult = {
   /** The Plan preview card. Null when the message failed or no action could be chosen. */
   preview: PlanPreview | null;
   transcript: string | null;
+  /** A direct answer. Set when the message is a question or chat, and nothing is saved. */
+  reply: string | null;
+  jobTitle: string | null;
 };
 
 type ContractorSlice = { id: string; labourRateHourly: number };
@@ -33,6 +38,53 @@ export async function createDescribeCapture(
 ): Promise<DescribeCaptureResult> {
   await assertCaptureRateLimit(db, contractor.id);
   const selectedJob = input.jobId ? await requireJob(db, contractor.id, input.jobId) : null;
+
+  let transcriptRead = false;
+  let transcriptText = "";
+  let transcriptFailed = false;
+  async function readTranscript() {
+    if (!transcriptRead) {
+      transcriptRead = true;
+      try {
+        transcriptText = (await input.resolveTranscript()).trim();
+      } catch {
+        transcriptFailed = true;
+      }
+    }
+    if (transcriptFailed) throw new Error("transcript failed");
+    return transcriptText;
+  }
+
+  let spoken = "";
+  try {
+    spoken = await readTranscript();
+  } catch {
+    spoken = "";
+  }
+  if (spoken && classifyPlanMessage(spoken) !== "act") {
+    const answered =
+      classifyPlanMessage(spoken) === "question"
+        ? await answerPlanQuestion(db, contractor.id, spoken, selectedJob?.id)
+        : chatPlanReply();
+    await db.insert(captures).values({
+      id: newId(),
+      contractorId: contractor.id,
+      jobId: input.jobId ?? null,
+      type: input.type,
+      status: "discarded",
+      transcript: spoken,
+      createdAt: Date.now(),
+    });
+    return {
+      captureId: "",
+      status: "needs_review",
+      reviewUrl: "/app",
+      preview: null,
+      transcript: spoken,
+      reply: answered.reply,
+      jobTitle: answered.jobTitle,
+    };
+  }
 
   const captureId = newId();
   await db.insert(captures).values({
@@ -56,7 +108,7 @@ export async function createDescribeCapture(
   let transcript: string | null = null;
 
   try {
-    transcript = (await input.resolveTranscript()).trim();
+    transcript = await readTranscript();
     if (!transcript) throw new Error("empty transcript");
     const [clientRows, jobRows] = await Promise.all([
       db
@@ -86,6 +138,7 @@ export async function createDescribeCapture(
       selectedJob: selectedJob ? { id: selectedJob.id, title: selectedJob.title, clientId: selectedJob.clientId } : null,
       jobs: jobRows.map((row) => ({ id: row.id, title: row.title, clientId: row.clientId })),
       clients: clientRows,
+      transcript,
     });
     model = result.model;
     latencyMs = result.latencyMs;
@@ -127,5 +180,7 @@ export async function createDescribeCapture(
     reviewUrl: `/app/captures/${captureId}`,
     preview,
     transcript,
+    reply: null,
+    jobTitle: preview?.jobTitle ?? null,
   };
 }

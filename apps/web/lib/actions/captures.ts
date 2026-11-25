@@ -7,7 +7,7 @@ import { ensureDb } from "@/lib/db";
 import { ZodError } from "zod";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/services/context";
 import { confirmCapture, discardCapture, type ConfirmCaptureInput } from "@/lib/services/captures";
-import { cancelPlanProposal, confirmPlanProposal } from "@/lib/services/plan-proposals";
+import { cancelPlanProposal, confirmPlanProposal, updatePlanProposalLines } from "@/lib/services/plan-proposals";
 
 async function ctx() {
   const contractor = await getContractor();
@@ -82,4 +82,20 @@ export async function cancelPlanProposalAction(captureId: string): Promise<PlanA
     throw error;
   }
   return { ok: true };
+}
+
+export async function updateProposalLinesAction(
+  captureId: string,
+  lines: { description: string; quantity: number; unit: string; unitPrice: number | null }[],
+) {
+  try {
+    await updatePlanProposalLines(await ctx(), captureId, lines);
+  } catch (error) {
+    if (error instanceof NotFoundError || error instanceof ValidationError || error instanceof ConflictError) {
+      return { error: error.message };
+    }
+    throw error;
+  }
+  revalidatePath("/app");
+  return { ok: true as const };
 }
