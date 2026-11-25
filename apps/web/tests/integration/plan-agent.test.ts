@@ -51,9 +51,11 @@ describe("plan agent lookup", () => {
       { id: a.contractorId, labourRateHourly: 85 },
       { text: "add a valve and what paperwork is on the kitchen", jobId: a.jobId, client },
     );
-    expect(looked).toContain("Kitchen reno\nQuotes:");
+    const body = JSON.parse(looked) as { job: string; message: string };
+    expect(body.job).toBe("Kitchen reno");
+    expect(body.message).toContain("Quotes:");
+    expect(body.message).not.toContain("Job A");
     expect(looked).not.toContain("Job B");
-    expect(looked).not.toContain("Job A");
   });
 
   it("lists only this contractor when the model asks for jobs", async () => {
