@@ -4,10 +4,6 @@ import { useState } from "react";
 import { Camera, Check, Mic, Receipt } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 
-function Badge({ status }: { status: string }) {
-  return <StatusBadge status={status} />;
-}
-
 function DemoChrome({
   kicker,
   title,
@@ -158,7 +154,7 @@ export function WorkflowDemo() {
       ) : null}
 
       {step === "invoice" ? (
-        <DemoChrome kicker="Invoice" title="INV-0018 · Chen residence" action={<Badge status="sent" />}>
+        <DemoChrome kicker="Invoice" title="INV-0018 · Chen residence" action={<StatusBadge status="sent" />}>
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-semibold">Rea Plumbing</p>
@@ -220,7 +216,7 @@ export function HubDemo() {
                       <p className="truncate font-medium">{row.title}</p>
                       <p className="truncate text-xs text-muted">{row.client}</p>
                     </div>
-                    <Badge status={row.status} />
+                    <StatusBadge status={row.status} />
                   </div>
                 </button>
               </li>
@@ -305,7 +301,7 @@ export function PaperworkDemo() {
       <DemoChrome
         kicker={isInvoice ? "Invoice PDF" : "Quote PDF"}
         title={isInvoice ? "INV-0018 · Chen Residence" : "Q-0042 · The Smiths"}
-        action={isInvoice ? <Badge status="sent" /> : <span className="rounded-full bg-ivory/10 px-2 py-0.5 text-xs font-medium text-ivory">Draft</span>}
+        action={isInvoice ? <StatusBadge status="sent" /> : <StatusBadge status="draft" />}
       >
         <div className="rounded-lg border border-line bg-paper p-4 sm:p-5">
           <div className="flex justify-between gap-3">

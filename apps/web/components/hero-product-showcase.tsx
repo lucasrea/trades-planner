@@ -41,10 +41,6 @@ const slides: Slide[] = [
 
 const ROTATE_MS = 5500;
 
-function MockBadge({ status }: { status: string }) {
-  return <StatusBadge status={status} />;
-}
-
 function HomeSlide() {
   const stats = [
     { label: "Clients", value: "12" },
@@ -76,7 +72,7 @@ function HomeSlide() {
                 <p className="truncate font-medium">{item.title}</p>
                 <p className="truncate text-xs text-muted">{item.meta}</p>
               </div>
-              <MockBadge status={item.status} />
+              <StatusBadge status={item.status} />
             </li>
           ))}
         </ul>
@@ -124,7 +120,7 @@ function JobsSlide() {
                   {item.client} · {item.site}
                 </p>
               </div>
-              <MockBadge status={item.status} />
+              <StatusBadge status={item.status} />
             </div>
             <p className="mt-2 text-xs text-muted">{item.next}</p>
           </li>
@@ -207,7 +203,7 @@ function InvoiceSlide() {
       </div>
       <div className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2.5 text-xs">
         <span className="text-muted">Interac e-Transfer · pay@reaplumbing.ca</span>
-        <MockBadge status="sent" />
+        <StatusBadge status="sent" />
       </div>
     </div>
   );
@@ -305,7 +301,7 @@ export function HeroProductShowcase() {
             {activeSlide.id === "quote" ? (
               <span className="rounded-full bg-ivory/10 px-2 py-0.5 text-xs font-medium text-ivory">Draft</span>
             ) : null}
-            {activeSlide.id === "invoice" ? <MockBadge status="sent" /> : null}
+            {activeSlide.id === "invoice" ? <StatusBadge status="sent" /> : null}
           </div>
         </div>
         <div className="hero-showcase-body">
