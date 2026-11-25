@@ -15,5 +15,6 @@ Product scope, feature roadmap, and engineering checklist for Trades Planner.
 | [plan-email-document.md](./plan-email-document.md) | Email the client the document link and total. |
 | [plan-phone.md](./plan-phone.md) | Phone sign-in and one text plan through confirm. |
 | [plan-production.md](./plan-production.md) | Phases to a production phone app and the web checks left before launch. |
+| [plan-agent-tools.md](./plan-agent-tools.md) | Read, proposal and question tools so Plan answers instead of dead-ending. |
 
 Cursor may also keep a copy under `.cursor/plans/` for in-IDE task tracking. **This folder is the source of truth in git.**
