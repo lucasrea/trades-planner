@@ -1,6 +1,6 @@
 import type OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
-import { getOpenAIClient, readExtractionModel, readExtractionModelFallback } from "@/lib/ai/client";
+import { getOpenAIClient, modelRequestOptions, readExtractionModel, readExtractionModelFallback } from "@/lib/ai/client";
 import type { DescribeExtraction } from "@/lib/ai/extraction-types";
 import { DESCRIBE_PROMPT_VERSION, describeSystemPrompt } from "@/lib/ai/prompts";
 import { DescribeExtractionSchema } from "@/lib/ai/schemas";
@@ -60,6 +60,7 @@ export async function callOpenAIDescribe(
         { role: "user", content: buildUserMessage(input.text, input.context) },
       ],
       response_format: zodResponseFormat(DescribeExtractionSchema, RESPONSE_NAME),
+      ...modelRequestOptions(input.model),
     },
     { signal: input.signal },
   );

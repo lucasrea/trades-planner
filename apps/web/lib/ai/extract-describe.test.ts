@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { modelRequestOptions } from "@/lib/ai/client";
 import { callOpenAIDescribe, extractDescribeLive } from "@/lib/ai/extract-describe";
 import { ProviderError } from "@/lib/ai/provider";
 
@@ -7,6 +8,13 @@ const env = process.env;
 afterEach(() => {
   process.env = { ...env };
   vi.restoreAllMocks();
+});
+
+describe("modelRequestOptions", () => {
+  it("turns reasoning off for gpt-5 and leaves older models alone", () => {
+    expect(modelRequestOptions("gpt-5-mini")).toEqual({ reasoning_effort: "none" });
+    expect(modelRequestOptions("gpt-4o-mini")).toEqual({});
+  });
 });
 
 describe("extractDescribeLive", () => {
