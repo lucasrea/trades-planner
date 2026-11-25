@@ -80,7 +80,10 @@ export default async function JobDetailPage({
         </div>
       </div>
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Tracked lines</h2>
+        <h2 className="text-lg font-semibold">Tracked lines</h2>
+        <p className="mb-3 mt-1 text-sm text-muted">
+          These stay unbilled until you create an invoice from them. A line marked “On an invoice” was copied onto an invoice and can no longer be edited.
+        </p>
         <LineEditor
           lines={tracked.map((line) => ({
             id: line.id,
@@ -103,7 +106,7 @@ export default async function JobDetailPage({
         title="Documents"
         items={docs.map((doc) => ({
           href: `/app/documents/${doc.id}`,
-          label: `${doc.type === "quote" ? "Quote" : "Invoice"} ${doc.number}`,
+          label: `${doc.type === "quote" ? "Quote" : "Invoice"} ${doc.number} · ${doc.status}`,
         }))}
       />
     </div>

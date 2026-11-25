@@ -6,7 +6,8 @@ Intent (field intent):
 - "quote" when the user is pricing work for a customer who has not committed.
 - "invoice" when billing for completed or in-progress work.
 - "log" when recording costs/time/materials on a job without creating a customer-facing document.
-- null when intent is unclear; add a warning instead of guessing.
+- null when the user is asking a question, chatting, or the intent is unclear. Do not invent a quote or invoice for a question. Add a warning instead of guessing.
+- "add" or "log" onto a named job is "log", not "invoice". "invoice", "bill", or "charge" is "invoice". "quote" is "quote".
 
 Lines:
 - Never invent line items, quantities, or prices. Only include what the user stated or clearly implied.

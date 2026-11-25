@@ -7,6 +7,8 @@ export type DescribeLine = {
   unit: string;
   unit_price: number | null;
   uncertain?: boolean | null;
+  /** Set when the contractor edits the line on the plan card. */
+  accepted?: boolean | null;
 };
 
 export const PLAN_ACTIONS = ["create_job", "add_materials", "log_hours", "make_quote", "make_invoice"] as const;

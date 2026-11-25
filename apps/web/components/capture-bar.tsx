@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mic, Send, Square } from "lucide-react";
@@ -35,6 +35,9 @@ function PlanReply({ message, onCancelled }: { message: PlanThreadMessage; onCan
       </p>
     );
   }
+  if (!message.captureId) {
+    return <p className="max-w-[40rem] whitespace-pre-line text-sm leading-relaxed">{message.body}</p>;
+  }
   if (message.preview && message.captureId && reviewUrl) {
     return (
       <PlanProposalCard captureId={message.captureId} reviewUrl={reviewUrl} preview={message.preview} onCancelled={onCancelled} />
@@ -58,18 +61,22 @@ export function CaptureBar({
   lockedJob,
   fill = false,
   plan,
+  dock,
 }: {
   jobs?: CaptureJobOption[];
   lockedJob?: CaptureJobOption;
   fill?: boolean;
   /** Plan screen only: the saved thread to show and add to. */
   plan?: OpenPlan;
+  /** Plan screen only: controls tucked above the composer (e.g. receipt upload). */
+  dock?: ReactNode;
 }) {
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
   const [text, setText] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [answer, setAnswer] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(lockedJob?.id ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [unsentAudio, setUnsentAudio] = useState<RecordedAudio | null>(null);
@@ -161,6 +168,7 @@ export function CaptureBar({
         status?: string;
         reviewUrl?: string;
         planId?: string | null;
+        reply?: string | null;
         error?: { message?: string };
       } | null;
       if (response.status === 429) {
@@ -169,6 +177,11 @@ export function CaptureBar({
       }
       if (!response.ok || !body?.reviewUrl) {
         setError(body?.error?.message ?? "Couldn't send that. Your text is still here.");
+        return;
+      }
+      if (body.reply && !fill) {
+        setAnswer(body.reply);
+        setText("");
         return;
       }
       if (!fill) {
@@ -184,45 +197,8 @@ export function CaptureBar({
     }
   }
 
-  return (
-    <section className={fill ? "flex min-h-0 flex-1 flex-col" : "space-y-3"}>
-      <div className={fill ? "flex min-h-0 flex-1 flex-col justify-end overflow-y-auto pb-4" : undefined}>
-        {(plan?.messages ?? []).map((message) =>
-          message.role === "user" ? (
-            <div key={message.id} className="mb-3 flex justify-end">
-              <p className="max-w-[36rem] whitespace-pre-line rounded-2xl bg-elevated px-4 py-3 text-sm leading-relaxed">
-                {message.body}
-              </p>
-            </div>
-          ) : (
-            <div key={message.id} className="mb-3">
-              <PlanReply message={message} onCancelled={() => startRefresh(() => router.refresh())} />
-            </div>
-          ),
-        )}
-        {(pending || reading || refreshing) && sentText ? (
-          <div className="mb-3 flex justify-end">
-            <p className="max-w-[36rem] whitespace-pre-line rounded-2xl bg-elevated px-4 py-3 text-sm leading-relaxed">{sentText}</p>
-          </div>
-        ) : null}
-        {busy ? <p className="text-sm text-muted">Reading…</p> : null}
-        {recorder.error || error ? (
-          <p className="text-sm text-accent" role="alert">
-            {error ?? recorder.error}
-          </p>
-        ) : null}
-        {unsentAudio && !busy ? (
-          <div className="mt-2 flex items-center gap-2">
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => void sendRecording(unsentAudio)}>
-              Try sending again
-            </button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setUnsentAudio(null)}>
-              Discard recording
-            </button>
-          </div>
-        ) : null}
-      </div>
-      <div className="relative rounded-2xl border border-line bg-card p-2">
+  const composer = (
+    <div className="relative rounded-2xl border border-line bg-card p-2">
         {menuOpen && !lockedJob ? (
           <>
             <button
@@ -319,6 +295,63 @@ export function CaptureBar({
           </div>
         </div>
       </div>
+  );
+
+  return (
+    <section className={fill ? "flex min-h-0 flex-1 flex-col" : "space-y-3"}>
+      <div className={fill ? "flex min-h-0 flex-1 flex-col justify-end overflow-y-auto overscroll-contain pb-2" : undefined}>
+        {(plan?.messages ?? []).map((message) =>
+          message.role === "user" ? (
+            <div key={message.id} className="mb-3 flex justify-end">
+              <p className="max-w-[36rem] whitespace-pre-line rounded-2xl bg-elevated px-4 py-3 text-sm leading-relaxed">
+                {message.body}
+              </p>
+            </div>
+          ) : (
+            <div key={message.id} className="mb-3">
+              <PlanReply message={message} onCancelled={() => startRefresh(() => router.refresh())} />
+            </div>
+          ),
+        )}
+        {(pending || reading || refreshing) && sentText ? (
+          <div className="mb-3 flex justify-end">
+            <p className="max-w-[36rem] whitespace-pre-line rounded-2xl bg-elevated px-4 py-3 text-sm leading-relaxed">{sentText}</p>
+          </div>
+        ) : null}
+        {busy ? (
+          <div className="mb-3 flex" role="status" aria-label="Reading">
+            <span className="inline-flex items-center gap-1 rounded-2xl bg-card px-4 py-3">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted [animation-delay:0ms]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted [animation-delay:150ms]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted [animation-delay:300ms]" />
+            </span>
+          </div>
+        ) : null}
+        {answer && !fill ? <p className="whitespace-pre-line text-sm leading-relaxed">{answer}</p> : null}
+        {recorder.error || error ? (
+          <p className="text-sm text-accent" role="alert">
+            {error ?? recorder.error}
+          </p>
+        ) : null}
+        {unsentAudio && !busy ? (
+          <div className="mt-2 flex items-center gap-2">
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => void sendRecording(unsentAudio)}>
+              Try sending again
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setUnsentAudio(null)}>
+              Discard recording
+            </button>
+          </div>
+        ) : null}
+      </div>
+      {fill ? (
+        <div className="shrink-0 space-y-2 border-t border-line pt-3">
+          {dock}
+          {composer}
+        </div>
+      ) : (
+        composer
+      )}
     </section>
   );
 }

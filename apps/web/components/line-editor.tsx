@@ -188,7 +188,7 @@ function LockedLineRow({ line }: { line: DraftLine }) {
       <td className="px-3 py-2">{line.unit}</td>
       <td className="px-3 py-2 tabular-nums">{cad(line.unitPrice)}</td>
       <td className="px-3 py-2 font-medium tabular-nums">{cad(lineTotal(line))}</td>
-      <td className="sticky right-0 bg-card px-3 py-2 text-xs shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.35)]">Billed</td>
+      <td className="sticky right-0 bg-card px-3 py-2 text-xs shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.35)]">On an invoice</td>
     </tr>
   );
 }
