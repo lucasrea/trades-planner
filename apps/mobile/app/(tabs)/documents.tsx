@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
-import { EmptyState, Header, PrimaryButton, Screen } from "../../src/ui";
+import { EmptyState, Header, PrimaryButton, SecondaryButton, Screen } from "../../src/ui";
 import { colors } from "../../src/theme";
 
 const FILTERS = [
@@ -17,16 +17,22 @@ export default function DocumentsScreen() {
   return (
     <Screen>
       <Header title="Documents" subtitle="Quotes and invoices in one list." />
-      <View style={styles.filters}>
+      <View style={styles.segmented} accessibilityRole="tablist">
         {FILTERS.map((item) => {
           const active = item.id === filter;
           return (
             <Pressable
               key={item.id}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
               onPress={() => setFilter(item.id)}
-              style={[styles.filter, active ? styles.filterOn : null]}
+              style={({ pressed }) => [
+                styles.segment,
+                active ? styles.segmentActive : null,
+                pressed && !active ? styles.segmentPressed : null,
+              ]}
             >
-              <Text style={[styles.filterLabel, active ? styles.filterLabelOn : null]}>{item.label}</Text>
+              <Text style={[styles.segmentLabel, active ? styles.segmentLabelActive : null]}>{item.label}</Text>
             </Pressable>
           );
         })}
@@ -35,13 +41,13 @@ export default function DocumentsScreen() {
         <EmptyState
           title="No matching documents"
           body="Try another type or status."
-          action={<PrimaryButton label="Clear filters" onPress={() => setFilter("all")} />}
+          action={<SecondaryButton label="Clear filters" onPress={() => setFilter("all")} />}
         />
       ) : (
         <EmptyState
-          title="Documents aren't loaded"
-          body="Sign-in on the phone isn't connected yet, so this list stays empty."
-          action={<PrimaryButton label="Go to jobs" onPress={() => router.push("/jobs")} />}
+          title="Documents aren’t loaded"
+          body="Sign-in on the phone isn’t connected yet, so this list stays empty."
+          action={<PrimaryButton label="Go to jobs" fullWidth={false} onPress={() => router.push("/jobs")} />}
         />
       )}
     </Screen>
@@ -49,15 +55,23 @@ export default function DocumentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  filters: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  filter: {
+  segmented: {
+    flexDirection: "row",
+    alignSelf: "flex-start",
+    backgroundColor: colors.card,
     borderColor: colors.line,
-    borderRadius: 999,
+    borderRadius: 12,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    padding: 4,
+    gap: 2,
   },
-  filterOn: { backgroundColor: colors.accent, borderColor: colors.accent },
-  filterLabel: { color: colors.ink, fontSize: 14 },
-  filterLabelOn: { color: "#ffffff", fontWeight: "600" },
+  segment: {
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  segmentActive: { backgroundColor: colors.elevated },
+  segmentPressed: { backgroundColor: "rgba(39, 39, 43, 0.55)" },
+  segmentLabel: { color: colors.muted, fontSize: 13, fontWeight: "500" },
+  segmentLabelActive: { color: colors.ink, fontWeight: "600" },
 });

@@ -1,7 +1,7 @@
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
-import { Linking, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { exchangeGoogleIdToken } from "../src/api";
 import { GOOGLE_CLIENT_ID } from "../src/config";
@@ -45,9 +45,13 @@ export default function SignInScreen() {
   }, [response]);
 
   return (
-    <Screen>
-      <Card>
-        <Header title="Log in" subtitle="Use the Google account for this business." />
+    <Screen contentStyle={styles.centered}>
+      <Card style={styles.card}>
+        <Header
+          eyebrow="Trades Planner"
+          title="Log in"
+          subtitle="Use the Google account for this business."
+        />
         {error ? <Notice>{error}</Notice> : null}
         <PrimaryButton
           label={clientMissing ? "Google client id is not set" : busy ? "Signing in…" : "Continue with Google"}
@@ -59,20 +63,23 @@ export default function SignInScreen() {
         />
       </Card>
       <View style={styles.footer}>
-        <Text style={styles.link} onPress={() => void Linking.openURL(`${SITE}/terms`)}>
-          Terms
-        </Text>
+        <Pressable onPress={() => void Linking.openURL(`${SITE}/terms`)}>
+          {({ pressed }) => <Text style={[styles.link, pressed ? styles.linkPressed : null]}>Terms</Text>}
+        </Pressable>
         <Text style={styles.dot}>·</Text>
-        <Text style={styles.link} onPress={() => void Linking.openURL(`${SITE}/privacy`)}>
-          Privacy
-        </Text>
+        <Pressable onPress={() => void Linking.openURL(`${SITE}/privacy`)}>
+          {({ pressed }) => <Text style={[styles.link, pressed ? styles.linkPressed : null]}>Privacy</Text>}
+        </Pressable>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  footer: { flexDirection: "row", gap: 8, justifyContent: "center" },
-  link: { color: colors.muted, fontSize: 14 },
-  dot: { color: colors.muted, fontSize: 14 },
+  centered: { flexGrow: 1, justifyContent: "center" },
+  card: { padding: 20, gap: 16 },
+  footer: { flexDirection: "row", gap: 10, justifyContent: "center", alignItems: "center" },
+  link: { color: colors.muted, fontSize: 13 },
+  linkPressed: { color: colors.ink },
+  dot: { color: colors.muted, fontSize: 13 },
 });

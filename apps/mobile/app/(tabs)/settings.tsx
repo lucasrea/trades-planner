@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
-import { Card, Header, Notice, Screen } from "../../src/ui";
+import { useCallback, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { router, useFocusEffect } from "expo-router";
+import { clearBearer, getBearer } from "../../src/session";
+import { Card, DangerButton, GhostButton, Header, Notice, PrimaryButton, Screen, StatusPill } from "../../src/ui";
 import { colors } from "../../src/theme";
 
 const SECTIONS = [
@@ -32,18 +33,47 @@ const SECTIONS = [
 ] as const;
 
 export default function SettingsScreen() {
+  const [signedIn, setSignedIn] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void getBearer().then((token) => {
+        if (active) setSignedIn(Boolean(token));
+      });
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
+  async function onSignOut() {
+    await clearBearer();
+    setSignedIn(false);
+    setNotice(null);
+  }
 
   return (
     <Screen>
       <Header title="Settings" subtitle="This is what prints on quotes and invoices." />
       <Card>
-        <Text style={styles.account}>Not signed in</Text>
-        <Text style={styles.muted}>Use the Google account for this business.</Text>
-        <Pressable onPress={() => router.push("/sign-in")}>
-          <Text style={styles.link}>Continue with Google</Text>
-        </Pressable>
+        <View style={styles.sectionHead}>
+          <View style={styles.sectionCopy}>
+            <Text style={styles.sectionTitle}>Account</Text>
+            <Text style={styles.muted}>
+              {signedIn ? "Connected to your Trades Planner account." : "Use the Google account for this business."}
+            </Text>
+          </View>
+          <StatusPill label={signedIn ? "Signed in" : "Not signed in"} tone={signedIn ? "ok" : "neutral"} />
+        </View>
+        {signedIn ? (
+          <DangerButton label="Log out" onPress={() => void onSignOut()} />
+        ) : (
+          <PrimaryButton label="Continue with Google" onPress={() => router.push("/sign-in")} />
+        )}
       </Card>
+      {notice ? <Notice>{notice}</Notice> : null}
       {SECTIONS.map((section) => (
         <Card key={section.id}>
           <View style={styles.sectionHead}>
@@ -51,29 +81,40 @@ export default function SettingsScreen() {
               <Text style={styles.sectionTitle}>{section.title}</Text>
               <Text style={styles.muted}>{section.description}</Text>
             </View>
-            <Pressable onPress={() => setNotice("Editing on the phone isn’t connected yet.")}>
-              <Text style={styles.link}>Edit</Text>
-            </Pressable>
+            <GhostButton label="Edit" onPress={() => setNotice("Editing on the phone isn’t connected yet.")} />
           </View>
-          {section.rows.map((row) => (
-            <View key={row}>
-              <Text style={styles.muted}>{row}</Text>
-              <Text style={styles.value}>—</Text>
-            </View>
-          ))}
+          <View style={styles.rowsBox}>
+            {section.rows.map((row, index) => (
+              <View key={row} style={[styles.rowItem, index > 0 ? styles.rowBorder : null]}>
+                <Text style={styles.rowLabel}>{row}</Text>
+                <Text style={styles.rowValue}>—</Text>
+              </View>
+            ))}
+          </View>
         </Card>
       ))}
-      {notice ? <Notice>{notice}</Notice> : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  account: { color: colors.ink, fontSize: 16, fontWeight: "600" },
-  muted: { color: colors.muted, fontSize: 14, lineHeight: 20 },
-  link: { color: colors.accent, fontSize: 15, fontWeight: "600" },
-  sectionHead: { flexDirection: "row", gap: 12, justifyContent: "space-between" },
-  sectionCopy: { flex: 1, gap: 4 },
+  muted: { color: colors.muted, fontSize: 13, lineHeight: 19 },
+  sectionHead: { flexDirection: "row", alignItems: "flex-start", gap: 12, justifyContent: "space-between" },
+  sectionCopy: { flex: 1, gap: 3 },
   sectionTitle: { color: colors.ink, fontSize: 16, fontWeight: "600" },
-  value: { color: colors.ink, fontSize: 15, marginTop: 2 },
+  rowsBox: {
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    marginTop: 2,
+  },
+  rowItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 10,
+  },
+  rowBorder: { borderTopWidth: 1, borderTopColor: colors.line },
+  rowLabel: { color: colors.muted, fontSize: 13 },
+  rowValue: { color: colors.ink, fontSize: 14, fontWeight: "500" },
 });
