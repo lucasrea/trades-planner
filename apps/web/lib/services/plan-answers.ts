@@ -8,7 +8,11 @@ import { formatJobPaperwork, planChatReply } from "@/lib/plan-message";
 const ASKS_UNBILLED = /\bunbilled\b/i;
 const ASKS_JOBS_LIST = /\b(my\s+jobs|open\s+jobs|list\s+(?:my\s+|all\s+)?jobs|what\s+jobs|which\s+jobs)\b/i;
 
-/** Answer a question from this contractor's jobs, unbilled work, and documents. No model, no new rows. */
+/**
+ * Answer a question from this contractor's jobs, unbilled work, and documents. No model, no new rows.
+ * Returns null when the rules cannot answer it completely, so the model and its tools take it instead
+ * of the contractor getting "Which job?".
+ */
 export async function answerPlanQuestion(
   db: Database,
   contractorId: string,
@@ -99,7 +103,8 @@ export async function answerPlanQuestion(
       const list = jobRows.slice(0, 12).map((row) => (row.clientName ? `• ${row.title} (${row.clientName})` : `• ${row.title}`));
       return { reply: `Your jobs:\n${list.join("\n")}`, jobTitle: null };
     }
-    return { reply: formatJobPaperwork({ jobTitle: null, jobNames: jobRows.map((row) => row.title), documents: [] }), jobTitle: null };
+    // No job named and not a question the rules can finish ("how many open quotes"): hand it to the model.
+    return null;
   }
 
   const docs = await db

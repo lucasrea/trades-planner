@@ -6,12 +6,16 @@ import { confirmCapture, discardCapture } from "@/lib/services/captures";
 import { ConflictError, NotFoundError, ValidationError, type ServiceContext } from "@/lib/services/context";
 import { createInvoiceFromTrackedLines } from "@/lib/services/documents";
 import { createJobWithClient } from "@/lib/services/jobs";
+import { confirmChange, previewChange, type ChangeDeps } from "@/lib/services/plan-changes";
+import { parsePlanChange } from "@/lib/plan-changes";
 import { requireJob } from "@/lib/services/internal";
 
 export type PlanConfirmResult =
   | { kind: "job"; jobId: string }
   | { kind: "document"; documentId: string }
-  | { kind: "log"; jobIds: string[] };
+  | { kind: "log"; jobIds: string[] }
+  /** A change card that stays in Plan: a status, a client, settings, an email, an undo. */
+  | { kind: "done"; message: string; href: string };
 
 async function labourRateFor(ctx: ServiceContext) {
   const [row] = await ctx.db
@@ -54,6 +58,12 @@ export async function previewStoredProposal(
   transcript: string | null,
 ): Promise<PlanPreview | null> {
   if (!proposal.action) return null;
+  if (proposal.action === "change") {
+    const change = parsePlanChange(proposal.change);
+    if (!change) return null;
+    const said = [proposal.evidence, transcript].filter(Boolean).join("\n") || null;
+    return previewChange(ctx, change, said);
+  }
   if (proposal.action === "invoice_tracked") {
     const job = proposal.job_id ? await requireJob(ctx.db, ctx.contractorId, proposal.job_id) : null;
     // Read the lines now, not when the message was sent, so the card shows what confirm will bill.
@@ -79,7 +89,7 @@ export async function previewStoredProposal(
  * Confirm a Plan proposal. The stored proposal is the only input: nothing the browser sends can change
  * the lines, so the confirm calls the same services as the review screen with what was previewed.
  */
-export async function confirmPlanProposal(ctx: ServiceContext, captureId: string): Promise<PlanConfirmResult> {
+export async function confirmPlanProposal(ctx: ServiceContext, captureId: string, deps: ChangeDeps = {}): Promise<PlanConfirmResult> {
   if (!captureId.trim()) throw new ValidationError("Capture id is required.");
   const [capture] = await ctx.db
     .select()
@@ -91,6 +101,7 @@ export async function confirmPlanProposal(ctx: ServiceContext, captureId: string
 
   const proposal = parseDescribeExtraction(capture.extraction);
   if (!proposal?.action) throw new ValidationError("There is nothing to confirm for this message.");
+  if (proposal.action === "change") return confirmChange(ctx, capture.id, deps);
 
   const job = proposal.job_id ? await requireJob(ctx.db, ctx.contractorId, proposal.job_id) : null;
   const plan = toConfirmPlan(proposal, {
@@ -172,6 +183,7 @@ export async function updatePlanProposalLines(
   if (capture.status !== "needs_review") throw new ConflictError("This message was already confirmed or cancelled.");
   const proposal = parseDescribeExtraction(capture.extraction);
   if (proposal?.action === "invoice_tracked") throw new ValidationError("Edit these lines on the job.");
+  if (proposal?.action === "change") throw new ValidationError("Ask Plan for the change you want instead.");
   if (!proposal?.action || !proposal.lines.length) throw new ValidationError("There are no lines to edit.");
   if (lines.length !== proposal.lines.length) throw new ValidationError("Line count does not match.");
   const nextLines = proposal.lines.map((line, index) => {

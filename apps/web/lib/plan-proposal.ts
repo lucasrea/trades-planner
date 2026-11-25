@@ -65,6 +65,10 @@ export type PlanPreview = {
   warnings: string[];
   blockers: string[];
   canConfirm: boolean;
+  /** action "change" only: what changes, one row each ("Status: sent → paid"). */
+  changes?: { label: string; value: string }[];
+  /** action "change" only: the document, job or page the change is about. */
+  href?: string | null;
 };
 
 const ACTION_LABELS: Record<PlanAction, string> = {
@@ -74,6 +78,7 @@ const ACTION_LABELS: Record<PlanAction, string> = {
   make_quote: "Make a quote",
   make_invoice: "Make an invoice",
   invoice_tracked: "Invoice the unbilled work",
+  change: "Change paperwork",
 };
 
 export function planActionLabel(action: PlanAction) {
@@ -193,6 +198,8 @@ function lineNote(line: DescribeLine, price: number | null, defaultRate: boolean
   if (!(line.quantity > 0)) return "No quantity";
   if (price == null) return "No price";
   if (line.accepted) return null;
+  // Copied from the contractor's own records and checked by app code when the card was made.
+  if (line.source_note) return line.source_note;
   if (line.uncertain) return "Check this";
   if (defaultRate) return "Using your labour rate";
   return null;
@@ -259,6 +266,7 @@ export function previewProposal(
     if (
       hasTranscript &&
       !line.accepted &&
+      !line.source_note &&
       !draft.defaultRate &&
       draft.unitPrice != null &&
       !priceAppearsInTranscript(said, draft.unitPrice) &&
@@ -327,6 +335,7 @@ export function previewProposal(
     make_quote: `Make a draft quote${forJob}`,
     make_invoice: `Make a draft invoice${forJob}`,
     invoice_tracked: `Invoice the unbilled work${forJob}`,
+    change: "Change paperwork",
   };
 
   return {

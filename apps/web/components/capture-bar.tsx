@@ -86,7 +86,16 @@ async function readPlanBody(response: Response, onStatus: (text: string) => void
   return { ok: Boolean(done.reviewUrl), statusCode: 200, reviewUrl: done.reviewUrl, planId: done.planId, reply: done.reply };
 }
 
-function PlanReply({ message, onCancelled }: { message: PlanThreadMessage; onCancelled: () => void }) {
+function PlanReply({
+  message,
+  onCancelled,
+  onChoose,
+}: {
+  message: PlanThreadMessage;
+  onCancelled: () => void;
+  /** Set only on the latest question, so old choices can't be tapped. */
+  onChoose?: (label: string, jobId: string | null) => void;
+}) {
   const reviewUrl = message.reviewUrl;
   const isReceipt = message.captureType === "receipt";
   if (message.outcome === "cancelled") {
@@ -110,6 +119,26 @@ function PlanReply({ message, onCancelled }: { message: PlanThreadMessage; onCan
           ) : null}
         </span>
       </p>
+    );
+  }
+  if (!message.captureId && message.options.length > 0) {
+    return (
+      <div className="max-w-[40rem] space-y-2">
+        <p className="whitespace-pre-line text-sm leading-relaxed text-ink">{message.body}</p>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Choices">
+          {message.options.map((option) => (
+            <button
+              key={option.label}
+              type="button"
+              disabled={!onChoose}
+              className="rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent/60 hover:bg-elevated disabled:cursor-default disabled:opacity-60 disabled:hover:border-line disabled:hover:bg-card"
+              onClick={() => onChoose?.(option.label, option.jobId)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
     );
   }
   if (!message.captureId) {
@@ -295,7 +324,7 @@ export function CaptureBar({
     }
   }
 
-  async function submit(next = text) {
+  async function submit(next = text, jobOverride?: string | null) {
     const trimmed = next.trim();
     if (!trimmed || sending || recorder.recording || sendingRef.current) return;
     sendingRef.current = true;
@@ -308,7 +337,8 @@ export function CaptureBar({
     setSentText(trimmed);
     setStatusText("Reading your message");
     try {
-      const assignedId = selected?.id;
+      // A tapped choice that is a job becomes the job for this message.
+      const assignedId = jobOverride ?? selected?.id;
       const response = await fetch("/api/captures/text", {
         method: "POST",
         headers: { "content-type": "application/json", accept: "application/x-ndjson" },
@@ -510,7 +540,18 @@ export function CaptureBar({
               </div>
             ) : (
               <div key={message.id} className="mb-3">
-                <PlanReply message={message} onCancelled={() => startRefresh(() => router.refresh())} />
+                <PlanReply
+                  message={message}
+                  onCancelled={() => startRefresh(() => router.refresh())}
+                  onChoose={
+                    message.id === plan?.messages.at(-1)?.id && !busy
+                      ? (label, jobId) => {
+                          if (jobId && !lockedJob) setJobId(jobId);
+                          void submit(label, jobId);
+                        }
+                      : undefined
+                  }
+                />
               </div>
             ),
           )}

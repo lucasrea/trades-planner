@@ -7,6 +7,8 @@ import { signIn, signOut } from "@/auth";
 import { getContractor, getSession } from "@/lib/auth";
 import { formNumber, formText } from "@/lib/actions/form-data";
 import { ensureDb } from "@/lib/db";
+import { saveSettings } from "@/lib/services/settings";
+import { ValidationError } from "@/lib/services/context";
 import { contractors } from "@/lib/db/schema";
 
 type ContractorDefaults = {
@@ -93,11 +95,12 @@ export async function updateSettingsAction(_: unknown, formData: FormData) {
   const contractor = await getContractor();
   const profile = contractorProfileValues(formData, contractor);
   if (!profile.businessName) return { error: "Business name is required." };
-  const db = await ensureDb();
-  await db
-    .update(contractors)
-    .set(profile)
-    .where(eq(contractors.id, contractor.id));
+  try {
+    await saveSettings({ db: await ensureDb(), contractorId: contractor.id }, profile);
+  } catch (error) {
+    if (error instanceof ValidationError) return { error: error.message };
+    throw error;
+  }
   revalidatePath("/app/settings");
   revalidatePath("/app");
   return { ok: true };

@@ -9,6 +9,11 @@ export function roundMoney(amount: number) {
   return Math.round((amount + Number.EPSILON) * 100) / 100;
 }
 
+/** Sum money amounts, rounding to cents. Totals a Plan answer reports come from here, never from the model. */
+export function sumMoney(amounts: number[]) {
+  return roundMoney(amounts.reduce((sum, amount) => sum + (Number(amount) || 0), 0));
+}
+
 /** Add two money amounts. The sell price after a dollar markup uses this. */
 export function addMoney(left: number, right: number) {
   return roundMoney((Number(left) || 0) + (Number(right) || 0));

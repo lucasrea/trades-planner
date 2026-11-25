@@ -3,17 +3,17 @@ import { createFakePlanClient } from "@/lib/ai/fake-plan-client";
 import { createLivePlanClient } from "@/lib/ai/plan-loop-live";
 import { runPlanLoop, type PlanHistoryMessage, type PlanLoopClient, type PlanToolCall } from "@/lib/ai/plan-loop";
 import { PLAN_LOOP_VERSION } from "@/lib/ai/prompts";
-import { parseLookupArgs, parseProposeArgs, parseReplyArgs, proposeArgsProblem } from "@/lib/ai/plan-tools";
+import { parseToolArgs, toolName, type PlanToolArgs, type PlanToolName } from "@/lib/ai/plan-tools";
 import type { Database } from "@/lib/db";
-import { captures, clients, documents, jobs, lineItems } from "@/lib/db/schema";
+import { captures, clients, contractors, jobs, lineItems } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
-import { asksForAllJobs, pickLookupJob, unbilledSummary } from "@/lib/plan-lookup";
+import { localDate, PLAN_TIME_ZONE } from "@/lib/plan-lookup";
 import { addMoney, roundMoney } from "@/lib/money";
 import { matchJobInText } from "@/lib/line-items";
 import {
   asksToInvoiceTrackedWork,
   classifyPlanMessage,
-  formatJobPaperwork,
+  messageAsksForWork,
   parseCompoundWork,
   parseObviousAct,
 } from "@/lib/plan-message";
@@ -24,10 +24,31 @@ import { answerPlanQuestion, chatPlanReply } from "@/lib/services/plan-answers";
 import { assertCaptureRateLimit } from "@/lib/services/capture-rate-limit";
 import { requireJob } from "@/lib/services/internal";
 import { previewStoredProposal } from "@/lib/services/plan-proposals";
+import { NotFoundError } from "@/lib/services/context";
+import { lastConfirmedCapture, previewChange } from "@/lib/services/plan-changes";
+import {
+  businessSnapshot,
+  findClients,
+  findDocuments,
+  findJobs,
+  getDocumentDetail,
+  getJobDetail,
+  priceSourceLine,
+  searchLines,
+} from "@/lib/services/plan-reads";
+import { parsePlanChange, type ChangeLine, type LineEdit, type PlanChange } from "@/lib/plan-changes";
 
 export const EXTRACTION_FAILED_MESSAGE = "We couldn't read that. You can add lines manually on the review screen.";
 
-const MAX_PROPOSES = 4;
+/** Cards one message may make. */
+const MAX_CARDS = 6;
+/** Recent jobs named, with ids, in the model's context so it can often act without a find. */
+const CONTEXT_JOBS = 15;
+const COULD_NOT_WORK_OUT = "I couldn't work that out. Name the job or the document and try again.";
+const ASSISTANT_DOWN = "I couldn't answer that just now. Try again in a minute.";
+
+/** A tool call the model can fix: the message goes back to it as the tool result. */
+class ToolError extends Error {}
 /** How much of the plan's earlier messages may back a price on this card. */
 const EVIDENCE_MESSAGES = 6;
 const EVIDENCE_CHARS = 4000;
@@ -43,9 +64,13 @@ function loopFailureKind(error: unknown) {
   return "unknown";
 }
 
+export type PlanAskOption = { label: string; jobId: string | null };
+
 export type PlanAgentPart =
   | { kind: "card"; captureId: string; body: string; jobTitle: string | null; preview: PlanPreview | null }
-  | { kind: "text"; body: string };
+  | { kind: "text"; body: string }
+  /** A question with choices. A choice is sent back as the contractor's next message. */
+  | { kind: "ask"; body: string; options: PlanAskOption[] };
 
 export type PlanAgentResult = {
   captureId: string;
@@ -71,14 +96,17 @@ function planClient(): { client: PlanLoopClient; model: string } {
 
 function resultFrom(parts: PlanAgentPart[], transcript: string, status: "needs_review" | "failed"): PlanAgentResult {
   const card = parts.find((part): part is Extract<PlanAgentPart, { kind: "card" }> => part.kind === "card");
-  const text = parts.find((part): part is Extract<PlanAgentPart, { kind: "text" }> => part.kind === "text");
+  const text = parts.find((part): part is Extract<PlanAgentPart, { kind: "text" | "ask" }> => part.kind === "text" || part.kind === "ask");
+  // The phone shows `reply` only, so a question carries its choices as text there.
+  const reply =
+    text?.kind === "ask" && text.options.length ? `${text.body}\n${text.options.map((option) => `• ${option.label}`).join("\n")}` : text?.body;
   return {
     captureId: card?.captureId ?? "",
     status,
     reviewUrl: card ? `/app/captures/${card.captureId}` : "/app",
     preview: null,
     transcript,
-    reply: card ? null : (text?.body ?? null),
+    reply: card ? null : (reply ?? null),
     jobTitle: card?.jobTitle ?? null,
     parts,
   };
@@ -117,9 +145,12 @@ export async function runPlanAgent(
   const kind = classifyPlanMessage(transcript);
   if (kind === "question") {
     status(/\bunbilled\b/i.test(transcript) ? "Checking unbilled work" : "Checking quotes and invoices");
+    // The rules answer only what they can finish. Anything else goes to the model and its tools.
     const answered = await answerPlanQuestion(db, contractor.id, transcript, selected?.id, contractor.labourRateHourly);
-    await remember(db, contractor.id, input.jobId, transcript, "discarded", type);
-    return { ...resultFrom([{ kind: "text", body: answered.reply }], transcript, "needs_review"), jobTitle: answered.jobTitle };
+    if (answered) {
+      await remember(db, contractor.id, input.jobId, transcript, "discarded", type);
+      return { ...resultFrom([{ kind: "text", body: answered.reply }], transcript, "needs_review"), jobTitle: answered.jobTitle };
+    }
   }
   if (kind === "chat") {
     status("Writing a reply");
@@ -202,18 +233,7 @@ export async function runPlanAgent(
         transcript,
         jobId: input.jobId,
         selected,
-        proposal: {
-          intent: "invoice",
-          client_name: null,
-          job_title: job.title,
-          site_address: null,
-          scope_notes: null,
-          lines: [],
-          warnings: [],
-          action: "invoice_tracked",
-          job_id: job.id,
-          client_id: job.clientId,
-        },
+        proposal: trackedInvoiceProposal(job),
         trustJobTitle: true,
         model: null,
         type,
@@ -253,97 +273,286 @@ export async function runPlanAgent(
   const { client, model } = chosen;
   const parts: PlanAgentPart[] = [];
   let preview: PlanPreview | null = null;
-  let proposes = 0;
+  let cards = 0;
   const started = Date.now();
+  const trace: { tool: string; ok: boolean; ms: number }[] = [];
+  const ctx = { db, contractorId: contractor.id };
+  const said = [evidence, transcript].filter(Boolean).join("\n") || null;
+  const ownJob = (id: string | undefined) => (id ? (jobRefs.find((job) => job.id === id) ?? null) : null);
+
+  const json = (value: unknown) => JSON.stringify(value);
+  const notFound = (what: string) => json({ error: `${what} not found. Use a find tool to get its id.` });
+
+  /** A price copied from the contractor's own records: the recorded price wins, and the card says where it came from. */
+  async function priced(line: { unit_price?: number; price_source?: string; quantity: number }) {
+    if (!line.price_source) return { unit_price: line.unit_price ?? null, source_note: null as string | null };
+    const source = await priceSourceLine(ctx, line.price_source);
+    if (!source) throw new ToolError("price_source is not one of your lines. Use an id from search_lines.");
+    return { unit_price: source.unitPrice, source_note: source.note };
+  }
+
+  async function storeChangeCard(raw: PlanChange) {
+    if (cards >= MAX_CARDS) return json({ drafted: false, reason: "That's enough cards for one message." });
+    const change = parsePlanChange(raw);
+    if (!change) return json({ error: "That change is not valid. Check the ids and values." });
+    let changePreview: PlanPreview;
+    try {
+      changePreview = await previewChange(ctx, change, said);
+    } catch (error) {
+      if (error instanceof NotFoundError) return json({ error: `${error.message} Use a find tool to get its id.` });
+      throw error;
+    }
+    cards += 1;
+    const captureId = newId();
+    const proposal: DescribeExtraction = {
+      intent: null,
+      client_name: null,
+      job_title: changePreview.jobTitle,
+      site_address: null,
+      scope_notes: null,
+      lines: [],
+      warnings: [],
+      action: "change",
+      job_id: changePreview.jobId,
+      change,
+      evidence,
+    };
+    await db.insert(captures).values({
+      id: captureId,
+      contractorId: contractor.id,
+      jobId: changePreview.jobId,
+      type,
+      status: "needs_review",
+      transcript,
+      extraction: proposal,
+      model,
+      latencyMs: Date.now() - started,
+      promptVersion: PLAN_LOOP_VERSION,
+      createdAt: Date.now(),
+    });
+    if (!preview) preview = changePreview;
+    parts.push({ kind: "card", captureId, body: changePreview.title, jobTitle: changePreview.jobTitle, preview: changePreview });
+    return json({ drafted: true, title: changePreview.title, can_confirm: changePreview.canConfirm, blockers: changePreview.blockers });
+  }
+
+  async function proposeWork(args: PlanToolArgs<"propose_work">) {
+    if (cards >= MAX_CARDS) return json({ drafted: false, reason: "That's enough cards for one message." });
+    const job = ownJob(args.job_id);
+    if (args.job_id && !job) return notFound("Job");
+    const clientRow = args.client_id ? (clientRefs.find((row) => row.id === args.client_id) ?? null) : null;
+    if (args.client_id && !clientRow) return notFound("Client");
+    const lines = [];
+    for (const line of args.lines) {
+      const price = await priced(line);
+      lines.push({
+        kind: line.kind,
+        description: line.description,
+        quantity: line.quantity,
+        unit: line.unit,
+        unit_cost: line.unit_cost ?? null,
+        unit_price:
+          !line.price_source && line.unit_cost != null && line.markup_amount != null
+            ? addMoney(line.unit_cost, line.markup_amount)
+            : price.unit_price,
+        source_note: price.source_note,
+      });
+    }
+    cards += 1;
+    const card = await storeProposal(db, contractor, {
+      transcript,
+      jobId: input.jobId,
+      // An id from a find tool is as good as the job open in Plan.
+      selected: job ?? selected,
+      extraction: {
+        intent: args.intent ?? "log",
+        client_name: clientRow?.name ?? args.client_name ?? null,
+        job_title: job?.title ?? args.job_title ?? null,
+        site_address: args.site_address ?? null,
+        scope_notes: args.notes ?? null,
+        warnings: [],
+        lines,
+      },
+      trustJobTitle: Boolean(job || args.job_title),
+      model,
+      latencyMs: Date.now() - started,
+      jobs: jobRefs,
+      clients: clientRefs,
+      type,
+      evidence,
+    });
+    if (!card) {
+      cards -= 1;
+      return json({ drafted: false, reason: "Nothing to propose from that." });
+    }
+    if (!preview) preview = card.preview;
+    parts.push(card.part);
+    return json({ drafted: true, title: card.part.body, job: card.part.jobTitle, can_confirm: card.preview?.canConfirm ?? false, blockers: card.preview?.blockers ?? [] });
+  }
+
+  async function proposeTrackedInvoice(jobId: string) {
+    const job = ownJob(jobId);
+    if (!job) return notFound("Job");
+    if (cards >= MAX_CARDS) return json({ drafted: false, reason: "That's enough cards for one message." });
+    cards += 1;
+    const card = await storeProposal(db, contractor, {
+      transcript,
+      jobId: input.jobId,
+      selected,
+      proposal: trackedInvoiceProposal(job),
+      trustJobTitle: true,
+      model,
+      type,
+      evidence: null,
+    });
+    if (!card) return json({ drafted: false, reason: "Nothing to propose from that." });
+    if (!preview) preview = card.preview;
+    parts.push(card.part);
+    return json({ drafted: true, title: card.part.body, can_confirm: card.preview?.canConfirm ?? false, blockers: card.preview?.blockers ?? [] });
+  }
+
+  async function run(name: PlanToolName, raw: string): Promise<string> {
+    const parsed = parseToolArgs(name, raw);
+    if (!parsed.ok) return json({ error: `Could not read that call. ${parsed.problem}` });
+    switch (name) {
+      case "find_jobs":
+        return json(await findJobs(ctx, parsed.args as PlanToolArgs<"find_jobs">));
+      case "get_job":
+        return json(await getJobDetail(ctx, (parsed.args as PlanToolArgs<"get_job">).job_id));
+      case "find_documents": {
+        const { doc_type, ...rest } = parsed.args as PlanToolArgs<"find_documents">;
+        return json(await findDocuments(ctx, { ...rest, type: doc_type }));
+      }
+      case "get_document":
+        return json(await getDocumentDetail(ctx, parsed.args as PlanToolArgs<"get_document">));
+      case "find_clients":
+        return json(await findClients(ctx, parsed.args as PlanToolArgs<"find_clients">));
+      case "search_lines":
+        return json(await searchLines(ctx, parsed.args as PlanToolArgs<"search_lines">));
+      case "business_snapshot":
+        return json(await businessSnapshot(ctx, parsed.args as PlanToolArgs<"business_snapshot">));
+      case "propose_work":
+        return proposeWork(parsed.args as PlanToolArgs<"propose_work">);
+      case "propose_invoice": {
+        const args = parsed.args as PlanToolArgs<"propose_invoice">;
+        if (args.job_id) return proposeTrackedInvoice(args.job_id);
+        return storeChangeCard({ kind: "invoice_from_quote", quote_id: args.quote_id! });
+      }
+      case "propose_document_change": {
+        const change = await documentChange(parsed.args as PlanToolArgs<"propose_document_change">, priced);
+        return typeof change === "string" ? json({ error: change }) : storeChangeCard(change);
+      }
+      case "propose_job_change": {
+        const change = jobChange(parsed.args as PlanToolArgs<"propose_job_change">);
+        return typeof change === "string" ? json({ error: change }) : storeChangeCard(change);
+      }
+      case "propose_client": {
+        const args = parsed.args as PlanToolArgs<"propose_client">;
+        return storeChangeCard({ kind: "client", ...args });
+      }
+      case "propose_send": {
+        const args = parsed.args as PlanToolArgs<"propose_send">;
+        return storeChangeCard({ kind: "send", document_id: args.document_id, reminder: args.reminder ?? false });
+      }
+      case "propose_settings":
+        return storeChangeCard({ kind: "settings", ...(parsed.args as PlanToolArgs<"propose_settings">) });
+      case "propose_undo": {
+        const target = await lastConfirmedCapture(ctx);
+        if (!target) return json({ error: "Nothing was confirmed in the last day, so there is nothing to undo." });
+        return storeChangeCard({ kind: "undo", capture_id: target });
+      }
+      case "reply":
+        parts.push({ kind: "text", body: (parsed.args as PlanToolArgs<"reply">).text });
+        return json({ sent: true });
+      case "ask": {
+        const args = parsed.args as PlanToolArgs<"ask">;
+        const options = args.options.map((option) => ({ label: option.label, jobId: ownJob(option.job_id)?.id ?? null }));
+        parts.push({ kind: "ask", body: args.question, options });
+        return json({ asked: true });
+      }
+    }
+  }
 
   async function execute(call: PlanToolCall) {
-    if (call.name === "reply") {
-      const text = parseReplyArgs(call.arguments);
-      if (!text) return JSON.stringify({ error: "Reply text is missing." });
-      parts.push({ kind: "text", body: text });
-      return JSON.stringify({ sent: true });
+    const name = toolName(call.name);
+    const at = Date.now();
+    let result: string;
+    try {
+      result = name ? await run(name, call.arguments) : json({ error: "Unknown tool." });
+    } catch (error) {
+      if (error instanceof ToolError) result = json({ error: error.message });
+      else if (error instanceof NotFoundError) result = json({ error: `${error.message} Use a find tool to get its id.` });
+      else throw error;
     }
-    if (call.name === "lookup") {
-      const args = parseLookupArgs(call.arguments);
-      if (!args) return JSON.stringify({ error: "Could not read that lookup." });
-      return lookup(db, contractor, args, selected?.id ?? null, transcript, jobRows);
-    }
-    if (call.name === "propose") {
-      if (proposes >= MAX_PROPOSES) return JSON.stringify({ drafted: false, reason: "That's enough for this message." });
-      const args = parseProposeArgs(call.arguments);
-      if (!args) {
-        return JSON.stringify({ drafted: false, reason: `Could not read that proposal. ${proposeArgsProblem(call.arguments)}`.trim() });
-      }
-      proposes += 1;
-      const card = await storeProposal(db, contractor, {
-        transcript,
-        jobId: input.jobId,
-        selected,
-        extraction: {
-          intent: args.intent ?? "log",
-          client_name: args.client_name ?? null,
-          job_title: args.job_title ?? null,
-          site_address: args.site_address ?? null,
-          scope_notes: args.notes ?? null,
-          warnings: [],
-          lines: args.lines.map((line) => ({
-            kind: line.kind,
-            description: line.description,
-            quantity: line.quantity,
-            unit: line.unit,
-            unit_cost: line.unit_cost ?? null,
-            unit_price:
-              line.unit_cost != null && line.markup_amount != null
-                ? addMoney(line.unit_cost, line.markup_amount)
-                : (line.unit_price ?? null),
-          })),
-        },
-        trustJobTitle: Boolean(args.job_title),
-        model,
-        latencyMs: Date.now() - started,
-        jobs: jobRefs,
-        clients: clientRefs,
-        type,
-        evidence,
-      });
-      if (!card) return JSON.stringify({ drafted: false, reason: "Nothing to propose from that." });
-      if (!preview) preview = card.preview;
-      parts.push(card.part);
-      return JSON.stringify({ drafted: true, title: card.part.body, job: card.part.jobTitle });
-    }
-    return JSON.stringify({ error: "Unknown tool." });
+    trace.push({ tool: call.name, ok: !/"error"|"drafted":false/.test(result), ms: Date.now() - at });
+    return result;
   }
 
-  const jobList = jobRows.map((row) => (row.clientName ? `${row.title} (${row.clientName})` : row.title)).join("; ") || "(none)";
+  const settings = await contractorSettings(db, contractor.id);
+  const jobList =
+    jobRows
+      .slice(0, CONTEXT_JOBS)
+      .map((row) => `${row.title}${row.clientName ? ` (${row.clientName})` : ""} [id ${row.id}]`)
+      .join("; ") || "(none)";
   const contextNote = [
-    selected ? `Open job: ${selected.title}` : "Open job: none",
-    `Labour rate CAD/hr: ${contractor.labourRateHourly}`,
-    `Jobs: ${jobList}`,
+    `Today: ${localDate(Date.now())} (${PLAN_TIME_ZONE})`,
+    selected ? `Open job: ${selected.title} [id ${selected.id}]` : "Open job: none",
+    `Labour rate: $${contractor.labourRateHourly}/h. Material markup: ${settings?.defaultMarkupPct ?? 0} %. Tax: ${settings?.taxLabel ?? "HST"} ${roundMoney((settings?.taxRate ?? 0) * 100)} %.`,
+    `Recent jobs: ${jobList}`,
   ].join("\n");
 
+  let outcome: "card" | "reply" | "ask" | "failed" = "failed";
+  let loopFailed = false;
   try {
-    await runPlanLoop({ client, contextNote, userText: transcript, history: input.history, execute, onStatus: status });
-  } catch (caught) {
-    console.error({
-      event: "plan_loop_failed",
-      name: caught instanceof Error ? caught.name : "Error",
-      kind: loopFailureKind(caught),
-    });
+    try {
+      await runPlanLoop({
+        client,
+        contextNote,
+        userText: transcript,
+        history: input.history,
+        execute,
+        onStatus: status,
+        hasOutput: () => parts.length > 0,
+      });
+    } catch (caught) {
+      console.error({
+        event: "plan_loop_failed",
+        name: caught instanceof Error ? caught.name : "Error",
+        kind: loopFailureKind(caught),
+      });
+      loopFailed = true;
+      if (parts.length > 0) parts.push({ kind: "text", body: "I couldn't finish the rest of that." });
+    }
+
     if (parts.length === 0) {
       const drafted = await draftExtractions(parseCompoundWork(transcript) ?? []);
-      if (drafted) return drafted;
-      return failed(db, contractor.id, input.jobId, transcript, type);
+      if (drafted) {
+        outcome = "card";
+        return drafted;
+      }
+      // "Add it yourself" only makes sense when the message asked to add, quote or invoice something.
+      if (messageAsksForWork(transcript)) return await failed(db, contractor.id, input.jobId, transcript, type);
+      if (loopFailed) {
+        // The assistant could not be reached. Say so, rather than blaming how the message was worded.
+        return resultFrom([{ kind: "text", body: ASSISTANT_DOWN }], transcript, "failed");
+      }
+      parts.push({ kind: "text", body: COULD_NOT_WORK_OUT });
     }
-    parts.push({ kind: "text", body: "I couldn't finish the rest of that." });
-  }
 
-  if (parts.length === 0) {
-    const drafted = await draftExtractions(parseCompoundWork(transcript) ?? []);
-    if (drafted) return drafted;
-    return failed(db, contractor.id, input.jobId, transcript, type);
+    outcome = parts.some((part) => part.kind === "card") ? "card" : parts.some((part) => part.kind === "ask") ? "ask" : "reply";
+    // An answer or a question still used the model; record it so it counts toward the hourly limit.
+    if (outcome !== "card") await remember(db, contractor.id, input.jobId, transcript, "discarded", type, model);
+    return { ...resultFrom(parts, transcript, "needs_review"), preview };
+  } finally {
+    console.info({
+      event: "plan_turn_finished",
+      contractorId: contractor.id,
+      model,
+      outcome,
+      cards: parts.filter((part) => part.kind === "card").length,
+      tools: trace,
+      ms: Date.now() - started,
+    });
   }
-  const built = resultFrom(parts, transcript, "needs_review");
-  return { ...built, preview };
 }
 
 async function remember(
@@ -353,12 +562,15 @@ async function remember(
   transcript: string,
   captureStatus: "discarded" | "failed",
   type: CaptureType,
+  /** Set when the model answered, so the row counts toward the hourly limit. */
+  model: string | null = null,
 ) {
   await db.insert(captures).values({
     id: newId(),
     contractorId,
     jobId: jobId ?? null,
     type,
+    model,
     status: captureStatus,
     transcript,
     error: captureStatus === "failed" ? EXTRACTION_FAILED_MESSAGE : null,
@@ -461,93 +673,104 @@ async function storeProposal(
   };
 }
 
-async function lookup(
-  db: Database,
-  contractor: ContractorSlice,
-  args: { what: "jobs" | "paperwork" | "unbilled"; job?: string | null },
-  selectedJobId: string | null,
-  transcript: string,
-  jobRows: { id: string; title: string; clientName: string | null }[],
-) {
-  const contractorId = contractor.id;
-  if (args.what === "jobs") {
-    return JSON.stringify({
-      jobs: jobRows.map((row) => ({ title: row.title, client: row.clientName })),
-    });
-  }
-  const matchedId = pickLookupJob(jobRows, args.job, selectedJobId, transcript);
-  const job = jobRows.find((row) => row.id === matchedId) ?? null;
-  if (args.what === "unbilled" && !job && (!args.job || asksForAllJobs(args.job) || /^all$/i.test(args.job.trim()))) {
-    const rows = await db
-      .select({
-        id: lineItems.id,
-        jobId: lineItems.jobId,
-        kind: lineItems.kind,
-        description: lineItems.description,
-        quantity: lineItems.quantity,
-        unit: lineItems.unit,
-        unitPrice: lineItems.unitPrice,
-      })
-      .from(lineItems)
-      .where(
-        and(
-          eq(lineItems.contractorId, contractorId),
-          isNull(lineItems.documentId),
-          isNull(lineItems.billedDocumentId),
-        ),
-      );
-    const byJob = new Map<string, typeof rows>();
-    for (const row of rows) {
-      const bucket = byJob.get(row.jobId);
-      if (bucket) bucket.push(row);
-      else byJob.set(row.jobId, [row]);
+
+function trackedInvoiceProposal(job: PlanJobRef): DescribeExtraction {
+  return {
+    intent: "invoice",
+    client_name: null,
+    job_title: job.title,
+    site_address: null,
+    scope_notes: null,
+    lines: [],
+    warnings: [],
+    action: "invoice_tracked",
+    job_id: job.id,
+    client_id: job.clientId,
+  };
+}
+
+async function contractorSettings(db: Database, contractorId: string) {
+  const [row] = await db
+    .select({ defaultMarkupPct: contractors.defaultMarkupPct, taxLabel: contractors.taxLabel, taxRate: contractors.taxRate })
+    .from(contractors)
+    .where(eq(contractors.id, contractorId))
+    .limit(1);
+  return row ?? null;
+}
+
+type Priced = (line: { unit_price?: number; price_source?: string; quantity: number }) => Promise<{ unit_price: number | null; source_note: string | null }>;
+
+/** A propose_document_change call as a change card, or the reason it can't be one. */
+async function documentChange(args: PlanToolArgs<"propose_document_change">, priced: Priced): Promise<PlanChange | string> {
+  const document_id = args.document_id;
+  const status = { mark_sent: "sent", mark_approved: "approved", mark_declined: "declined", mark_paid: "paid" } as const;
+  switch (args.action) {
+    case "mark_sent":
+    case "mark_approved":
+    case "mark_declined":
+    case "mark_paid":
+      return { kind: "document_status", document_id, to: status[args.action] };
+    case "add_lines": {
+      if (!args.lines.length) return "add_lines needs lines.";
+      const add: ChangeLine[] = [];
+      for (const line of args.lines) {
+        const price = await priced(line);
+        add.push({
+          kind: line.kind,
+          description: line.description,
+          quantity: line.quantity,
+          unit: line.unit,
+          unit_price:
+            !line.price_source && line.unit_cost != null && line.markup_amount != null
+              ? addMoney(line.unit_cost, line.markup_amount)
+              : price.unit_price,
+          source_note: price.source_note,
+        });
+      }
+      return { kind: "document_lines", document_id, add, update: [], remove: [] };
     }
-    const perJob = jobRows
-      .map((row) => {
-        const summary = unbilledSummary(byJob.get(row.id) ?? [], contractor.labourRateHourly);
-        return { job: row.title, client: row.clientName, ...summary };
-      })
-      .filter((entry) => entry.lines.length > 0);
-    const total = roundMoney(perJob.reduce((sum, entry) => sum + entry.total, 0));
-    return JSON.stringify({ scope: "all", total, jobs: perJob });
+    case "change_lines": {
+      if (!args.changes.length) return "change_lines needs changes, one per line id.";
+      const update: LineEdit[] = [];
+      for (const edit of args.changes) {
+        const price =
+          edit.price_source || edit.unit_price !== undefined
+            ? await priced({ unit_price: edit.unit_price, price_source: edit.price_source, quantity: edit.quantity ?? 1 })
+            : null;
+        update.push({
+          line_id: edit.line_id,
+          description: edit.description,
+          quantity: edit.quantity,
+          unit: edit.unit,
+          unit_price: price?.unit_price ?? undefined,
+          source_note: price?.source_note ?? null,
+        });
+      }
+      return { kind: "document_lines", document_id, add: [], update, remove: [] };
+    }
+    case "remove_lines":
+      if (!args.line_ids.length) return "remove_lines needs line_ids from get_document.";
+      return { kind: "document_lines", document_id, add: [], update: [], remove: args.line_ids };
+    case "set_details":
+      return { kind: "document_details", document_id, due_date: args.due_date, valid_until: args.valid_until, notes: args.notes };
+    case "add_unbilled":
+      return { kind: "add_unbilled_to_invoice", invoice_id: document_id };
+    case "delete_draft":
+      return { kind: "delete_draft", document_id };
   }
-  if (!job) {
-    return JSON.stringify({
-      job: null,
-      message: formatJobPaperwork({ jobTitle: null, jobNames: jobRows.map((row) => row.title), documents: [] }),
-    });
+}
+
+/** A propose_job_change call as a change card, or the reason it can't be one. */
+function jobChange(args: PlanToolArgs<"propose_job_change">): PlanChange | string {
+  switch (args.action) {
+    case "set_status":
+      return args.status ? { kind: "job_status", job_id: args.job_id, to: args.status } : "set_status needs status.";
+    case "edit_details":
+      return { kind: "job_details", job_id: args.job_id, title: args.title, site_address: args.site_address, notes: args.notes };
+    case "move_lines":
+      if (!args.to_job_id || !args.line_ids.length) return "move_lines needs to_job_id and line_ids from get_job.";
+      return { kind: "move_lines", job_id: args.job_id, to_job_id: args.to_job_id, line_ids: args.line_ids };
   }
-  if (args.what === "paperwork") {
-    const docs = await db
-      .select({ type: documents.type, number: documents.number, status: documents.status })
-      .from(documents)
-      .where(and(eq(documents.contractorId, contractorId), eq(documents.jobId, job.id)))
-      .orderBy(desc(documents.updatedAt));
-    return JSON.stringify({
-      job: job.title,
-      message: formatJobPaperwork({ jobTitle: job.title, jobNames: [], documents: docs }),
-    });
-  }
-  const rows = await db
-    .select({
-      id: lineItems.id,
-      kind: lineItems.kind,
-      description: lineItems.description,
-      quantity: lineItems.quantity,
-      unit: lineItems.unit,
-      unitPrice: lineItems.unitPrice,
-    })
-    .from(lineItems)
-    .where(
-      and(
-        eq(lineItems.contractorId, contractorId),
-        eq(lineItems.jobId, job.id),
-        isNull(lineItems.documentId),
-        isNull(lineItems.billedDocumentId),
-      ),
-    );
-  const summary = unbilledSummary(rows, contractor.labourRateHourly);
-  return JSON.stringify({ job: job.title, ...summary });
 }
 
 /**

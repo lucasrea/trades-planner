@@ -2,6 +2,7 @@ import type { DescribeExtraction } from "@/lib/ai/extraction-types";
 import { createFakeExtractionProvider, readFakeMode } from "@/lib/ai/fake";
 import type { PlanLoopClient, PlanToolCall } from "@/lib/ai/plan-loop";
 import { ProviderError } from "@/lib/ai/provider";
+import { classifyPlanMessage } from "@/lib/plan-message";
 
 const HOURS = /(\d+(?:\.\d+)?)\s+hours?\s+of\s+(?:labour|labor)/i;
 const AND_MATERIAL = /\b(?:and|plus)\s+(?:an?\s+|the\s+)?([a-z][a-z\s]{1,40}?)\s+at\s+\$?(\d+(?:\.\d+)?)/i;
@@ -69,15 +70,34 @@ export function fakeMixedProposes(text: string): PlanToolCall[] | null {
   ];
 }
 
+function readCount(content: string | null) {
+  try {
+    const value = JSON.parse(content ?? "") as { count?: unknown };
+    return typeof value.count === "number" ? value.count : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Scripted stand-in for the tool loop. One propose, or two when the sentence asks for both. */
 export function createFakePlanClient(): PlanLoopClient {
   const fake = createFakeExtractionProvider();
   return {
     async complete(messages) {
-      if (messages.some((message) => message.role === "tool")) return { content: null, toolCalls: [] };
+      const lastTool = [...messages].reverse().find((message) => message.role === "tool");
+      if (lastTool) {
+        // After a find, answer with the count the tool returned. After a card, stop.
+        const found = readCount(lastTool.content);
+        return { content: found == null ? null : `You have ${found} matching.`, toolCalls: [] };
+      }
       const mode = readFakeMode();
       if (mode === "error" || mode === "malformed") throw new ProviderError("Fake provider error.");
       const text = messageText([...messages].reverse().find((message) => message.role === "user")?.content ?? null);
+      if (classifyPlanMessage(text) === "question") {
+        const type = /\binvoice/i.test(text) ? "invoice" : /\bquote/i.test(text) ? "quote" : undefined;
+        const status = /\bopen\b/i.test(text) ? "open" : /\boverdue\b/i.test(text) ? "overdue" : /\bunpaid|owe/i.test(text) ? "unpaid" : undefined;
+        return { content: null, toolCalls: [{ id: "find-1", name: "find_documents", arguments: JSON.stringify({ doc_type: type, status }) }] };
+      }
       const mixed = fakeMixedProposes(text);
       if (mixed) return { content: null, toolCalls: mixed };
       const extraction = await fake.extractDescribe({

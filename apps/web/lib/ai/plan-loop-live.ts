@@ -28,9 +28,16 @@ export function createLivePlanClient(): PlanLoopClient & { model: string } {
   const model = readExtractionModel();
   return {
     model,
-    async complete(messages, signal) {
+    async complete(messages, signal, options) {
+      const tools = options?.tools ? PLAN_TOOLS.filter((entry) => options.tools!.includes(entry.function.name)) : PLAN_TOOLS;
       const response = await client.chat.completions.create(
-        { model, messages: toApi(messages), tools: PLAN_TOOLS, ...modelRequestOptions(model) },
+        {
+          model,
+          messages: toApi(messages),
+          tools,
+          ...(options?.tools ? { tool_choice: "required" as const } : {}),
+          ...modelRequestOptions(model),
+        },
         { signal },
       );
       const message = response.choices[0]?.message;

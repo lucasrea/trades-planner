@@ -3,11 +3,12 @@ import type { Database } from "@/lib/db";
 import { captures } from "@/lib/db/schema";
 import { RateLimitError } from "@/lib/services/context";
 
-const MAX_CAPTURES_PER_HOUR = 30;
+export const MAX_CAPTURES_PER_HOUR = 60;
 
 /**
- * Caps model work per contractor. A question or a greeting is answered from the books without the
- * model and leaves a discarded row with no extraction; those rows do not count.
+ * Caps model work per contractor. A question or a greeting answered from the books without the model
+ * leaves a discarded row with no extraction and no model; those rows do not count. An answer the model
+ * gave records its model, so it does.
  */
 export async function assertCaptureRateLimit(db: Database, contractorId: string) {
   const since = Date.now() - 60 * 60 * 1000;
@@ -18,7 +19,7 @@ export async function assertCaptureRateLimit(db: Database, contractorId: string)
       and(
         eq(captures.contractorId, contractorId),
         gte(captures.createdAt, since),
-        or(ne(captures.status, "discarded"), isNotNull(captures.extraction)),
+        or(ne(captures.status, "discarded"), isNotNull(captures.extraction), isNotNull(captures.model)),
       ),
     );
   if ((row?.value ?? 0) >= MAX_CAPTURES_PER_HOUR) {

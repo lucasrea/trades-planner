@@ -18,16 +18,17 @@ describe("plan tool schema", () => {
       Object.values(record).forEach(walk);
     };
     walk(PLAN_TOOLS);
-    expect(types.every((type) => type === "object" || type === "string" || type === "number" || type === "array" || type === "function")).toBe(true);
+    expect(
+      types.every((type) => type === "object" || type === "string" || type === "number" || type === "boolean" || type === "array" || type === "function"),
+    ).toBe(true);
   });
 });
 
 describe("statusForTool", () => {
   it("names the step from the tool the model chose", () => {
-    expect(statusForTool("lookup", JSON.stringify({ what: "unbilled", job: "kitchen" }))).toBe("Checking unbilled work on kitchen");
-    expect(statusForTool("lookup", JSON.stringify({ what: "paperwork", job: "kitchen" }))).toBe(
-      "Checking quotes and invoices on kitchen",
-    );
+    expect(statusForTool("find_documents", JSON.stringify({ status: "open" }))).toBe("Checking quotes and invoices");
+    expect(statusForTool("search_lines", JSON.stringify({ query: "water heater" }))).toBe("Checking past prices");
+    expect(statusForTool("propose_send", JSON.stringify({ document_id: "d1" }))).toBe("Getting the email ready");
     expect(
       statusForTool("propose", JSON.stringify({ intent: "log", lines: [{ kind: "labour", description: "Labour", quantity: 5, unit: "hr", unit_price: null }] })),
     ).toBe("Drafting the hours");
@@ -82,14 +83,14 @@ describe("runPlanLoop", () => {
     expect(statuses).toEqual(["Drafting the hours", "Drafting the materials"]);
   });
 
-  it("runs at most four tool calls from one step", async () => {
+  it("runs at most six tool calls from one step", async () => {
     const seen: string[] = [];
     const client: PlanLoopClient = {
       async complete(messages) {
         if (messages.some((message) => message.role === "tool")) return { content: null, toolCalls: [] };
         return {
           content: null,
-          toolCalls: [1, 2, 3, 4, 5].map((n) => ({ id: String(n), name: "lookup", arguments: JSON.stringify({ what: "jobs" }) })),
+          toolCalls: [1, 2, 3, 4, 5, 6, 7].map((n) => ({ id: String(n), name: "find_jobs", arguments: "{}" })),
         };
       },
     };
@@ -102,15 +103,15 @@ describe("runPlanLoop", () => {
         return "{}";
       },
     });
-    expect(seen).toEqual(["1", "2", "3", "4"]);
+    expect(seen).toEqual(["1", "2", "3", "4", "5", "6"]);
   });
 
-  it("stops after four model steps", async () => {
+  it("stops after six model steps", async () => {
     let calls = 0;
     const client: PlanLoopClient = {
       async complete() {
         calls += 1;
-        return { content: null, toolCalls: [{ id: String(calls), name: "lookup", arguments: JSON.stringify({ what: "jobs" }) }] };
+        return { content: null, toolCalls: [{ id: String(calls), name: "find_jobs", arguments: "{}" }] };
       },
     };
     await runPlanLoop({
@@ -119,7 +120,7 @@ describe("runPlanLoop", () => {
       userText: "keep going",
       execute: async () => "{}",
     });
-    expect(calls).toBe(4);
+    expect(calls).toBe(6);
   });
 
   it("includes prior conversation history before the current message", async () => {
@@ -230,7 +231,7 @@ describe("runPlanLoop resilience", () => {
       async complete() {
         calls += 1;
         await new Promise((resolve) => setTimeout(resolve, 120));
-        return { content: null, toolCalls: [{ id: String(calls), name: "lookup", arguments: JSON.stringify({ what: "jobs" }) }] };
+        return { content: null, toolCalls: [{ id: String(calls), name: "find_jobs", arguments: "{}" }] };
       },
     };
     await expect(

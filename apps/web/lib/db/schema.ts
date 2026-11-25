@@ -149,6 +149,8 @@ export const planMessages = pgTable("plan_messages", {
   role: text("role").notNull(),
   body: text("body").notNull(),
   captureId: text("capture_id"),
+  /** Choices offered with a Plan question: [{ label, jobId }]. */
+  options: jsonb("options"),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
 
