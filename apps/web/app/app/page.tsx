@@ -40,14 +40,19 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   return (
     <PlanSidebar plans={plans} currentId={open.id}>
-      <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:items-start">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <CaptureBar key={open.id ?? PLAN_NEW} jobs={jobs} fill plan={open} />
-          <div className="pt-3">
-            <ReceiptUpload jobs={jobs} planId={open.id ?? PLAN_NEW} />
-          </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-6">
+        <div className="order-2 flex min-h-0 min-w-0 flex-1 flex-col lg:order-1">
+          <CaptureBar
+            key={open.id ?? PLAN_NEW}
+            jobs={jobs}
+            fill
+            plan={open}
+            dock={<ReceiptUpload jobs={jobs} planId={open.id ?? PLAN_NEW} compact />}
+          />
         </div>
-        <HomeLists home={home} />
+        <div className="order-1 max-h-[min(38vh,14rem)] shrink-0 overflow-y-auto lg:order-2 lg:max-h-none lg:overflow-visible">
+          <HomeLists home={home} />
+        </div>
       </div>
     </PlanSidebar>
   );
