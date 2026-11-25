@@ -88,7 +88,7 @@ export const PLAN_TOOLS = [
   // ---- Propose (each makes one card; nothing changes until the contractor confirms) ----
   tool(
     "propose_work",
-    "A card for new work: a quote, an invoice, or hours and materials logged on a job, or a new job. Call once per action. Hours and materials are two calls. Two jobs are two calls. A quote or an invoice is one call and may include both.",
+    "A card for new work: a quote, an invoice, or hours and materials logged on a job, or a new job. Call once per action. For log, hours and materials may be two calls. A quote or invoice is usually one call with multiple lines: one labour line for hours (short description such as Labour), plus one line per named task or part. Never invent unit_price.",
     {
       intent: oneOf(["quote", "invoice", "log"]),
       job_id: str("An existing job from find_jobs. Prefer this over job_title."),
