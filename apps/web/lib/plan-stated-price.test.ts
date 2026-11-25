@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { priceAppearsInTranscript, transcriptNamesPrice } from "@/lib/plan-stated-price";
+import { priceAppearsInTranscript, transcriptNamesLabourPrice, transcriptNamesPrice } from "@/lib/plan-stated-price";
 
 describe("transcriptNamesPrice", () => {
   it("matches dollar sign, dollars, and at-plus-number", () => {
@@ -8,6 +8,10 @@ describe("transcriptNamesPrice", () => {
     expect(transcriptNamesPrice("Log 1 hour at 80")).toBe(true);
     expect(transcriptNamesPrice("Log 1 hour at 80 dollars")).toBe(true);
     expect(transcriptNamesPrice("granite countertops costing 2000$")).toBe(true);
+    expect(transcriptNamesLabourPrice("Log 1 hour at 80 dollars")).toBe(true);
+    expect(transcriptNamesLabourPrice("Labour at $80")).toBe(true);
+    expect(transcriptNamesLabourPrice("add 5 hours of labour and a valve at 45")).toBe(false);
+    expect(transcriptNamesLabourPrice("granite countertops costing 2000$")).toBe(false);
   });
 
   it("does not treat hours or bare quantities as prices", () => {
