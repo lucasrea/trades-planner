@@ -2,14 +2,10 @@
 
 import { useState } from "react";
 import { Camera, Check, Mic, Receipt } from "lucide-react";
-import { statusClass, statusLabel } from "@/lib/status";
+import { StatusBadge } from "@/components/status-badge";
 
 function Badge({ status }: { status: string }) {
-  return (
-    <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${statusClass(status)}`}>
-      {statusLabel(status)}
-    </span>
-  );
+  return <StatusBadge status={status} />;
 }
 
 function DemoChrome({

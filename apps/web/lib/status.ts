@@ -6,24 +6,48 @@ export function isActiveJobStatus(status: string) {
   return status === "quoted" || status === "active";
 }
 
-export function statusClass(status: string) {
+type StatusTone = "good" | "wait" | "stop" | "draft";
+
+function statusTone(status: string): StatusTone {
   switch (status) {
     case "approved":
     case "paid":
     case "active":
     case "done":
     case "completed":
-      return "bg-lime-100 text-lime-900 ring-1 ring-lime-200";
+      return "good";
     case "sent":
     case "quoted":
-      return "bg-sky-100 text-sky-900 ring-1 ring-sky-200";
+      return "wait";
     case "declined":
     case "overdue":
     case "archived":
-      return "bg-orange-100 text-orange-900 ring-1 ring-orange-200";
+      return "stop";
     default:
-      return "bg-elevated text-muted ring-1 ring-line";
+      return "draft";
   }
+}
+
+const chip: Record<StatusTone, string> = {
+  good: "bg-[#86efac]/12 text-[#86efac] ring-1 ring-[#86efac]/30",
+  wait: "bg-[#5167fc]/15 text-[#c5ceff] ring-1 ring-[#5167fc]/35",
+  stop: "bg-[#fca5a5]/12 text-[#fca5a5] ring-1 ring-[#fca5a5]/30",
+  draft: "bg-elevated text-muted ring-1 ring-line",
+};
+
+const dot: Record<StatusTone, string> = {
+  good: "bg-[#86efac]",
+  wait: "bg-[#5167fc]",
+  stop: "bg-[#fca5a5]",
+  draft: "bg-muted",
+};
+
+export function statusClass(status: string) {
+  return chip[statusTone(status)];
+}
+
+export function statusDotClass(status: string) {
+  return dot[statusTone(status)];
 }
 
 export function statusLabel(status: string) {

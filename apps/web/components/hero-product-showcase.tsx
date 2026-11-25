@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { FileText, HardHat, Home, Mic, Receipt } from "lucide-react";
-import { statusClass, statusLabel } from "@/lib/status";
+import { StatusBadge } from "@/components/status-badge";
 
 type Slide = {
   id: string;
@@ -42,11 +42,7 @@ const slides: Slide[] = [
 const ROTATE_MS = 5500;
 
 function MockBadge({ status }: { status: string }) {
-  return (
-    <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${statusClass(status)}`}>
-      {statusLabel(status)}
-    </span>
-  );
+  return <StatusBadge status={status} />;
 }
 
 function HomeSlide() {
