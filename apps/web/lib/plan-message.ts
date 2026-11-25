@@ -47,6 +47,13 @@ export function asksToInvoiceTrackedWork(text: string | null | undefined) {
   return ASKS_TO_INVOICE.test(value) && TRACKED_WORK.test(value) && !/\d/.test(value);
 }
 
+const NEW_JOB = /\b(?:new|another|second|different)\s+(?:job|client|customer)\b|\bstart(?:ing)?\s+(?:a\s+)?(?:new\s+)?job\b/i;
+
+/** "Starting a new job for Joe", "new client", "another job": the work is not for a job they already have. */
+export function messageAsksForNewJob(text: string | null | undefined) {
+  return NEW_JOB.test(text ?? "");
+}
+
 /** The message asks to add, log, quote or invoice something, as opposed to asking about the books. */
 export function messageAsksForWork(text: string) {
   return /\d/.test(text) || ACTION.test(text) || ASKS_TO_INVOICE.test(text) || ASKS_TO_QUOTE.test(text);

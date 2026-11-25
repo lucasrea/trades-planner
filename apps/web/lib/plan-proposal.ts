@@ -8,7 +8,7 @@
 import type { DescribeExtraction, DescribeLine, PlanAction } from "@/lib/ai/extraction-types";
 import { roundMoney } from "@/lib/money";
 import { describeToDraft, fuzzyMatchClient, fuzzyMatchJob, matchJobInText } from "@/lib/line-items";
-import { messageAsksToInvoice, messageAsksToQuote } from "@/lib/plan-message";
+import { messageAsksForNewJob, messageAsksToInvoice, messageAsksToQuote } from "@/lib/plan-message";
 import { priceAppearsInTranscript, priceComesFromCostAndMarkup, transcriptNamesLabourPrice, UNSAID_PRICE } from "@/lib/plan-stated-price";
 
 export type PlanJobRef = { id: string; title: string; clientId: string };
@@ -152,11 +152,20 @@ export function buildProposal(input: {
   const { extraction } = input;
   const jobTitle = clean(extraction.job_title);
   const clientName = clean(extraction.client_name);
-  const fromText = input.transcript && extraction.lines.length > 0 ? matchJobInText(input.transcript, input.jobs) : null;
-  const fromTitle = jobTitle && extraction.lines.length > 0 ? fuzzyMatchJob(jobTitle, input.jobs)?.id : undefined;
-  const namedId = input.trustJobTitle ? (fromTitle ?? fromText) : (fromText ?? fromTitle);
-  const namedJob = input.jobs.find((job) => job.id === namedId) ?? null;
-  const matchedJob = input.selectedJob ?? namedJob;
+  // "Starting a new job for Joe" means a new job, even when the work mentions a room an old job is named after.
+  const newJob = messageAsksForNewJob(input.transcript);
+  const fromText = !newJob && input.transcript && extraction.lines.length > 0 ? matchJobInText(input.transcript, input.jobs) : null;
+  const fromTitle = !newJob && jobTitle && extraction.lines.length > 0 ? fuzzyMatchJob(jobTitle, input.jobs)?.id : undefined;
+  // A title the model gave that matches none of the contractor's jobs is a new job; a stray word in the
+  // message ("to the kitchen") does not get to pick an old one instead.
+  const namedId = input.trustJobTitle ? fromTitle : (fromText ?? fromTitle);
+  let namedJob = input.jobs.find((job) => job.id === namedId) ?? null;
+  if (namedJob && namedId === fromText && clientName) {
+    // Matched only by a word in the message, and the job belongs to someone else than the client named.
+    const owner = input.clients.find((client) => client.id === namedJob!.clientId);
+    if (owner && !fuzzyMatchClient(clientName, [owner])) namedJob = null;
+  }
+  const matchedJob = newJob ? null : (input.selectedJob ?? namedJob);
 
   const action = chooseAction({
     intent: extraction.intent,
