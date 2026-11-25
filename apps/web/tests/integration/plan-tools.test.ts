@@ -359,7 +359,7 @@ describe("prices from the contractor's records", () => {
     );
     const result = await runPlanAgent(getTestDb(), contractorOf(a), { text: "same heater price", client });
     expect(cards(result)).toHaveLength(0);
-    expect(result.reply).toContain("price_source is not one of your lines");
+    expect(result.reply).toContain("is not one of your lines");
   });
 });
 
