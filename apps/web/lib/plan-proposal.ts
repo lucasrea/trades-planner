@@ -6,7 +6,8 @@
  * onto the inputs of the existing confirm services. It does no document arithmetic.
  */
 import type { DescribeExtraction, DescribeLine, PlanAction } from "@/lib/ai/extraction-types";
-import { describeToDraft, fuzzyMatchClient, fuzzyMatchJob } from "@/lib/line-items";
+import { describeToDraft, fuzzyMatchClient, fuzzyMatchJob, matchJobInText } from "@/lib/line-items";
+import { messageAsksToInvoice, messageAsksToQuote } from "@/lib/plan-message";
 import { transcriptNamesPrice } from "@/lib/plan-stated-price";
 
 export type PlanJobRef = { id: string; title: string; clientId: string };
@@ -99,8 +100,18 @@ export function chooseAction(input: {
   job: "selected" | "matched" | null;
   /** A job title or client name appears in the message. */
   namesWork: boolean;
+  /** When false, the words did not ask to invoice, so a model "invoice" is ignored. */
+  asksToInvoice?: boolean;
+  asksToQuote?: boolean;
 }): PlanAction | null {
-  if (input.intent === "invoice") return "make_invoice";
+  if (input.intent === "invoice") {
+    if (input.asksToInvoice === false && input.asksToQuote) return "make_quote";
+    if (input.asksToInvoice === false) {
+      if (input.lines.length === 0) return input.namesWork && !input.job ? "create_job" : null;
+      return trackedAction(input.lines);
+    }
+    return "make_invoice";
+  }
   if (input.lines.length === 0) return input.namesWork && !input.job ? "create_job" : null;
   if (input.job === "selected") {
     if (input.intent === "quote") return "make_quote";
@@ -124,19 +135,23 @@ export function buildProposal(input: {
   selectedJob: PlanJobRef | null;
   jobs: PlanJobRef[];
   clients: PlanClientRef[];
+  transcript?: string | null;
 }): DescribeExtraction {
   const { extraction } = input;
   const jobTitle = clean(extraction.job_title);
   const clientName = clean(extraction.client_name);
-  const namedJobId = jobTitle && extraction.lines.length > 0 ? fuzzyMatchJob(jobTitle, input.jobs)?.id : undefined;
-  const namedJob = input.jobs.find((job) => job.id === namedJobId) ?? null;
+  const fromText = input.transcript && extraction.lines.length > 0 ? matchJobInText(input.transcript, input.jobs) : null;
+  const fromTitle = jobTitle && extraction.lines.length > 0 ? fuzzyMatchJob(jobTitle, input.jobs)?.id : undefined;
+  const namedJob = input.jobs.find((job) => job.id === (fromText ?? fromTitle)) ?? null;
   const matchedJob = input.selectedJob ?? namedJob;
 
   const action = chooseAction({
     intent: extraction.intent,
     lines: extraction.lines,
     job: input.selectedJob ? "selected" : namedJob ? "matched" : null,
-    namesWork: Boolean(jobTitle || clientName),
+    namesWork: Boolean(jobTitle || clientName || fromText),
+    asksToInvoice: input.transcript == null ? undefined : messageAsksToInvoice(input.transcript),
+    asksToQuote: input.transcript == null ? undefined : messageAsksToQuote(input.transcript),
   });
 
   const warnings = [...extraction.warnings];
@@ -157,6 +172,7 @@ export function buildProposal(input: {
 
   return {
     ...extraction,
+    job_title: job ? job.title : extraction.job_title,
     lines,
     warnings,
     action,

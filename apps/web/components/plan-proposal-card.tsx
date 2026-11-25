@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { cancelPlanProposalAction, confirmPlanProposalAction } from "@/lib/actions/captures";
-import { cad } from "@/lib/money";
-import type { PlanPreview } from "@/lib/plan-proposal";
+import { useRouter } from "next/navigation";
+import { cancelPlanProposalAction, confirmPlanProposalAction, updateProposalLinesAction } from "@/lib/actions/captures";
+import type { PlanPreview, PlanPreviewLine } from "@/lib/plan-proposal";
 
 export function PlanProposalCard({
   captureId,
@@ -17,9 +17,28 @@ export function PlanProposalCard({
   preview: PlanPreview;
   onCancelled: () => void;
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState<"confirm" | "cancel" | null>(null);
+  const [lines, setLines] = useState<PlanPreviewLine[]>(preview.lines);
+
+  function saveLines(next: PlanPreviewLine[]) {
+    setLines(next);
+    startTransition(async () => {
+      const result = await updateProposalLinesAction(
+        captureId,
+        next.map((line) => ({
+          description: line.description,
+          quantity: line.quantity,
+          unit: line.unit,
+          unitPrice: line.unitPrice,
+        })),
+      );
+      if (result && "error" in result) setError(result.error ?? "Couldn't save that edit.");
+      else router.refresh();
+    });
+  }
 
   function confirm() {
     setError(null);
@@ -68,16 +87,53 @@ export function PlanProposalCard({
         </dl>
       ) : null}
 
-      {preview.lines.length > 0 ? (
+      {lines.length > 0 ? (
         <ul className="divide-y divide-line rounded-lg border border-line">
-          {preview.lines.map((line, index) => (
-            <li key={index} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 py-2">
-              <span>{line.description}</span>
-              <span className="tabular-nums text-muted">
-                {line.quantity} {line.unit} ×{" "}
-                {line.unitPrice == null ? <span className="text-accent">no price</span> : cad(line.unitPrice)}
-                {line.note && line.note !== "No price" ? <span className="ml-2 text-accent">{line.note}</span> : null}
-              </span>
+          {lines.map((line, index) => (
+            <li key={index} className="grid gap-2 px-3 py-2 sm:grid-cols-[1fr_5rem_4rem_6rem]">
+              <input
+                className="input"
+                aria-label="Description"
+                value={line.description}
+                onChange={(event) => setLines((rows) => rows.map((row, i) => (i === index ? { ...row, description: event.target.value } : row)))}
+                onBlur={() => saveLines(lines)}
+              />
+              <input
+                className="input"
+                aria-label="Quantity"
+                type="number"
+                min="0"
+                step="any"
+                value={line.quantity}
+                onChange={(event) =>
+                  setLines((rows) => rows.map((row, i) => (i === index ? { ...row, quantity: Number(event.target.value) } : row)))
+                }
+                onBlur={() => saveLines(lines)}
+              />
+              <input
+                className="input"
+                aria-label="Unit"
+                value={line.unit}
+                onChange={(event) => setLines((rows) => rows.map((row, i) => (i === index ? { ...row, unit: event.target.value } : row)))}
+                onBlur={() => saveLines(lines)}
+              />
+              <input
+                className="input"
+                aria-label="Price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={line.unitPrice ?? ""}
+                onChange={(event) =>
+                  setLines((rows) =>
+                    rows.map((row, i) =>
+                      i === index ? { ...row, unitPrice: event.target.value === "" ? null : Number(event.target.value) } : row,
+                    ),
+                  )
+                }
+                onBlur={() => saveLines(lines)}
+              />
+              {line.note ? <p className="text-xs text-accent sm:col-span-4">{line.note}</p> : null}
             </li>
           ))}
         </ul>

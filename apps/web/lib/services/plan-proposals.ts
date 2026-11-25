@@ -97,3 +97,39 @@ export async function confirmPlanProposal(ctx: ServiceContext, captureId: string
 export async function cancelPlanProposal(ctx: ServiceContext, captureId: string) {
   await discardCapture(ctx, captureId);
 }
+
+/** Edit the lines on a waiting proposal without leaving the plan. */
+export async function updatePlanProposalLines(
+  ctx: ServiceContext,
+  captureId: string,
+  lines: { description: string; quantity: number; unit: string; unitPrice: number | null }[],
+) {
+  const [capture] = await ctx.db
+    .select()
+    .from(captures)
+    .where(and(eq(captures.id, captureId), eq(captures.contractorId, ctx.contractorId)))
+    .limit(1);
+  if (!capture) throw new NotFoundError("Capture not found.");
+  if (capture.status !== "needs_review") throw new ConflictError("This message was already confirmed or cancelled.");
+  const proposal = parseDescribeExtraction(capture.extraction);
+  if (!proposal?.lines.length) throw new ValidationError("There are no lines to edit.");
+  if (lines.length !== proposal.lines.length) throw new ValidationError("Line count does not match.");
+  const nextLines = proposal.lines.map((line, index) => {
+    const edit = lines[index]!;
+    const description = edit.description.trim();
+    if (!description) throw new ValidationError("Every line needs a description.");
+    if (!(edit.quantity > 0)) throw new ValidationError("Every line needs a quantity.");
+    return {
+      ...line,
+      description,
+      quantity: edit.quantity,
+      unit: edit.unit.trim() || line.unit,
+      unit_price: edit.unitPrice,
+      accepted: true,
+    };
+  });
+  await ctx.db
+    .update(captures)
+    .set({ extraction: { ...proposal, lines: nextLines } })
+    .where(and(eq(captures.id, captureId), eq(captures.contractorId, ctx.contractorId)));
+}
