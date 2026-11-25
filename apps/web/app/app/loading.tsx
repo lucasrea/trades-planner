@@ -1,9 +1,11 @@
 export default function AppLoading() {
   return (
     <div className="animate-pulse space-y-6" aria-busy="true" aria-label="Loading">
-      <div className="h-8 w-48 rounded bg-line" />
-      <div className="h-4 w-72 max-w-full rounded bg-line/70" />
-      <div className="card h-40 rounded-xl bg-line/40" />
+      <div className="space-y-2">
+        <div className="h-7 w-40 rounded-lg bg-elevated" />
+        <div className="h-4 w-64 max-w-full rounded-lg bg-card" />
+      </div>
+      <div className="card h-56 rounded-2xl bg-card" />
     </div>
   );
 }

@@ -105,7 +105,7 @@ export function OnboardingForm({ email }: { email: string }) {
           <input className="input" name="markupPct" type="number" step="0.01" defaultValue={20} />
         </Field>
         <p className="text-sm text-muted">
-          Markup is saved for later (price catalog / AI quotes). Line items you type today use the sell price you enter.
+          Used to suggest sell prices from material costs on receipts and plans. You can adjust any line before saving.
         </p>
       </div>
 
@@ -173,7 +173,7 @@ export function OnboardingForm({ email }: { email: string }) {
           Back
         </button>
         {step < steps.length - 1 ? (
-          <button type="button" className="btn btn-navy" onClick={goNext}>
+          <button type="button" className="btn btn-primary" onClick={goNext}>
             Next
           </button>
         ) : (

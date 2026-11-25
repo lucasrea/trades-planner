@@ -18,7 +18,7 @@ const marqueeItems = [
   { icon: Landmark, label: "e-Transfer on the page" },
   { icon: Drill, label: "Tracked materials" },
   { icon: Truck, label: "Receipt split across jobs" },
-  { icon: Shovel, label: "Describe-it (soon)" },
+  { icon: Shovel, label: "Voice & text capture" },
 ];
 
 /** Static blueprint grid for cream (paper) marketing sections. */

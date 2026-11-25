@@ -103,7 +103,7 @@ export function ExpandableListTable({
   return (
     <TableCard>
       <table className="w-full text-sm" style={{ minWidth }}>
-        <thead className="bg-paper text-left text-muted">
+        <thead className="bg-navy-2 text-left text-xs uppercase tracking-wider text-muted">
           <tr>
             {columns.map((column) => (
               <th
@@ -147,22 +147,22 @@ function RowGroup({
 }) {
   return (
     <>
-      <tr className="border-t border-line hover:bg-paper/70">
+      <tr className="border-t border-line transition-colors hover:bg-elevated/45">
         <td className="px-4 py-3">
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              className="rounded p-0.5 text-muted hover:bg-paper hover:text-ink"
+              className="rounded p-1 text-muted transition-colors hover:bg-elevated hover:text-ink"
               aria-expanded={expanded}
               aria-label={expanded ? `Hide details for ${row.label}` : `Show details for ${row.label}`}
               onClick={onToggle}
             >
               <ChevronRight
-                size={16}
+                size={15}
                 className={`transition-transform ${expanded ? "rotate-90" : ""}`}
               />
             </button>
-            <Link href={row.href} className="font-medium hover:underline">
+            <Link href={row.href} className="font-medium text-ink hover:underline">
               {row.label}
             </Link>
           </div>
@@ -174,12 +174,12 @@ function RowGroup({
         ))}
       </tr>
       {expanded ? (
-        <tr className="border-t border-line bg-paper/40">
-          <td colSpan={colSpan} className="px-4 py-3">
+        <tr className="border-t border-line bg-navy-2/70">
+          <td colSpan={colSpan} className="px-6 py-4">
             <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
               {row.details.map((detail) => (
                 <div key={detail.label}>
-                  <dt className="text-xs font-medium uppercase tracking-wide text-muted">{detail.label}</dt>
+                  <dt className="text-[11px] font-medium uppercase tracking-wider text-muted">{detail.label}</dt>
                   <dd className="mt-1 text-ink">{renderDetail(detail)}</dd>
                 </div>
               ))}

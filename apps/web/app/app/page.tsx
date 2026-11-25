@@ -54,7 +54,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             dock={<ReceiptUpload jobs={jobs} planId={open.id ?? PLAN_NEW} initialJobId={open.jobId} compact />}
           />
         </div>
-        <div className="order-1 max-h-[min(38vh,14rem)] shrink-0 overflow-y-auto lg:order-2 lg:max-h-none lg:overflow-visible">
+        <div className="order-1 shrink-0 lg:order-2">
           <HomeLists home={home} />
         </div>
       </div>

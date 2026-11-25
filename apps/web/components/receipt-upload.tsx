@@ -140,7 +140,7 @@ export function ReceiptUpload({
         </div>
       ) : (
         <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null} onClick={() => inputRef.current?.click()}>
-          <Camera className="mr-1 inline h-4 w-4" aria-hidden />
+          <Camera className="h-4 w-4" aria-hidden />
           {busy === "preparing" ? "Preparing photo…" : "Add a receipt photo"}
         </button>
       )}

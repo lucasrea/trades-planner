@@ -83,27 +83,27 @@ export function UserMenu({ user }: { user: AuthUser }) {
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-xl border border-line bg-card py-1 shadow-lg"
+          className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-xl border border-line bg-card py-1 shadow-2xl"
         >
-          <div className="border-b border-line px-3 py-2">
+          <div className="border-b border-line px-3 py-2.5">
             <p className="truncate text-sm font-medium">{label}</p>
             {user.email ? <p className="truncate text-xs text-muted">{user.email}</p> : null}
           </div>
           <Link
             href="/app/settings"
             role="menuitem"
-            className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-paper"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-ink transition-colors hover:bg-elevated"
             onClick={() => setOpen(false)}
           >
-            <Settings size={15} />
+            <Settings size={15} className="text-muted" />
             Settings
           </Link>
           <form action={logoutAction}>
             <button
               role="menuitem"
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-paper"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink transition-colors hover:bg-elevated hover:text-danger"
             >
-              <LogOut size={15} />
+              <LogOut size={15} className="text-muted" />
               Log out
             </button>
           </form>

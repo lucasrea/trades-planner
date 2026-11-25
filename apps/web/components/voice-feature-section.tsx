@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Check, Mic, Sparkles } from "lucide-react";
+import { StatusBadge } from "@/components/status-badge";
 
 const WAVEFORM = [14, 28, 42, 22, 48, 18, 36, 12, 40, 26, 44, 20];
 
@@ -146,8 +147,8 @@ export function VoiceFeatureSection() {
       <div className="relative mx-auto max-w-6xl px-6 py-20 lg:py-28">
         <div className="mx-auto max-w-2xl text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-elevated px-3 py-1 text-xs font-semibold uppercase tracking-wide text-ink">
-            <Sparkles className="h-3.5 w-3.5 text-ivory" strokeWidth={2} />
-            Coming soon
+            <Sparkles className="h-3.5 w-3.5 text-accent" strokeWidth={2} />
+            Built in
           </span>
           <p className="mt-5 text-sm font-medium uppercase tracking-wide text-ivory">Voice-to-quote</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-tight">
@@ -196,7 +197,7 @@ export function VoiceFeatureSection() {
                 <p className="text-xs font-medium uppercase tracking-wide text-muted">Step 1 · Record</p>
                 <p className="mt-1 font-semibold">{scenario.job}</p>
               </div>
-              <span className="shrink-0 rounded-full bg-elevated px-2.5 py-1 text-xs font-semibold text-ink">
+              <span className="shrink-0 rounded-full border border-line bg-elevated px-2.5 py-1 text-xs font-semibold tabular-nums text-ink">
                 {scenario.duration}
               </span>
             </div>
@@ -222,7 +223,7 @@ export function VoiceFeatureSection() {
                       className={`rounded px-0.5 transition ${
                         highlighted
                           ? "bg-accent/15 font-medium text-accent underline decoration-accent/40 underline-offset-2"
-                          : "hover:bg-navy/5 hover:text-ink"
+                          : "hover:bg-elevated hover:text-ink"
                       }`}
                     >
                       {part.text}
@@ -259,9 +260,14 @@ export function VoiceFeatureSection() {
                 <p className="text-xs font-medium uppercase tracking-wide text-muted">Step 2 · Review draft</p>
                 <p className="mt-1 font-semibold">Quote {scenario.quoteNumber}</p>
               </div>
-              <span className="shrink-0 rounded-full bg-elevated px-2.5 py-1 text-xs font-medium text-ink">
-                {parsing ? "Parsing…" : "Draft"}
-              </span>
+              {parsing ? (
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#5167fc]/20 px-2 py-0.5 text-xs font-medium text-[#93a3ff]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#5167fc]" aria-hidden />
+                  Parsing…
+                </span>
+              ) : (
+                <StatusBadge status="draft" />
+              )}
             </div>
             <ul className="mt-5 space-y-2.5 text-sm">
               {scenario.lines.map((line) => {
@@ -333,7 +339,7 @@ export function VoiceFeatureSection() {
             Get started
           </Link>
           <p className="text-sm text-muted">
-            Clients, jobs, quotes & invoices are live — voice and describe-by-text on the roadmap.
+            Record on site or type in Plan — you review and confirm every line before anything saves.
           </p>
         </div>
       </div>

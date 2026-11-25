@@ -20,9 +20,9 @@ export function AccountSection({ businessName }: { businessName: string }) {
         </a>
       </div>
 
-      <form action={formAction} className="space-y-3 border-t border-line pt-6">
+      <form action={formAction} className="space-y-3 border-t border-danger/20 pt-6">
         <div>
-          <h2 className="text-base font-semibold text-ink">Delete account</h2>
+          <h2 className="text-base font-semibold text-danger">Delete account</h2>
           <p className="mt-1 text-sm text-muted">
             This removes all your data and receipt photos for good. Type your business name
             {businessName ? <> (<span className="font-medium text-ink">{businessName}</span>)</> : null} to confirm.
@@ -42,7 +42,7 @@ export function AccountSection({ businessName }: { businessName: string }) {
             {state.error}
           </p>
         ) : null}
-        <button type="submit" className="btn btn-ghost" disabled={pending || !typed.trim()}>
+        <button type="submit" className="btn btn-danger" disabled={pending || !typed.trim()}>
           {pending ? "Deleting…" : "Delete my account"}
         </button>
       </form>
