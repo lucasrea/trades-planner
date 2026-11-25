@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/captures/text/route";
+import { parsePlanStreamLine } from "@/lib/http/plan-events";
 import * as auth from "@/lib/auth";
 import { captures } from "@/lib/db/schema";
 import { getTestDb } from "../helpers/db";
@@ -68,6 +69,25 @@ describe("POST /api/captures/text", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.status).toBe("failed");
+  });
+
+  it("streams a status and then the finished turn", async () => {
+    const tenant = await seedTenant("apistream");
+    vi.spyOn(auth, "getSession").mockResolvedValue({ userId: tenant.userId, contractorId: tenant.contractorId });
+    const res = await post({ text: "Add a valve at $45 to the kitchen" }, { accept: "application/x-ndjson" });
+    expect(res.status).toBe(200);
+    const events = (await res.text()).split("\n").map((line) => parsePlanStreamLine(line)).filter((event) => event !== null);
+    expect(events.some((event) => event.type === "status")).toBe(true);
+    expect(events.at(-1)?.type).toBe("done");
+  });
+
+  it("streams a 404 when the job belongs to someone else", async () => {
+    const { a, b } = await seedTwoContractors();
+    vi.spyOn(auth, "getSession").mockResolvedValue({ userId: a.userId, contractorId: a.contractorId });
+    const res = await post({ text: "hello", jobId: b.jobId }, { accept: "application/x-ndjson" });
+    expect(res.status).toBe(200);
+    const events = (await res.text()).split("\n").map((line) => parsePlanStreamLine(line)).filter((event) => event !== null);
+    expect(events).toContainEqual({ type: "error", status: 404, message: "Job not found." });
   });
 
   it("returns 404 for foreign jobId", async () => {

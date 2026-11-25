@@ -12,7 +12,7 @@ const NUMBER_TOKEN = /\$?\s*\d{1,3}(?:,\d{3})+(?:\.\d+)?|\$?\s*\d+(?:\.\d+)?/g;
 export const UNSAID_PRICE = "This price was not in what you said.";
 
 const LABOUR_PRICE =
-  /(?:\b(?:hours?|hrs?|labour|labor)\b(?:\s+\w+){0,2}\s+at\s+\$?\d)|(?:\bat\s+\$?\d+(?:\.\d+)?(?:\s+dollars?)?(?:\s+\w+){0,2}\s+(?:an?\s+)?(?:hours?|hrs?|labour|labor)\b)|(?:\$\s*\d+(?:\.\d+)?\s+(?:an?\s+)?(?:hours?|hrs?|labour|labor)\b)/i;
+  /(?:\b(?:hours?|hrs?|labour|labor)\b(?:\s+\w+){0,2}\s+at\s+\$?\d)|(?:\bat\s+\$?\d+(?:\.\d+)?(?:\s+dollars?)?(?:\s+\w+){0,2}\s+(?:an?\s+)?(?:hours?|hrs?|labour|labor)\b)|(?:\$\s*\d+(?:\.\d+)?\s*(?:\/|per)\s*(?:hours?|hrs?|hr)\b)|(?:\b(?:labour|labor)\s+rate\s+\$?\d+)|(?:\$\s*\d+(?:\.\d+)?\s+(?:an?\s+)?(?:hours?|hrs?|labour|labor)\b)/i;
 
 /** A price named for the labour itself. A material price in the same message does not count. */
 export function transcriptNamesLabourPrice(transcript: string | null | undefined): boolean {

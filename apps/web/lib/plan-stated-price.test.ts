@@ -11,6 +11,8 @@ describe("transcriptNamesPrice", () => {
     expect(transcriptNamesLabourPrice("Log 1 hour at 80 dollars")).toBe(true);
     expect(transcriptNamesLabourPrice("Labour at $80")).toBe(true);
     expect(transcriptNamesLabourPrice("add 5 hours of labour and a valve at 45")).toBe(false);
+    expect(transcriptNamesLabourPrice("5 hours at $95/hr")).toBe(true);
+    expect(transcriptNamesLabourPrice("labour rate 95")).toBe(true);
     expect(transcriptNamesLabourPrice("granite countertops costing 2000$")).toBe(false);
   });
 

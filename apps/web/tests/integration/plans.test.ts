@@ -70,6 +70,34 @@ describe("saved plans", () => {
     expect(await listPlans(ctx)).toHaveLength(1);
   });
 
+  it("hours and a material in one message become two cards", async () => {
+    const tenant = await seedTenant("plan-both");
+    const ctx = { db: getTestDb(), contractorId: tenant.contractorId };
+    const res = await send(tenant, { text: "add 5 hours of labour and a valve at 45", planId: "new" });
+    expect(res.status).toBe(200);
+    const { planId } = await res.json();
+    const replies = (await getPlanThread(ctx, planId)).messages.filter((message) => message.role === "plan");
+    expect(replies.map((message) => message.preview?.action).sort()).toEqual(["add_materials", "log_hours"]);
+    expect(new Set(replies.map((message) => message.captureId)).size).toBe(2);
+  });
+
+  it("stores one plan row per card", async () => {
+    const tenant = await seedTenant("plan-replies");
+    const ctx = { db: getTestDb(), contractorId: tenant.contractorId };
+    const planId = await recordPlanTurn(ctx, {
+      planId: "new",
+      userBody: "hours and a valve",
+      replyBody: "unused",
+      captureId: null,
+      replies: [
+        { body: "Log these hours", captureId: newId() },
+        { body: "Add these materials", captureId: newId() },
+      ],
+    });
+    const replies = (await getPlanThread(ctx, planId)).messages.filter((message) => message.role === "plan");
+    expect(replies.map((message) => message.body)).toEqual(["Log these hours", "Add these materials"]);
+  });
+
   it("a message with no plan id writes no plan", async () => {
     const tenant = await seedTenant("plan-none");
     const res = await send(tenant, { text: "Add a valve at $45 to the kitchen" });

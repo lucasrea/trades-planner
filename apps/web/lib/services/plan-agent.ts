@@ -7,8 +7,7 @@ import { parseLookupArgs, parseProposeArgs, parseReplyArgs } from "@/lib/ai/plan
 import type { Database } from "@/lib/db";
 import { captures, clients, documents, jobs, lineItems } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
-import { matchJobInText } from "@/lib/line-items";
-import { computeTotals, type DraftLine } from "@/lib/money";
+import { pickLookupJob, unbilledSummary } from "@/lib/plan-lookup";
 import { classifyPlanMessage, formatJobPaperwork, parseObviousAct } from "@/lib/plan-message";
 import { buildProposal, type PlanClientRef, type PlanJobRef, type PlanPreview } from "@/lib/plan-proposal";
 import { describeReplyBody } from "@/lib/plans";
@@ -64,7 +63,7 @@ function resultFrom(parts: PlanAgentPart[], transcript: string, status: "needs_r
 export async function runPlanAgent(
   db: Database,
   contractor: ContractorSlice,
-  input: { text: string; jobId?: string | null; onStatus?: (text: string) => void },
+  input: { text: string; jobId?: string | null; onStatus?: (text: string) => void; client?: PlanLoopClient },
 ): Promise<PlanAgentResult> {
   await assertCaptureRateLimit(db, contractor.id);
   const selected = input.jobId ? await requireJob(db, contractor.id, input.jobId) : null;
@@ -124,7 +123,8 @@ export async function runPlanAgent(
       : await failed(db, contractor.id, input.jobId, transcript);
   }
 
-  const { client, model } = planClient();
+  const chosen = input.client ? { client: input.client, model: "fake" } : planClient();
+  const { client, model } = chosen;
   const parts: PlanAgentPart[] = [];
   let preview: PlanPreview | null = null;
   let proposes = 0;
@@ -140,7 +140,7 @@ export async function runPlanAgent(
     if (call.name === "lookup") {
       const args = parseLookupArgs(call.arguments);
       if (!args) return JSON.stringify({ error: "Could not read that lookup." });
-      return lookup(db, contractor.id, args, selected?.id ?? null, transcript, jobRows);
+      return lookup(db, contractor, args, selected?.id ?? null, transcript, jobRows);
     }
     if (call.name === "propose") {
       if (proposes >= MAX_PROPOSES) return JSON.stringify({ drafted: false, reason: "That's enough for this message." });
@@ -286,19 +286,19 @@ async function storeProposal(
 
 async function lookup(
   db: Database,
-  contractorId: string,
+  contractor: ContractorSlice,
   args: { what: "jobs" | "paperwork" | "unbilled"; job?: string | null },
   selectedJobId: string | null,
   transcript: string,
   jobRows: { id: string; title: string; clientName: string | null }[],
 ) {
+  const contractorId = contractor.id;
   if (args.what === "jobs") {
     return JSON.stringify({
       jobs: jobRows.map((row) => ({ title: row.title, client: row.clientName })),
     });
   }
-  const named = args.job ? jobRows.find((row) => row.title.toLowerCase() === args.job!.toLowerCase()) : null;
-  const matchedId = named?.id ?? selectedJobId ?? matchJobInText(args.job || transcript, jobRows);
+  const matchedId = pickLookupJob(jobRows, args.job, selectedJobId, transcript);
   const job = jobRows.find((row) => row.id === matchedId) ?? null;
   if (!job) {
     return JSON.stringify({
@@ -335,24 +335,6 @@ async function lookup(
         isNull(lineItems.billedDocumentId),
       ),
     );
-  const drafts: DraftLine[] = rows.map((row) => ({
-    id: row.id,
-    kind: row.kind === "labour" || row.kind === "other" ? row.kind : "material",
-    description: row.description,
-    quantity: row.quantity,
-    unit: row.unit,
-    unitPrice: row.unitPrice ?? 0,
-  }));
-  const totals = computeTotals(drafts, 0);
-  return JSON.stringify({
-    job: job.title,
-    total: totals.subtotal,
-    lines: drafts.map((line) => ({
-      kind: line.kind,
-      description: line.description,
-      quantity: line.quantity,
-      unit: line.unit,
-      unitPrice: line.unitPrice,
-    })),
-  });
+  const summary = unbilledSummary(rows, contractor.labourRateHourly);
+  return JSON.stringify({ job: job.title, ...summary });
 }

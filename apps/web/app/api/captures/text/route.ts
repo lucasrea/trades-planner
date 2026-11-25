@@ -108,7 +108,15 @@ export async function POST(request: Request) {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        const send = (event: Parameters<typeof encodePlanEvent>[0]) => controller.enqueue(encoder.encode(encodePlanEvent(event)));
+        let closed = false;
+        const send = (event: Parameters<typeof encodePlanEvent>[0]) => {
+          if (closed) return;
+          try {
+            controller.enqueue(encoder.encode(encodePlanEvent(event)));
+          } catch {
+            closed = true;
+          }
+        };
         try {
           const result = await runPlanAgent(auth.db, auth.contractor, {
             text: message.text,
@@ -125,7 +133,12 @@ export async function POST(request: Request) {
             send({ type: "error", status: 500, message: "Couldn't send that. Your text is still here." });
           }
         } finally {
-          controller.close();
+          closed = true;
+          try {
+            controller.close();
+          } catch {
+            /* The client already hung up. */
+          }
         }
       },
     });

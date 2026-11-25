@@ -64,6 +64,29 @@ describe("runPlanLoop", () => {
     expect(statuses).toEqual(["Drafting the hours", "Drafting the materials"]);
   });
 
+  it("runs at most four tool calls from one step", async () => {
+    const seen: string[] = [];
+    const client: PlanLoopClient = {
+      async complete(messages) {
+        if (messages.some((message) => message.role === "tool")) return { content: null, toolCalls: [] };
+        return {
+          content: null,
+          toolCalls: [1, 2, 3, 4, 5].map((n) => ({ id: String(n), name: "lookup", arguments: JSON.stringify({ what: "jobs" }) })),
+        };
+      },
+    };
+    await runPlanLoop({
+      client,
+      contextNote: "",
+      userText: "list them",
+      execute: async (call) => {
+        seen.push(call.id);
+        return "{}";
+      },
+    });
+    expect(seen).toEqual(["1", "2", "3", "4"]);
+  });
+
   it("stops after four model steps", async () => {
     let calls = 0;
     const client: PlanLoopClient = {

@@ -58,7 +58,8 @@ export async function runPlanLoop(input: {
       return;
     }
     messages.push({ role: "assistant", content: next.content, toolCalls: next.toolCalls });
-    for (const call of next.toolCalls) {
+    const calls = next.toolCalls.slice(0, 4);
+    for (const call of calls) {
       input.onStatus?.(statusForTool(call.name, call.arguments));
       let result: string;
       try {
@@ -67,6 +68,9 @@ export async function runPlanLoop(input: {
         result = JSON.stringify({ error: "That step failed." });
       }
       messages.push({ role: "tool", content: result, toolCallId: call.id });
+    }
+    for (const call of next.toolCalls.slice(4)) {
+      messages.push({ role: "tool", content: JSON.stringify({ error: "Skipped. Send the rest next." }), toolCallId: call.id });
     }
   }
 }
