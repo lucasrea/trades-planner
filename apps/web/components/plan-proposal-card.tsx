@@ -22,10 +22,13 @@ export function PlanProposalCard({
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState<"confirm" | "cancel" | null>(null);
   const [lines, setLines] = useState<PlanPreviewLine[]>(preview.lines);
+  const [saving, setSaving] = useState(false);
 
   function saveLines(next: PlanPreviewLine[]) {
     setLines(next);
+    setSaving(true);
     startTransition(async () => {
+      try {
       const result = await updateProposalLinesAction(
         captureId,
         next.map((line) => ({
@@ -37,6 +40,9 @@ export function PlanProposalCard({
       );
       if (result && "error" in result) setError(result.error ?? "Couldn't save that edit.");
       else router.refresh();
+      } finally {
+        setSaving(false);
+      }
     });
   }
 
@@ -154,13 +160,13 @@ export function PlanProposalCard({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-primary btn-sm" disabled={pending || !preview.canConfirm} onClick={confirm}>
+        <button type="button" className="btn btn-primary btn-sm" disabled={pending || saving || !preview.canConfirm} onClick={confirm}>
           {pending && working === "confirm" ? "Confirming…" : "Confirm"}
         </button>
         <Link href={reviewUrl} className="btn btn-ghost btn-sm" aria-disabled={pending}>
           Change
         </Link>
-        <button type="button" className="btn btn-ghost btn-sm" disabled={pending} onClick={cancel}>
+        <button type="button" className="btn btn-ghost btn-sm" disabled={pending || saving} onClick={cancel}>
           {pending && working === "cancel" ? "Cancelling…" : "Cancel"}
         </button>
       </div>

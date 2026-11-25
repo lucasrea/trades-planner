@@ -5,14 +5,15 @@ import { matchJobInText } from "@/lib/line-items";
 import { formatJobPaperwork, planChatReply } from "@/lib/plan-message";
 
 /** Answer a question from this contractor's jobs and documents. No model, no new rows. */
-export async function answerPlanQuestion(db: Database, contractorId: string, text: string) {
+export async function answerPlanQuestion(db: Database, contractorId: string, text: string, selectedJobId?: string | null) {
   const jobRows = await db
     .select({ id: jobs.id, title: jobs.title })
     .from(jobs)
     .where(eq(jobs.contractorId, contractorId))
     .orderBy(desc(jobs.updatedAt))
     .limit(50);
-  const jobId = matchJobInText(text, jobRows);
+  const selected = selectedJobId ? jobRows.find((row) => row.id === selectedJobId) : null;
+  const jobId = selected?.id ?? matchJobInText(text, jobRows);
   const job = jobRows.find((row) => row.id === jobId) ?? null;
   if (!job) {
     return { reply: formatJobPaperwork({ jobTitle: null, jobNames: jobRows.map((row) => row.title), documents: [] }), jobTitle: null };

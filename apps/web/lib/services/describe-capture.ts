@@ -39,23 +39,48 @@ export async function createDescribeCapture(
   await assertCaptureRateLimit(db, contractor.id);
   const selectedJob = input.jobId ? await requireJob(db, contractor.id, input.jobId) : null;
 
-  let transcriptFirst: string | null = null;
-  try {
-    transcriptFirst = (await input.resolveTranscript()).trim();
-  } catch {
-    transcriptFirst = null;
+  let transcriptRead = false;
+  let transcriptText = "";
+  let transcriptFailed = false;
+  async function readTranscript() {
+    if (!transcriptRead) {
+      transcriptRead = true;
+      try {
+        transcriptText = (await input.resolveTranscript()).trim();
+      } catch {
+        transcriptFailed = true;
+      }
+    }
+    if (transcriptFailed) throw new Error("transcript failed");
+    return transcriptText;
   }
-  if (transcriptFirst && classifyPlanMessage(transcriptFirst) !== "act") {
+
+  let spoken = "";
+  try {
+    spoken = await readTranscript();
+  } catch {
+    spoken = "";
+  }
+  if (spoken && classifyPlanMessage(spoken) !== "act") {
     const answered =
-      classifyPlanMessage(transcriptFirst) === "question"
-        ? await answerPlanQuestion(db, contractor.id, transcriptFirst)
+      classifyPlanMessage(spoken) === "question"
+        ? await answerPlanQuestion(db, contractor.id, spoken, selectedJob?.id)
         : chatPlanReply();
+    await db.insert(captures).values({
+      id: newId(),
+      contractorId: contractor.id,
+      jobId: input.jobId ?? null,
+      type: input.type,
+      status: "discarded",
+      transcript: spoken,
+      createdAt: Date.now(),
+    });
     return {
       captureId: "",
       status: "needs_review",
       reviewUrl: "/app",
       preview: null,
-      transcript: transcriptFirst,
+      transcript: spoken,
       reply: answered.reply,
       jobTitle: answered.jobTitle,
     };
@@ -83,7 +108,7 @@ export async function createDescribeCapture(
   let transcript: string | null = null;
 
   try {
-    transcript = transcriptFirst || (await input.resolveTranscript()).trim();
+    transcript = await readTranscript();
     if (!transcript) throw new Error("empty transcript");
     const [clientRows, jobRows] = await Promise.all([
       db

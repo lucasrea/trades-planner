@@ -76,6 +76,7 @@ export function CaptureBar({
   const [text, setText] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [answer, setAnswer] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(lockedJob?.id ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [unsentAudio, setUnsentAudio] = useState<RecordedAudio | null>(null);
@@ -167,6 +168,7 @@ export function CaptureBar({
         status?: string;
         reviewUrl?: string;
         planId?: string | null;
+        reply?: string | null;
         error?: { message?: string };
       } | null;
       if (response.status === 429) {
@@ -175,6 +177,11 @@ export function CaptureBar({
       }
       if (!response.ok || !body?.reviewUrl) {
         setError(body?.error?.message ?? "Couldn't send that. Your text is still here.");
+        return;
+      }
+      if (body.reply && !fill) {
+        setAnswer(body.reply);
+        setText("");
         return;
       }
       if (!fill) {
@@ -320,6 +327,7 @@ export function CaptureBar({
             </span>
           </div>
         ) : null}
+        {answer && !fill ? <p className="whitespace-pre-line text-sm leading-relaxed">{answer}</p> : null}
         {recorder.error || error ? (
           <p className="text-sm text-accent" role="alert">
             {error ?? recorder.error}

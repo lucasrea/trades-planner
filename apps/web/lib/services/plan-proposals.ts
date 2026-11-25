@@ -110,26 +110,35 @@ export async function updatePlanProposalLines(
     .where(and(eq(captures.id, captureId), eq(captures.contractorId, ctx.contractorId)))
     .limit(1);
   if (!capture) throw new NotFoundError("Capture not found.");
+  if (capture.type === "receipt") throw new ValidationError("Receipts are not edited from Plan.");
   if (capture.status !== "needs_review") throw new ConflictError("This message was already confirmed or cancelled.");
   const proposal = parseDescribeExtraction(capture.extraction);
-  if (!proposal?.lines.length) throw new ValidationError("There are no lines to edit.");
+  if (!proposal?.action || !proposal.lines.length) throw new ValidationError("There are no lines to edit.");
   if (lines.length !== proposal.lines.length) throw new ValidationError("Line count does not match.");
   const nextLines = proposal.lines.map((line, index) => {
     const edit = lines[index]!;
     const description = edit.description.trim();
-    if (!description) throw new ValidationError("Every line needs a description.");
-    if (!(edit.quantity > 0)) throw new ValidationError("Every line needs a quantity.");
+    if (!description || description.length > 200) throw new ValidationError("Every line needs a description.");
+    if (!Number.isFinite(edit.quantity) || !(edit.quantity > 0) || edit.quantity > 100000) {
+      throw new ValidationError("Every line needs a quantity.");
+    }
+    if (edit.unitPrice != null && (!Number.isFinite(edit.unitPrice) || edit.unitPrice < 0)) {
+      throw new ValidationError("Every line needs a price.");
+    }
     return {
       ...line,
       description,
       quantity: edit.quantity,
-      unit: edit.unit.trim() || line.unit,
+      unit: (edit.unit.trim() || line.unit).slice(0, 20),
       unit_price: edit.unitPrice,
+      uncertain: false,
       accepted: true,
     };
   });
-  await ctx.db
+  const [updated] = await ctx.db
     .update(captures)
     .set({ extraction: { ...proposal, lines: nextLines } })
-    .where(and(eq(captures.id, captureId), eq(captures.contractorId, ctx.contractorId)));
+    .where(and(eq(captures.id, captureId), eq(captures.contractorId, ctx.contractorId), eq(captures.status, "needs_review")))
+    .returning({ id: captures.id });
+  if (!updated) throw new ConflictError("This message was already confirmed or cancelled.");
 }

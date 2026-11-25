@@ -1,19 +1,21 @@
 /** Decide whether a Plan message should change the books, answer from them, or just talk. */
 
-const STARTS_WITH_ACTION = /^(add|log|create|make|record|quote|invoice|bill|charge)\b/i;
 const STARTS_WITH_QUESTION = /^(what|which|who|when|where|why|how|show|list|tell me|do i|are there|is there)\b/i;
-const ASKS_TO_INVOICE = /\b(invoice|bill|charge)\b/i;
-const ASKS_TO_QUOTE = /\bquotes?\b/i;
+const PAPERWORK = /\b(quotes?|invoices?|jobs?|drafts?|documents?|billed|unbilled)\b/i;
+const ACTION = /\b(add|log|create|make|record)\b/i;
+const GREETING = /^(hi|hey|hello|thanks|thank you|good morning|good afternoon)\b/i;
+const ASKS_TO_INVOICE = /\b(invoice|invoicing|billing|charge|charged)\b|\bbill(?!'s)\b/i;
+const ASKS_TO_QUOTE = /\b(quote for|quote the|make a quote|write a quote|new quote)\b/i;
 
 export type PlanMessageKind = "act" | "question" | "chat";
 
 export function classifyPlanMessage(text: string): PlanMessageKind {
   const trimmed = text.trim();
   if (!trimmed) return "chat";
-  if (STARTS_WITH_ACTION.test(trimmed)) return "act";
-  if (STARTS_WITH_QUESTION.test(trimmed) || /\?\s*$/.test(trimmed)) return "question";
-  if (/\b(add|log|quote|invoice|create|record|bill|charge)\b/i.test(trimmed)) return "act";
-  return "chat";
+  if (ACTION.test(trimmed)) return "act";
+  if (STARTS_WITH_QUESTION.test(trimmed) && PAPERWORK.test(trimmed)) return "question";
+  if (GREETING.test(trimmed)) return "chat";
+  return "act";
 }
 
 export function messageAsksToInvoice(text: string | null | undefined) {

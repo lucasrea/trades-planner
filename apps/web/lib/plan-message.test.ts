@@ -16,12 +16,19 @@ describe("classifyPlanMessage", () => {
   it("treats a greeting as chat", () => {
     expect(classifyPlanMessage("hey, how's it going")).toBe("chat");
   });
+
+  it("keeps ordinary work notes as actions", () => {
+    expect(classifyPlanMessage("3 hours at the Smith place")).toBe("act");
+    expect(classifyPlanMessage("valve at 45 for the kitchen")).toBe("act");
+    expect(classifyPlanMessage("Can you add a valve to the kitchen?")).toBe("act");
+  });
 });
 
 describe("message billing words", () => {
   it("only treats bill, charge, and invoice as a request to invoice", () => {
     expect(messageAsksToInvoice("add a valve to the kitchen")).toBe(false);
     expect(messageAsksToInvoice("invoice the kitchen")).toBe(true);
+    expect(messageAsksToInvoice("add a valve to Bill's kitchen")).toBe(false);
     expect(messageAsksToQuote("quote the kitchen")).toBe(true);
   });
 });

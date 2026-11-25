@@ -184,6 +184,7 @@ export function buildProposal(input: {
 function lineNote(line: DescribeLine, price: number | null, defaultRate: boolean): string | null {
   if (!(line.quantity > 0)) return "No quantity";
   if (price == null) return "No price";
+  if (line.accepted) return null;
   if (line.uncertain) return "Check this";
   if (defaultRate) return "Using your labour rate";
   return null;
