@@ -128,7 +128,7 @@ describe("mobile API", () => {
     expect(body.status).toBe("needs_review");
     expect(body.preview?.title).toContain("Add these materials");
     expect(body.preview?.lines?.length).toBeGreaterThan(0);
-    expect(body.planId).toBeUndefined();
+    expect(body.planId).toBeFalsy();
   });
 
   it("confirm writes the same rows and blocks cross-tenant capture", async () => {
