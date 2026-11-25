@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { getOpenAIClient, readExtractionModel } from "@/lib/ai/client";
+import { getOpenAIClient, modelRequestOptions, readExtractionModel } from "@/lib/ai/client";
 import type { PlanLoopClient, PlanLoopMessage } from "@/lib/ai/plan-loop";
 import { PLAN_TOOLS } from "@/lib/ai/plan-tools";
 
@@ -29,7 +29,10 @@ export function createLivePlanClient(): PlanLoopClient & { model: string } {
   return {
     model,
     async complete(messages, signal) {
-      const response = await client.chat.completions.create({ model, messages: toApi(messages), tools: PLAN_TOOLS }, { signal });
+      const response = await client.chat.completions.create(
+        { model, messages: toApi(messages), tools: PLAN_TOOLS, ...modelRequestOptions(model) },
+        { signal },
+      );
       const message = response.choices[0]?.message;
       const toolCalls = (message?.tool_calls ?? []).flatMap((call) => {
         if (call.type !== "function") return [];

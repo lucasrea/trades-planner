@@ -1,7 +1,7 @@
 import type OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
-import { getOpenAIClient, readExtractionModel, readExtractionModelFallback } from "@/lib/ai/client";
+import { getOpenAIClient, modelRequestOptions, readExtractionModel, readExtractionModelFallback } from "@/lib/ai/client";
 import { assertLiveProviderAllowed, createFakeExtractionProvider } from "@/lib/ai/fake";
 import type { ReceiptExtraction } from "@/lib/ai/extraction-types";
 import { RECEIPT_PROMPT_VERSION, receiptSystemPrompt } from "@/lib/ai/prompts";
@@ -54,6 +54,7 @@ async function callOpenAIReceipt(
         },
       ],
       response_format: zodResponseFormat(ReceiptLiveSchema, RESPONSE_NAME),
+      ...modelRequestOptions(input.model),
     },
     { signal: input.signal },
   );
