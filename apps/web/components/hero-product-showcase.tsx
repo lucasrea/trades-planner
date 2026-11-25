@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { FileText, HardHat, Home, Mic, Receipt } from "lucide-react";
-import { statusClass, statusLabel } from "@/lib/status";
+import { StatusBadge } from "@/components/status-badge";
 
 type Slide = {
   id: string;
@@ -41,14 +41,6 @@ const slides: Slide[] = [
 
 const ROTATE_MS = 5500;
 
-function MockBadge({ status }: { status: string }) {
-  return (
-    <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${statusClass(status)}`}>
-      {statusLabel(status)}
-    </span>
-  );
-}
-
 function HomeSlide() {
   const stats = [
     { label: "Clients", value: "12" },
@@ -80,7 +72,7 @@ function HomeSlide() {
                 <p className="truncate font-medium">{item.title}</p>
                 <p className="truncate text-xs text-muted">{item.meta}</p>
               </div>
-              <MockBadge status={item.status} />
+              <StatusBadge status={item.status} />
             </li>
           ))}
         </ul>
@@ -128,7 +120,7 @@ function JobsSlide() {
                   {item.client} · {item.site}
                 </p>
               </div>
-              <MockBadge status={item.status} />
+              <StatusBadge status={item.status} />
             </div>
             <p className="mt-2 text-xs text-muted">{item.next}</p>
           </li>
@@ -211,7 +203,7 @@ function InvoiceSlide() {
       </div>
       <div className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2.5 text-xs">
         <span className="text-muted">Interac e-Transfer · pay@reaplumbing.ca</span>
-        <MockBadge status="sent" />
+        <StatusBadge status="sent" />
       </div>
     </div>
   );
@@ -307,9 +299,9 @@ export function HeroProductShowcase() {
           </div>
           <div className="flex h-6 w-[4.5rem] shrink-0 items-center justify-end">
             {activeSlide.id === "quote" ? (
-              <span className="rounded-full bg-ivory/10 px-2 py-0.5 text-xs font-medium text-ivory">Draft</span>
+              <StatusBadge status="draft" />
             ) : null}
-            {activeSlide.id === "invoice" ? <MockBadge status="sent" /> : null}
+            {activeSlide.id === "invoice" ? <StatusBadge status="sent" /> : null}
           </div>
         </div>
         <div className="hero-showcase-body">
