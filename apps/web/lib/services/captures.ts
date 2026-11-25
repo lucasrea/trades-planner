@@ -318,6 +318,9 @@ export async function confirmCapture(ctx: ServiceContext, input: ConfirmCaptureI
 
     if (isReceipt) {
       const lines = await resolveReceiptLines(tx, ctx, parsed);
+      for (const line of lines) {
+        if (line.jobId) await requireJob(tx, ctx.contractorId, line.jobId);
+      }
       const extraction = parseReceiptExtraction(capture.extraction);
       if (extraction && extraction.lines.length === lines.length) {
         const blockers = receiptConfirmBlockers({
