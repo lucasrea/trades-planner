@@ -170,8 +170,36 @@ export function CaptureBar({
   const stickToBottom = useRef(true);
   // Two Enter presses can land before React re-renders with `pending`. This guard is synchronous.
   const sendingRef = useRef(false);
-  const busy = pending || reading || refreshing;
-  const threadKey = `${plan?.messages.length ?? 0}:${plan?.messages.at(-1)?.id ?? ""}:${sentText}:${statusText}`;
+  const persistedCount = plan?.messages.length ?? 0;
+  const lastSavedCount = useRef(persistedCount);
+  // Network work only. Refresh can keep the optimistic bubble/status without locking the composer.
+  const sending = pending || reading;
+  const busy = sending || refreshing;
+
+  useEffect(() => {
+    if (persistedCount !== lastSavedCount.current) {
+      lastSavedCount.current = persistedCount;
+      setSentText("");
+    }
+  }, [persistedCount]);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [text]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
+
+  const threadKey = `${persistedCount}:${plan?.messages.at(-1)?.id ?? ""}:${sentText}:${statusText}`;
   useEffect(() => {
     const el = threadRef.current;
     if (!el || !stickToBottom.current) return;
@@ -199,10 +227,12 @@ export function CaptureBar({
   function land(result: { planId?: string | null; reviewUrl?: string; reply?: string | null }) {
     if (!fill || (planTarget && !result.planId)) {
       if (result.reply) {
+        setSentText("");
         setAnswer(result.reply);
         return;
       }
       if (result.reviewUrl && result.reviewUrl !== "/app") {
+        setSentText("");
         router.push(result.reviewUrl);
         return;
       }
@@ -242,11 +272,13 @@ export function CaptureBar({
         error?: { message?: string };
       } | null;
       if (response.status === 429) {
+        setSentText("");
         setUnsentAudio(audio);
         setError(body?.error?.message ?? "You've hit the hourly limit.");
         return;
       }
       if (!response.ok || !body?.reviewUrl) {
+        setSentText("");
         setUnsentAudio(audio);
         setError(body?.error?.message ?? "Couldn't send that recording. You can try again.");
         return;
@@ -254,6 +286,7 @@ export function CaptureBar({
       setAnswer(null);
       land(body);
     } catch {
+      setSentText("");
       setUnsentAudio(audio);
       setError("Network error. Your recording is kept, so you can try again.");
     } finally {
@@ -264,17 +297,18 @@ export function CaptureBar({
 
   async function submit(next = text) {
     const trimmed = next.trim();
-    if (!trimmed || busy || recorder.recording || sendingRef.current) return;
+    if (!trimmed || sending || recorder.recording || sendingRef.current) return;
     sendingRef.current = true;
     stickToBottom.current = true;
-    setText(next);
+    setText("");
     setPending(true);
     setError(null);
+    setAnswer(null);
     setMenuOpen(false);
+    setSentText(trimmed);
+    setStatusText("Reading your message");
     try {
       const assignedId = selected?.id;
-      setSentText(trimmed);
-      setStatusText("Reading your message");
       const response = await fetch("/api/captures/text", {
         method: "POST",
         headers: { "content-type": "application/json", accept: "application/x-ndjson" },
@@ -286,21 +320,27 @@ export function CaptureBar({
       });
       const body = await readPlanBody(response, setStatusText);
       if (body.statusCode === 429) {
+        setSentText("");
+        setText((current) => current || trimmed);
         setError(body.message ?? "You've hit the hourly limit.");
         return;
       }
       if (body.statusCode === 404) {
+        setSentText("");
+        setText((current) => current || trimmed);
         setError(body.message ?? "Job not found.");
         return;
       }
       if (!body.ok || !body.reviewUrl) {
+        setSentText("");
+        setText((current) => current || trimmed);
         setError(body.message ?? "Couldn't send that. Your text is still here.");
         return;
       }
-      setAnswer(null);
       land(body);
-      setText("");
     } catch {
+      setSentText("");
+      setText((current) => current || trimmed);
       setError("Network error. Your text is still here.");
     } finally {
       sendingRef.current = false;
@@ -357,18 +397,17 @@ export function CaptureBar({
       ) : null}
       <textarea
         ref={textareaRef}
-        className="min-h-12 w-full resize-none bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-muted"
+        className="min-h-12 max-h-40 w-full resize-none overflow-y-auto bg-transparent px-3 py-2 text-sm text-ink outline-none placeholder:text-muted"
         value={text}
         maxLength={4000}
         rows={2}
         placeholder="Describe the work"
         aria-label="Message"
-        disabled={busy}
         onChange={(event) => setText(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
-            void submit();
+            if (!sending && !recorder.recording) void submit();
           }
         }}
       />
@@ -384,7 +423,7 @@ export function CaptureBar({
             className="btn btn-ghost btn-sm max-w-[16rem]"
             aria-expanded={menuOpen}
             aria-haspopup="listbox"
-            disabled={busy || recorder.recording}
+            disabled={sending || recorder.recording}
             onClick={() => setMenuOpen((open) => !open)}
           >
             {selected ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden /> : null}
@@ -403,7 +442,7 @@ export function CaptureBar({
               type="button"
               className={recorder.recording ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
               aria-label={recorder.recording ? "Stop recording" : "Record"}
-              disabled={busy}
+              disabled={sending}
               onClick={() => (recorder.recording ? recorder.stop() : void recorder.start())}
             >
               {recorder.recording ? <Square size={16} /> : <Mic size={16} />}
@@ -413,7 +452,7 @@ export function CaptureBar({
             type="button"
             className="btn btn-primary btn-sm"
             aria-label="Send"
-            disabled={busy || recorder.recording || !text.trim()}
+            disabled={sending || recorder.recording || !text.trim()}
             onClick={() => void submit()}
           >
             <Send size={16} />

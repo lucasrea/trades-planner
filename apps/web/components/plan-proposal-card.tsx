@@ -42,6 +42,7 @@ export function PlanProposalCard({
   const savePromiseRef = useRef<Promise<boolean> | null>(null);
 
   function updateLines(updater: (rows: PlanPreviewLine[]) => PlanPreviewLine[]) {
+    setError(null);
     setLines((rows) => {
       const next = updater(rows);
       linesRef.current = next;
@@ -271,7 +272,12 @@ export function PlanProposalCard({
         <button type="button" className="btn btn-primary btn-sm" disabled={pending || !preview.canConfirm} onClick={confirm}>
           {pending && working === "confirm" ? "Confirming…" : "Confirm"}
         </button>
-        <Link href={changeHref} className="btn btn-ghost btn-sm" aria-disabled={pending}>
+        <Link
+          href={changeHref}
+          className={`btn btn-ghost btn-sm ${pending ? "pointer-events-none opacity-45" : ""}`}
+          aria-disabled={pending}
+          tabIndex={pending ? -1 : undefined}
+        >
           {readOnly ? "Open job" : "Change"}
         </Link>
         <button type="button" className="btn btn-ghost btn-sm" disabled={pending} onClick={cancel}>

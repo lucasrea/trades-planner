@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { PanelLeft, Plus } from "lucide-react";
 import { groupPlansByJob } from "@/lib/plans";
@@ -90,6 +90,22 @@ export function PlanSidebar({
       // Private mode can block storage. The sidebar still toggles for this view.
     }
   }
+
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && window.matchMedia("(max-width: 1023px)").matches) {
+        setOverride(false);
+        try {
+          sessionStorage.setItem(STORAGE_KEY, "closed");
+        } catch {
+          // ignore storage errors
+        }
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
 
   function sidebar(closeOnPick: boolean) {
     const close = closeOnPick ? () => setSidebar(false) : undefined;

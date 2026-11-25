@@ -30,6 +30,7 @@ function SettingsSection({
   description,
   section,
   editingSection,
+  savedSection,
   onEdit,
   onCancel,
   children,
@@ -39,18 +40,27 @@ function SettingsSection({
   description?: string;
   section: SectionId;
   editingSection: SectionId | null;
+  savedSection: SectionId | null;
   onEdit: (section: SectionId) => void;
   onCancel: () => void;
   children: React.ReactNode;
   view: React.ReactNode;
 }) {
   const editing = editingSection === section;
+  const justSaved = savedSection === section && !editing;
 
   return (
     <section className="card p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-ink">{title}</h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-base font-semibold text-ink">{title}</h2>
+            {justSaved ? (
+              <span className="text-xs font-medium text-ok" role="status">
+                Saved.
+              </span>
+            ) : null}
+          </div>
           {description ? <p className="mt-1 text-sm text-muted">{description}</p> : null}
         </div>
         {!editing ? (
@@ -216,6 +226,12 @@ export function SettingsForm({ contractor }: { contractor: ContractorSettings })
   const [editingSection, setEditingSection] = useState<SectionId | null>(null);
   const [savedSection, setSavedSection] = useState<SectionId | null>(null);
 
+  useEffect(() => {
+    if (!savedSection) return;
+    const timer = setTimeout(() => setSavedSection(null), 4000);
+    return () => clearTimeout(timer);
+  }, [savedSection]);
+
   function closeEditor() {
     setEditingSection(null);
   }
@@ -237,6 +253,7 @@ export function SettingsForm({ contractor }: { contractor: ContractorSettings })
         description="Shown on quotes and invoices."
         section="business"
         editingSection={editingSection}
+        savedSection={savedSection}
         onEdit={startEdit}
         onCancel={closeEditor}
         view={
@@ -276,6 +293,7 @@ export function SettingsForm({ contractor }: { contractor: ContractorSettings })
         description="GST/HST details for PDFs."
         section="tax"
         editingSection={editingSection}
+        savedSection={savedSection}
         onEdit={startEdit}
         onCancel={closeEditor}
         view={
@@ -305,6 +323,7 @@ export function SettingsForm({ contractor }: { contractor: ContractorSettings })
         description="Defaults for new quotes."
         section="rates"
         editingSection={editingSection}
+        savedSection={savedSection}
         onEdit={startEdit}
         onCancel={closeEditor}
         view={
@@ -330,6 +349,7 @@ export function SettingsForm({ contractor }: { contractor: ContractorSettings })
         description="Printed on invoices."
         section="payment"
         editingSection={editingSection}
+        savedSection={savedSection}
         onEdit={startEdit}
         onCancel={closeEditor}
         view={
@@ -353,10 +373,6 @@ export function SettingsForm({ contractor }: { contractor: ContractorSettings })
           />
         ) : null}
       </SettingsSection>
-
-      {savedSection && !editingSection ? (
-        <p className="text-sm text-ok">Settings saved.</p>
-      ) : null}
     </div>
   );
 }

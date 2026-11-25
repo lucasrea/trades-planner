@@ -1,10 +1,24 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { deleteLineItemAction, saveLineItemAction } from "@/lib/actions/line-items";
 import { applyMarkup, cad, computeTotals, type DraftLine, type LineKind, lineTotal } from "@/lib/money";
+
+function DeleteLineButton({ label }: { label: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      className="rounded-lg p-2 text-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-40"
+      aria-label={label}
+      disabled={pending}
+    >
+      <Trash2 size={16} />
+    </button>
+  );
+}
 
 function emptyLine(kind: LineKind, unitPrice = 0, cost?: number): DraftLine {
   return {
@@ -47,6 +61,7 @@ function EditableLineRow({
 }) {
   const formId = `line-form-${line.id}`;
   const router = useRouter();
+  const [refreshing, startRefresh] = useTransition();
   const [state, action, pending] = useActionState(saveLineItemAction, null);
   const [kind, setKind] = useState<LineKind>(line.kind);
   const [description, setDescription] = useState(line.description);
@@ -54,13 +69,16 @@ function EditableLineRow({
   const [unit, setUnit] = useState(line.unit);
   const [unitPrice, setUnitPrice] = useState(line.unitPrice);
   const handledSave = useRef(false);
+  const saving = pending || refreshing;
 
   useEffect(() => {
     if (!state?.ok || handledSave.current) return;
     handledSave.current = true;
-    onRemoveDraft?.();
-    router.refresh();
-  }, [state, router, onRemoveDraft]);
+    startRefresh(() => {
+      onRemoveDraft?.();
+      router.refresh();
+    });
+  }, [state, router, onRemoveDraft, startRefresh]);
 
   const preview = lineTotal({ id: line.id, kind, description, quantity, unit, unitPrice });
   const isDirty =
@@ -152,20 +170,15 @@ function EditableLineRow({
               <input type="hidden" name="jobId" value={jobId} />
               {documentId ? <input type="hidden" name="documentId" value={documentId} /> : null}
             </form>
-            <button form={formId} className={isDirty ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"} disabled={pending}>
-              {pending ? "Saving…" : "Save"}
+            <button form={formId} className={isDirty ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"} disabled={saving}>
+              {saving ? "Saving…" : "Save"}
             </button>
             {existing ? (
               <form action={deleteLineItemAction}>
                 <input type="hidden" name="id" value={line.id} />
                 <input type="hidden" name="jobId" value={jobId} />
                 {documentId ? <input type="hidden" name="documentId" value={documentId} /> : null}
-                <button
-                  className="rounded-lg p-2 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
-                  aria-label={`Remove line ${index + 1}`}
-                >
-                  <Trash2 size={16} />
-                </button>
+                <DeleteLineButton label={`Remove line ${index + 1}`} />
               </form>
             ) : (
               <button
