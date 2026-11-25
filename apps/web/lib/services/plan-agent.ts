@@ -1,14 +1,14 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { createFakePlanClient } from "@/lib/ai/fake-plan-client";
 import { createLivePlanClient } from "@/lib/ai/plan-loop-live";
-import { runPlanLoop, type PlanLoopClient, type PlanToolCall } from "@/lib/ai/plan-loop";
+import { runPlanLoop, type PlanHistoryMessage, type PlanLoopClient, type PlanToolCall } from "@/lib/ai/plan-loop";
 import { PLAN_LOOP_VERSION } from "@/lib/ai/prompts";
 import { parseLookupArgs, parseProposeArgs, parseReplyArgs } from "@/lib/ai/plan-tools";
 import type { Database } from "@/lib/db";
 import { captures, clients, documents, jobs, lineItems } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
-import { pickLookupJob, unbilledSummary } from "@/lib/plan-lookup";
-import { addMoney } from "@/lib/money";
+import { asksForAllJobs, pickLookupJob, unbilledSummary } from "@/lib/plan-lookup";
+import { addMoney, roundMoney } from "@/lib/money";
 import { classifyPlanMessage, formatJobPaperwork, parseCompoundWork, parseObviousAct } from "@/lib/plan-message";
 import { buildProposal, type PlanClientRef, type PlanJobRef, type PlanPreview } from "@/lib/plan-proposal";
 import { describeReplyBody } from "@/lib/plans";
@@ -73,7 +73,13 @@ function resultFrom(parts: PlanAgentPart[], transcript: string, status: "needs_r
 export async function runPlanAgent(
   db: Database,
   contractor: ContractorSlice,
-  input: { text: string; jobId?: string | null; onStatus?: (text: string) => void; client?: PlanLoopClient },
+  input: {
+    text: string;
+    jobId?: string | null;
+    history?: PlanHistoryMessage[];
+    onStatus?: (text: string) => void;
+    client?: PlanLoopClient;
+  },
 ): Promise<PlanAgentResult> {
   await assertCaptureRateLimit(db, contractor.id);
   const selected = input.jobId ? await requireJob(db, contractor.id, input.jobId) : null;
@@ -86,8 +92,8 @@ export async function runPlanAgent(
 
   const kind = classifyPlanMessage(transcript);
   if (kind === "question") {
-    status("Checking quotes and invoices");
-    const answered = await answerPlanQuestion(db, contractor.id, transcript, selected?.id);
+    status(/\bunbilled\b/i.test(transcript) ? "Checking unbilled work" : "Checking quotes and invoices");
+    const answered = await answerPlanQuestion(db, contractor.id, transcript, selected?.id, contractor.labourRateHourly);
     await remember(db, contractor.id, input.jobId, transcript, "discarded");
     return { ...resultFrom([{ kind: "text", body: answered.reply }], transcript, "needs_review"), jobTitle: answered.jobTitle };
   }
@@ -234,7 +240,7 @@ export async function runPlanAgent(
   ].join("\n");
 
   try {
-    await runPlanLoop({ client, contextNote, userText: transcript, execute, onStatus: status });
+    await runPlanLoop({ client, contextNote, userText: transcript, history: input.history, execute, onStatus: status });
   } catch (caught) {
     console.error({
       event: "plan_loop_failed",
@@ -364,6 +370,40 @@ async function lookup(
   }
   const matchedId = pickLookupJob(jobRows, args.job, selectedJobId, transcript);
   const job = jobRows.find((row) => row.id === matchedId) ?? null;
+  if (args.what === "unbilled" && !job && (!args.job || asksForAllJobs(args.job) || /^all$/i.test(args.job.trim()))) {
+    const rows = await db
+      .select({
+        id: lineItems.id,
+        jobId: lineItems.jobId,
+        kind: lineItems.kind,
+        description: lineItems.description,
+        quantity: lineItems.quantity,
+        unit: lineItems.unit,
+        unitPrice: lineItems.unitPrice,
+      })
+      .from(lineItems)
+      .where(
+        and(
+          eq(lineItems.contractorId, contractorId),
+          isNull(lineItems.documentId),
+          isNull(lineItems.billedDocumentId),
+        ),
+      );
+    const byJob = new Map<string, typeof rows>();
+    for (const row of rows) {
+      const bucket = byJob.get(row.jobId);
+      if (bucket) bucket.push(row);
+      else byJob.set(row.jobId, [row]);
+    }
+    const perJob = jobRows
+      .map((row) => {
+        const summary = unbilledSummary(byJob.get(row.id) ?? [], contractor.labourRateHourly);
+        return { job: row.title, client: row.clientName, ...summary };
+      })
+      .filter((entry) => entry.lines.length > 0);
+    const total = roundMoney(perJob.reduce((sum, entry) => sum + entry.total, 0));
+    return JSON.stringify({ scope: "all", total, jobs: perJob });
+  }
   if (!job) {
     return JSON.stringify({
       job: null,

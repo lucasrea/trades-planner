@@ -2,7 +2,7 @@ import { addMoney } from "@/lib/money";
 
 /** Decide whether a Plan message should change the books, answer from them, or just talk. */
 
-const STARTS_WITH_QUESTION = /^(what|which|who|when|where|why|how|show|list|tell me|do i|are there|is there)\b/i;
+const STARTS_WITH_QUESTION = /^(?:(?:for|on|across)\s+[^,?.]{1,40},\s*)?(what|which|who|when|where|why|how|show|list|tell me|do i|are there|is there)\b/i;
 const PAPERWORK = /\b(quotes?|invoices?|jobs?|drafts?|documents?|billed|unbilled)\b/i;
 const ACTION = /\b(add|log|create|make|record)\b/i;
 const GREETING = /^(hi|hey|hello|thanks|thank you|good morning|good afternoon)\b/i;

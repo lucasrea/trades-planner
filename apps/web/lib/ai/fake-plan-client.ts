@@ -77,7 +77,7 @@ export function createFakePlanClient(): PlanLoopClient {
       if (messages.some((message) => message.role === "tool")) return { content: null, toolCalls: [] };
       const mode = readFakeMode();
       if (mode === "error" || mode === "malformed") throw new ProviderError("Fake provider error.");
-      const text = messageText(messages.find((message) => message.role === "user")?.content ?? null);
+      const text = messageText([...messages].reverse().find((message) => message.role === "user")?.content ?? null);
       const mixed = fakeMixedProposes(text);
       if (mixed) return { content: null, toolCalls: mixed };
       const extraction = await fake.extractDescribe({

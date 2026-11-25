@@ -39,6 +39,28 @@ export async function assertPlanTarget(ctx: ServiceContext, planId: string | und
   if (planId && planId !== PLAN_NEW) await requirePlan(ctx, planId);
 }
 
+/** Recent text turns for an existing plan, oldest first, so follow-up messages keep context. */
+export async function listRecentPlanHistory(
+  ctx: ServiceContext,
+  planId: string | undefined,
+  limit = 10,
+): Promise<{ role: "user" | "assistant"; content: string }[]> {
+  if (!planId || planId === PLAN_NEW) return [];
+  const rows = await ctx.db
+    .select({ role: planMessages.role, body: planMessages.body })
+    .from(planMessages)
+    .where(and(eq(planMessages.planId, planId), eq(planMessages.contractorId, ctx.contractorId)))
+    .orderBy(desc(planMessages.createdAt))
+    .limit(limit);
+  return rows
+    .reverse()
+    .filter((row) => row.body.trim().length > 0)
+    .map((row) => ({
+      role: row.role === "plan" ? ("assistant" as const) : ("user" as const),
+      content: row.body,
+    }));
+}
+
 /** This contractor's plans, most recently used first. */
 export async function listPlans(ctx: ServiceContext): Promise<PlanSummary[]> {
   return ctx.db

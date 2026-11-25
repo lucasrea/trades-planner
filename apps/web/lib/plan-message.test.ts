@@ -5,6 +5,8 @@ describe("classifyPlanMessage", () => {
   it("treats a paperwork question as a question", () => {
     expect(classifyPlanMessage("what invoices and quotes are drafted for the kitchen job")).toBe("question");
     expect(classifyPlanMessage("How many quotes are on the kitchen?")).toBe("question");
+    expect(classifyPlanMessage("What unbilled work do I have?")).toBe("question");
+    expect(classifyPlanMessage("for all jobs, what unbilled work do i have")).toBe("question");
   });
 
   it("treats add, log, quote, and invoice as actions", () => {

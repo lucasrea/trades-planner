@@ -11,8 +11,13 @@ afterEach(() => {
 });
 
 describe("modelRequestOptions", () => {
-  it("turns reasoning off for gpt-5 and leaves older models alone", () => {
-    expect(modelRequestOptions("gpt-5-mini")).toEqual({ reasoning_effort: "none" });
+  it("uses minimal reasoning for gpt-5/mini/nano, none for gpt-5.1+, and omits for older/pro models", () => {
+    expect(modelRequestOptions("gpt-5-mini")).toEqual({ reasoning_effort: "minimal" });
+    expect(modelRequestOptions("gpt-5")).toEqual({ reasoning_effort: "minimal" });
+    expect(modelRequestOptions("gpt-5-nano")).toEqual({ reasoning_effort: "minimal" });
+    expect(modelRequestOptions("gpt-5.1")).toEqual({ reasoning_effort: "none" });
+    expect(modelRequestOptions("gpt-5.2")).toEqual({ reasoning_effort: "none" });
+    expect(modelRequestOptions("gpt-5-pro")).toEqual({});
     expect(modelRequestOptions("gpt-4o-mini")).toEqual({});
   });
 });

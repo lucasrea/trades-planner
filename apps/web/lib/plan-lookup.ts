@@ -1,7 +1,13 @@
 import { fuzzyMatchJob, matchJobInText } from "@/lib/line-items";
-import { computeTotals, type DraftLine } from "@/lib/money";
+import { cad, computeTotals, roundMoney, type DraftLine } from "@/lib/money";
 
 type JobRef = { id: string; title: string };
+
+const ALL_JOBS_PHRASE = /\b(all(?:\s+my|\s+the)?\s+jobs|every\s+job|everything|anything|across\s+all|in\s+total|overall)\b/i;
+
+export function asksForAllJobs(text: string | null | undefined) {
+  return ALL_JOBS_PHRASE.test(text ?? "");
+}
 
 /**
  * The job a lookup is about. A name from the model wins over the job that happens to be open,
@@ -15,6 +21,7 @@ export function pickLookupJob(
 ): string | null {
   const wanted = named?.trim();
   if (wanted) {
+    if (asksForAllJobs(wanted) || /^all$/i.test(wanted)) return null;
     return fuzzyMatchJob(wanted, jobs)?.id ?? matchJobInText(wanted, jobs);
   }
   return selectedJobId ?? matchJobInText(transcript, jobs);
@@ -49,4 +56,31 @@ export function unbilledSummary(rows: StoredLine[], labourRate: number) {
       unitPrice: line.unitPrice,
     })),
   };
+}
+
+export function formatJobUnbilled(jobTitle: string, summary: ReturnType<typeof unbilledSummary>): string {
+  if (summary.lines.length === 0) {
+    return `${jobTitle}\nNo unbilled work.`;
+  }
+  const items = summary.lines.map((line) => {
+    const lineTotal = roundMoney(line.quantity * line.unitPrice);
+    return `• ${line.description} (${line.quantity} ${line.unit}) — ${cad(lineTotal)}`;
+  });
+  return `${jobTitle} — ${cad(summary.total)} unbilled\n${items.join("\n")}`;
+}
+
+export function formatAllJobsUnbilled(
+  entries: { jobTitle: string; clientName?: string | null; lineCount: number; total: number }[],
+): string {
+  const active = entries.filter((entry) => entry.lineCount > 0);
+  if (active.length === 0) {
+    return "You don't have any unbilled work right now.";
+  }
+  const grandTotal = roundMoney(active.reduce((sum, entry) => sum + entry.total, 0));
+  const lines = active.map((entry) => {
+    const label = entry.clientName ? `${entry.jobTitle} (${entry.clientName})` : entry.jobTitle;
+    const count = `${entry.lineCount} ${entry.lineCount === 1 ? "item" : "items"}`;
+    return `• ${label}: ${cad(entry.total)} (${count})`;
+  });
+  return `Unbilled work — ${cad(grandTotal)} total\n${lines.join("\n")}`;
 }

@@ -8,7 +8,7 @@ import { jsonError } from "@/lib/http/json-error";
 import { textCaptureBodySchema } from "@/lib/services/capture-schemas";
 import { NotFoundError, RateLimitError } from "@/lib/services/context";
 import { encodePlanEvent } from "@/lib/http/plan-events";
-import { assertPlanTarget, recordPlanTurn } from "@/lib/services/plans";
+import { assertPlanTarget, listRecentPlanHistory, recordPlanTurn } from "@/lib/services/plans";
 import { runPlanAgent, type PlanAgentResult } from "@/lib/services/plan-agent";
 import { describeReplyBody } from "@/lib/plans";
 
@@ -63,6 +63,7 @@ export async function POST(request: Request) {
     throw error;
   }
 
+  const history = await listRecentPlanHistory(ctx, planId);
   const wantsStream = (request.headers.get("accept") ?? "").includes("application/x-ndjson");
 
   async function save(result: PlanAgentResult) {
@@ -121,6 +122,7 @@ export async function POST(request: Request) {
           const result = await runPlanAgent(auth.db, auth.contractor, {
             text: message.text,
             jobId: message.jobId,
+            history,
             onStatus: (text) => send({ type: "status", text }),
           });
           const saved = await save(result);
@@ -149,6 +151,7 @@ export async function POST(request: Request) {
     const result = await runPlanAgent(auth.db, auth.contractor, {
       text: message.text,
       jobId: message.jobId,
+      history,
     });
     return json(await save(result));
   } catch (error) {
