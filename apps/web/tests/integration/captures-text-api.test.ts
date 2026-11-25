@@ -58,7 +58,7 @@ describe("POST /api/captures/text", () => {
     expect(row?.contractorId).toBe(tenant.contractorId);
     expect(row?.status).toBe("needs_review");
     expect(row?.model).toBe("fake");
-    expect(row?.promptVersion).toBe("plan-loop-v2");
+    expect(row?.promptVersion).toBe("plan-loop-v3");
     expect(row?.latencyMs).not.toBeNull();
   });
 

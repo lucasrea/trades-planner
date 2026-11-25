@@ -189,6 +189,8 @@ export async function findDocuments(
     job_id?: string | null;
     client_id?: string | null;
     number?: string | null;
+    /** Words from the client's name, the job title or the number: "Patel water heater". */
+    query?: string | null;
     since?: string | null;
     until?: string | null;
   },
@@ -236,16 +238,28 @@ export async function findDocuments(
       };
     })
     .filter((doc) => !filter.overdueOnly || doc.overdue);
+  // "The vanity quote": a query may name something on the document, not just its client or job.
+  const lineWords = new Map<string, string>();
+  if (args.query && list.length) {
+    const lines = await ctx.db
+      .select({ documentId: lineItems.documentId, description: lineItems.description })
+      .from(lineItems)
+      .where(and(eq(lineItems.contractorId, ctx.contractorId), inArray(lineItems.documentId, list.map((doc) => doc.id))));
+    for (const line of lines) {
+      if (line.documentId) lineWords.set(line.documentId, `${lineWords.get(line.documentId) ?? ""} ${line.description}`);
+    }
+  }
+  const matched = list.filter((doc) => matchesQuery(args.query, [doc.number, doc.client, doc.job, lineWords.get(doc.id)]));
 
   const byStatus: Record<string, number> = {};
-  for (const doc of list) byStatus[doc.status] = (byStatus[doc.status] ?? 0) + 1;
-  const { rows: shown, more } = capped(list);
+  for (const doc of matched) byStatus[doc.status] = (byStatus[doc.status] ?? 0) + 1;
+  const { rows: shown, more } = capped(matched);
   return {
     today,
-    count: list.length,
+    count: matched.length,
     count_by_status: byStatus,
-    overdue_count: list.filter((doc) => doc.overdue).length,
-    total: sumMoney(list.map((doc) => doc.total)),
+    overdue_count: matched.filter((doc) => doc.overdue).length,
+    total: sumMoney(matched.map((doc) => doc.total)),
     documents: shown,
     more,
   };
@@ -510,4 +524,32 @@ export async function businessSnapshot(ctx: ServiceContext, args: { period?: "to
       quotes_waiting_over_7_days: staleQuotes.slice(0, 10).map(brief),
     },
   };
+}
+
+/**
+ * A past line of the contractor's for the same item at exactly this price. A price the model copied from
+ * their records without citing it is still theirs, so the card can say where it came from instead of
+ * calling it unsaid. Null when nothing matches.
+ */
+export async function recordedPriceNote(ctx: ServiceContext, description: string, unitPrice: number) {
+  const rows = await ctx.db
+    .select({ id: lineItems.id })
+    .from(lineItems)
+    .where(
+      and(
+        eq(lineItems.contractorId, ctx.contractorId),
+        gte(lineItems.unitPrice, unitPrice - 0.005),
+        lt(lineItems.unitPrice, unitPrice + 0.005),
+      ),
+    )
+    .orderBy(desc(lineItems.createdAt))
+    .limit(50);
+  if (!rows.length) return null;
+  const described = await ctx.db
+    .select({ id: lineItems.id, title: lineItems.description })
+    .from(lineItems)
+    .where(and(eq(lineItems.contractorId, ctx.contractorId), inArray(lineItems.id, rows.map((row) => row.id))));
+  const match = fuzzyMatchJob(description, described);
+  if (!match) return null;
+  return (await priceSourceLine(ctx, match.id))?.note ?? null;
 }

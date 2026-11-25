@@ -81,3 +81,23 @@ export function describeReplyBody(input: { status: "needs_review" | "failed"; pr
 export function receiptReplyBody(status: "needs_review" | "failed"): string {
   return status === "failed" ? "I couldn't read that receipt." : "Receipt read. Check the lines before they are saved.";
 }
+
+type CardLine = { kind?: string; description?: string; quantity?: number; unit?: string; unit_price?: number | null };
+
+/**
+ * What a card in the thread said, for the model's history. The thread stores only the card's title, and
+ * a follow-up ("the flange is $18") needs the job, client and lines to make the next card.
+ */
+export function cardSummary(
+  card: { action?: string | null; job_title?: string | null; job_id?: string | null; client_name?: string | null; lines?: CardLine[] },
+  outcome: PlanOutcome,
+): string {
+  const state = outcome === "waiting" ? "waiting for Confirm" : outcome;
+  if (card.action === "change" || !card.action) return `(card ${state})`;
+  const job = card.job_title ? `${card.job_id ? "existing job" : "new job"} "${card.job_title}"` : "no job";
+  const client = card.client_name ? `, client ${card.client_name}` : "";
+  const lines = (card.lines ?? [])
+    .map((line) => `${line.description ?? "?"} ${line.quantity ?? "?"} ${line.unit ?? ""} @ ${line.unit_price == null ? "no price" : `$${line.unit_price}`}`)
+    .join("; ");
+  return `(card ${state}: ${card.action}, ${job}${client}${lines ? `; lines: ${lines}` : ""})`;
+}

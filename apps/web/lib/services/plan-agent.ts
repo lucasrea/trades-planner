@@ -5,16 +5,18 @@ import { runPlanLoop, type PlanHistoryMessage, type PlanLoopClient, type PlanToo
 import { PLAN_LOOP_VERSION } from "@/lib/ai/prompts";
 import { parseToolArgs, toolName, type PlanToolArgs, type PlanToolName } from "@/lib/ai/plan-tools";
 import type { Database } from "@/lib/db";
-import { captures, clients, contractors, jobs, lineItems } from "@/lib/db/schema";
+import { captures, clients, contractors, documents, jobs, lineItems } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
-import { localDate, PLAN_TIME_ZONE } from "@/lib/plan-lookup";
-import { addMoney, roundMoney } from "@/lib/money";
+import { localDate, moneyForModel, PLAN_TIME_ZONE } from "@/lib/plan-lookup";
+import { priceAppearsInTranscript } from "@/lib/plan-stated-price";
+import { addMoney, applyMarkup, cad, roundMoney } from "@/lib/money";
 import { matchJobInText } from "@/lib/line-items";
 import {
   asksToInvoiceTrackedWork,
   classifyPlanMessage,
   messageAsksForWork,
   parseCompoundWork,
+  stripIds,
   parseObviousAct,
 } from "@/lib/plan-message";
 import type { DescribeExtraction } from "@/lib/ai/extraction-types";
@@ -34,6 +36,7 @@ import {
   getDocumentDetail,
   getJobDetail,
   priceSourceLine,
+  recordedPriceNote,
   searchLines,
 } from "@/lib/services/plan-reads";
 import { parsePlanChange, type ChangeLine, type LineEdit, type PlanChange } from "@/lib/plan-changes";
@@ -269,6 +272,7 @@ export async function runPlanAgent(
       : await failed(db, contractor.id, input.jobId, transcript, type);
   }
 
+  const settings = await contractorSettings(db, contractor.id);
   const chosen = input.client ? { client: input.client, model: "fake" } : planClient();
   const { client, model } = chosen;
   const parts: PlanAgentPart[] = [];
@@ -281,18 +285,68 @@ export async function runPlanAgent(
   const ownJob = (id: string | undefined) => (id ? (jobRefs.find((job) => job.id === id) ?? null) : null);
 
   const json = (value: unknown) => JSON.stringify(value);
+  const read = (value: unknown) => json(moneyForModel(value, cad));
   const notFound = (what: string) => json({ error: `${what} not found. Use a find tool to get its id.` });
 
   /** A price copied from the contractor's own records: the recorded price wins, and the card says where it came from. */
-  async function priced(line: { unit_price?: number; price_source?: string; quantity: number }) {
-    if (!line.price_source) return { unit_price: line.unit_price ?? null, source_note: null as string | null };
+  async function priced(line: { unit_price?: number; price_source?: string; quantity: number; description?: string }) {
+    if (!line.price_source) {
+      const price = line.unit_price ?? null;
+      // An uncited price that is not in what they said but is on one of their past lines for the same item.
+      const unsaid =
+        price != null &&
+        !priceAppearsInTranscript(said, price) &&
+        !priceAppearsInTranscript(said, roundMoney(price * line.quantity));
+      const note = unsaid && line.description ? await recordedPriceNote(ctx, line.description, price!) : null;
+      return { unit_price: price, source_note: note };
+    }
     const source = await priceSourceLine(ctx, line.price_source);
     if (!source) throw new ToolError("price_source is not one of your lines. Use an id from search_lines.");
     return { unit_price: source.unitPrice, source_note: source.note };
   }
 
-  async function storeChangeCard(raw: PlanChange) {
+  /**
+   * The sell price of a line. A dollar markup the contractor named is added to the cost; a cost on its own
+   * gets their default markup. Both sums are done here with lib/money.ts, never by the model, and the card
+   * says how the price was reached. A cost that was not said is left for the said-price check to block.
+   */
+  function costPlusMarkup(
+    line: { unit_cost?: number; markup_amount?: number; price_source?: string },
+    price: { unit_price: number | null; source_note: string | null },
+  ): { unit_price: number | null; source_note: string | null } {
+    if (line.price_source || line.unit_cost == null) return price;
+    // "The flange is $18" is what they charge. Only "cost me", "paid", "bought" or "spent" makes it a cost.
+    if (!COST_WORDS.test(transcript)) return price.unit_price != null ? price : { unit_price: line.unit_cost, source_note: null };
+    // A dollar markup counts only when the contractor said it; one the model worked out is ignored.
+    if (line.markup_amount != null && priceAppearsInTranscript(said, line.markup_amount)) {
+      return { unit_price: addMoney(line.unit_cost, line.markup_amount), source_note: price.source_note };
+    }
+    if (price.unit_price != null && line.markup_amount == null) return price;
+    const pct = settings?.defaultMarkupPct ?? 0;
+    const costSaid = priceAppearsInTranscript(said, line.unit_cost);
+    return {
+      unit_price: applyMarkup(line.unit_cost, pct),
+      source_note: costSaid ? `Cost ${cad(line.unit_cost)} + your ${pct}% markup` : null,
+    };
+  }
+
+  /** "Q-0001" where an id belongs: look the number up, scoped to this contractor. Anything else is left as is. */
+  async function byNumber(value: string | undefined) {
+    if (!value || !/^(?:Q|INV)-\d+$/i.test(value.trim())) return value;
+    const [row] = await db
+      .select({ id: documents.id })
+      .from(documents)
+      .where(and(eq(documents.contractorId, contractor.id), eq(documents.number, value.trim().toUpperCase())))
+      .limit(1);
+    return row?.id ?? value;
+  }
+
+  async function storeChangeCard(input: PlanChange) {
     if (cards >= MAX_CARDS) return json({ drafted: false, reason: "That's enough cards for one message." });
+    const raw = { ...input } as Record<string, unknown>;
+    for (const key of ["document_id", "quote_id", "invoice_id"]) {
+      if (typeof raw[key] === "string") raw[key] = await byNumber(raw[key] as string);
+    }
     const change = parsePlanChange(raw);
     if (!change) return json({ error: "That change is not valid. Check the ids and values." });
     let changePreview: PlanPreview;
@@ -332,7 +386,7 @@ export async function runPlanAgent(
     });
     if (!preview) preview = changePreview;
     parts.push({ kind: "card", captureId, body: changePreview.title, jobTitle: changePreview.jobTitle, preview: changePreview });
-    return json({ drafted: true, title: changePreview.title, can_confirm: changePreview.canConfirm, blockers: changePreview.blockers });
+    return json({ drafted: true, ...cardForModel(changePreview) });
   }
 
   async function proposeWork(args: PlanToolArgs<"propose_work">) {
@@ -350,11 +404,7 @@ export async function runPlanAgent(
         quantity: line.quantity,
         unit: line.unit,
         unit_cost: line.unit_cost ?? null,
-        unit_price:
-          !line.price_source && line.unit_cost != null && line.markup_amount != null
-            ? addMoney(line.unit_cost, line.markup_amount)
-            : price.unit_price,
-        source_note: price.source_note,
+        ...costPlusMarkup(line, price),
       });
     }
     cards += 1;
@@ -386,7 +436,7 @@ export async function runPlanAgent(
     }
     if (!preview) preview = card.preview;
     parts.push(card.part);
-    return json({ drafted: true, title: card.part.body, job: card.part.jobTitle, can_confirm: card.preview?.canConfirm ?? false, blockers: card.preview?.blockers ?? [] });
+    return json({ drafted: true, ...(card.preview ? cardForModel(card.preview) : { title: card.part.body }) });
   }
 
   async function proposeTrackedInvoice(jobId: string) {
@@ -407,7 +457,7 @@ export async function runPlanAgent(
     if (!card) return json({ drafted: false, reason: "Nothing to propose from that." });
     if (!preview) preview = card.preview;
     parts.push(card.part);
-    return json({ drafted: true, title: card.part.body, can_confirm: card.preview?.canConfirm ?? false, blockers: card.preview?.blockers ?? [] });
+    return json({ drafted: true, ...(card.preview ? cardForModel(card.preview) : { title: card.part.body }) });
   }
 
   async function run(name: PlanToolName, raw: string): Promise<string> {
@@ -415,30 +465,42 @@ export async function runPlanAgent(
     if (!parsed.ok) return json({ error: `Could not read that call. ${parsed.problem}` });
     switch (name) {
       case "find_jobs":
-        return json(await findJobs(ctx, parsed.args as PlanToolArgs<"find_jobs">));
+        return read(await findJobs(ctx, parsed.args as PlanToolArgs<"find_jobs">));
       case "get_job":
-        return json(await getJobDetail(ctx, (parsed.args as PlanToolArgs<"get_job">).job_id));
+        return read(await getJobDetail(ctx, (parsed.args as PlanToolArgs<"get_job">).job_id));
       case "find_documents": {
         const { doc_type, ...rest } = parsed.args as PlanToolArgs<"find_documents">;
-        return json(await findDocuments(ctx, { ...rest, type: doc_type }));
+        return read(await findDocuments(ctx, { ...rest, type: doc_type }));
       }
       case "get_document":
-        return json(await getDocumentDetail(ctx, parsed.args as PlanToolArgs<"get_document">));
+        return read(await getDocumentDetail(ctx, parsed.args as PlanToolArgs<"get_document">));
       case "find_clients":
-        return json(await findClients(ctx, parsed.args as PlanToolArgs<"find_clients">));
+        return read(await findClients(ctx, parsed.args as PlanToolArgs<"find_clients">));
       case "search_lines":
-        return json(await searchLines(ctx, parsed.args as PlanToolArgs<"search_lines">));
+        return read(await searchLines(ctx, parsed.args as PlanToolArgs<"search_lines">));
       case "business_snapshot":
-        return json(await businessSnapshot(ctx, parsed.args as PlanToolArgs<"business_snapshot">));
-      case "propose_work":
-        return proposeWork(parsed.args as PlanToolArgs<"propose_work">);
+        return read(await businessSnapshot(ctx, parsed.args as PlanToolArgs<"business_snapshot">));
+      case "propose_work": {
+        const args = parsed.args as PlanToolArgs<"propose_work">;
+        // Hours and materials logged in one call become two cards, so neither is dropped.
+        const labour = args.lines.filter((line) => line.kind === "labour");
+        const other = args.lines.filter((line) => line.kind !== "labour");
+        if ((args.intent ?? "log") === "log" && labour.length && other.length) {
+          const hours = JSON.parse(await proposeWork({ ...args, lines: labour })) as Record<string, unknown>;
+          const materials = JSON.parse(await proposeWork({ ...args, lines: other })) as Record<string, unknown>;
+          return json({ cards: [hours, materials] });
+        }
+        return proposeWork(args);
+      }
       case "propose_invoice": {
         const args = parsed.args as PlanToolArgs<"propose_invoice">;
         if (args.job_id) return proposeTrackedInvoice(args.job_id);
         return storeChangeCard({ kind: "invoice_from_quote", quote_id: args.quote_id! });
       }
       case "propose_document_change": {
-        const change = await documentChange(parsed.args as PlanToolArgs<"propose_document_change">, priced);
+        const change = await documentChange(parsed.args as PlanToolArgs<"propose_document_change">, async (line) =>
+          costPlusMarkup(line, await priced(line)),
+        );
         return typeof change === "string" ? json({ error: change }) : storeChangeCard(change);
       }
       case "propose_job_change": {
@@ -460,17 +522,38 @@ export async function runPlanAgent(
         if (!target) return json({ error: "Nothing was confirmed in the last day, so there is nothing to undo." });
         return storeChangeCard({ kind: "undo", capture_id: target });
       }
-      case "reply":
-        parts.push({ kind: "text", body: (parsed.args as PlanToolArgs<"reply">).text });
+      // Ids are for tool calls. Whatever the model writes, the contractor never sees one.
+      case "reply": {
+        const text = plainWords(stripIds((parsed.args as PlanToolArgs<"reply">).text));
+        if (!text) return json({ error: "The reply was empty. Write it without ids." });
+        // One reply per turn. A second one is usually the first reworded, or a closing "Done.", so the
+        // fuller of the two is kept and the contractor never reads the answer twice.
+        const earlier = parts.findIndex((part) => part.kind === "text");
+        if (earlier < 0) parts.push({ kind: "text", body: text });
+        else if (text.length > parts[earlier]!.body.length) parts[earlier] = { kind: "text", body: text };
         return json({ sent: true });
+      }
       case "ask": {
         const args = parsed.args as PlanToolArgs<"ask">;
-        const options = args.options.map((option) => ({ label: option.label, jobId: ownJob(option.job_id)?.id ?? null }));
-        parts.push({ kind: "ask", body: args.question, options });
-        return json({ asked: true });
+        // A tapped choice is sent as the contractor's own words, so a price in it would count as said.
+        // A choice may only carry an amount the contractor said or a tool returned this turn.
+        const known = [said, ...seen].join("\n");
+        const options = args.options
+          .map((option) => ({ label: plainWords(stripIds(option.label)), jobId: ownJob(option.job_id)?.id ?? null }))
+          .filter((option) => option.label)
+          .filter((option) => amountsIn(option.label).every((amount) => priceAppearsInTranscript(known, amount)));
+        // One question per turn, and the turn ends with it: the contractor answers before anything else.
+        const question = { kind: "ask" as const, body: plainWords(stripIds(args.question)), options };
+        const earlier = parts.findIndex((part) => part.kind === "ask");
+        if (earlier >= 0) parts[earlier] = question;
+        else parts.push(question);
+        return json({ asked: true, next: "Stop here and wait for the contractor's answer." });
       }
     }
   }
+
+  /** Tool results this turn. A price the model shows the contractor must come from here or from them. */
+  const seen: string[] = [];
 
   async function execute(call: PlanToolCall) {
     const name = toolName(call.name);
@@ -478,6 +561,7 @@ export async function runPlanAgent(
     let result: string;
     try {
       result = name ? await run(name, call.arguments) : json({ error: "Unknown tool." });
+      seen.push(result);
     } catch (error) {
       if (error instanceof ToolError) result = json({ error: error.message });
       else if (error instanceof NotFoundError) result = json({ error: `${error.message} Use a find tool to get its id.` });
@@ -487,7 +571,6 @@ export async function runPlanAgent(
     return result;
   }
 
-  const settings = await contractorSettings(db, contractor.id);
   const jobList =
     jobRows
       .slice(0, CONTEXT_JOBS)
@@ -512,6 +595,7 @@ export async function runPlanAgent(
         execute,
         onStatus: status,
         hasOutput: () => parts.length > 0,
+        shouldStop: () => parts.some((part) => part.kind === "ask"),
       });
     } catch (caught) {
       console.error({
@@ -674,6 +758,40 @@ async function storeProposal(
 }
 
 
+/** What the model needs to describe a card truthfully: what it holds, not just its title. */
+function cardForModel(preview: PlanPreview) {
+  return {
+    title: preview.title,
+    job: preview.jobTitle ? `${preview.jobTitle}${preview.jobIsNew ? " (new)" : ""}` : null,
+    client: preview.clientName ? `${preview.clientName}${preview.clientIsNew ? " (new)" : ""}` : null,
+    lines: preview.lines.map((line) => ({
+      line: `${line.quantity} ${line.unit} ${line.description}`,
+      price: line.unitPrice == null ? "no price" : cad(line.unitPrice),
+      ...(line.note ? { note: line.note } : {}),
+    })),
+    ...(preview.changes?.length ? { changes: preview.changes.map((row) => `${row.label}: ${row.value}`) } : {}),
+    can_confirm: preview.canConfirm,
+    blockers: preview.blockers,
+  };
+}
+
+/** Field names the model sometimes writes to the contractor, in the words a person would use. */
+function plainWords(text: string) {
+  return text
+    .replace(/\bunit_price\b/g, "price")
+    .replace(/\bunit_cost\b/g, "cost")
+    .replace(/\bmarkup_amount\b/g, "markup")
+    .replace(/\bprice_source\b/g, "past price");
+}
+
+/** Words that make a stated amount what the contractor paid, not what they charge. */
+const COST_WORDS = /\b(cost(?:s|ing)? me|my cost|at cost|paid|bought|spent|cost price|costs? us)\b/i;
+
+/** Dollar amounts written in a piece of text: "$120", "$1,265.60". */
+function amountsIn(text: string) {
+  return [...text.matchAll(/\$\s*(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)/g)].map((match) => Number(match[1]!.replace(/,/g, "")));
+}
+
 function trackedInvoiceProposal(job: PlanJobRef): DescribeExtraction {
   return {
     intent: "invoice",
@@ -698,7 +816,14 @@ async function contractorSettings(db: Database, contractorId: string) {
   return row ?? null;
 }
 
-type Priced = (line: { unit_price?: number; price_source?: string; quantity: number }) => Promise<{ unit_price: number | null; source_note: string | null }>;
+type Priced = (line: {
+  unit_price?: number;
+  unit_cost?: number;
+  markup_amount?: number;
+  price_source?: string;
+  quantity: number;
+  description?: string;
+}) => Promise<{ unit_price: number | null; source_note: string | null }>;
 
 /** A propose_document_change call as a change card, or the reason it can't be one. */
 async function documentChange(args: PlanToolArgs<"propose_document_change">, priced: Priced): Promise<PlanChange | string> {
@@ -714,16 +839,14 @@ async function documentChange(args: PlanToolArgs<"propose_document_change">, pri
       if (!args.lines.length) return "add_lines needs lines.";
       const add: ChangeLine[] = [];
       for (const line of args.lines) {
+        // Same rules as new work: a price said, a cost said with "paid", or one from their records.
         const price = await priced(line);
         add.push({
           kind: line.kind,
           description: line.description,
           quantity: line.quantity,
           unit: line.unit,
-          unit_price:
-            !line.price_source && line.unit_cost != null && line.markup_amount != null
-              ? addMoney(line.unit_cost, line.markup_amount)
-              : price.unit_price,
+          unit_price: price.unit_price,
           source_note: price.source_note,
         });
       }

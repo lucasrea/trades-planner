@@ -3,7 +3,7 @@ import { parseDescribeExtraction } from "@/lib/ai/extraction-types";
 import { captures, jobs, planMessages, plans } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
 import type { PlanPreview } from "@/lib/plan-proposal";
-import { describeReplyBody, PLAN_NEW, planOutcome, planSummaryTitle, type PlanOutcome } from "@/lib/plans";
+import { cardSummary, describeReplyBody, PLAN_NEW, planOutcome, planSummaryTitle, type PlanOutcome } from "@/lib/plans";
 import { NotFoundError, ValidationError, type ServiceContext } from "@/lib/services/context";
 import type { PlanAgentResult, PlanAskOption } from "@/lib/services/plan-agent";
 import { previewStoredProposal } from "@/lib/services/plan-proposals";
@@ -59,23 +59,33 @@ export async function listRecentPlanHistory(
 ): Promise<{ role: "user" | "assistant"; content: string }[]> {
   if (!planId || planId === PLAN_NEW) return [];
   const rows = await ctx.db
-    .select({ role: planMessages.role, body: planMessages.body, options: planMessages.options })
+    .select({
+      role: planMessages.role,
+      body: planMessages.body,
+      options: planMessages.options,
+      captureStatus: captures.status,
+      extraction: captures.extraction,
+      captureType: captures.type,
+    })
     .from(planMessages)
+    .leftJoin(captures, and(eq(captures.id, planMessages.captureId), eq(captures.contractorId, ctx.contractorId)))
     .where(and(eq(planMessages.planId, planId), eq(planMessages.contractorId, ctx.contractorId)))
     .orderBy(desc(planMessages.createdAt))
     .limit(limit);
   return rows
     .reverse()
     .filter((row) => row.body.trim().length > 0)
-    .map((row) => ({
-      role: row.role === "plan" ? ("assistant" as const) : ("user" as const),
+    .map((row) => {
+      const isReply = row.role === "plan";
+      let content = row.body;
       // A question keeps its choices, so "the second one" still means something on the next message.
-      content: readOptions(row.options).length
-        ? `${row.body}\nChoices: ${readOptions(row.options)
-            .map((option) => option.label)
-            .join("; ")}`
-        : row.body,
-    }));
+      const options = readOptions(row.options);
+      if (options.length) content += `\nChoices: ${options.map((option) => option.label).join("; ")}`;
+      // A card keeps what it held, so "the flange is $18" can make the next card from it.
+      const card = isReply && row.captureStatus && row.captureType !== "receipt" ? parseDescribeExtraction(row.extraction) : null;
+      if (card?.action) content += `\n${cardSummary(card, planOutcome(row.captureStatus!))}`;
+      return { role: isReply ? ("assistant" as const) : ("user" as const), content };
+    });
 }
 
 /** This contractor's plans, most recently used first. */

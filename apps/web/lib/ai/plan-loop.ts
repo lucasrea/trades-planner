@@ -25,6 +25,9 @@ export type PlanLoopClient = {
   complete(messages: PlanLoopMessage[], signal: AbortSignal, options?: PlanStepOptions): Promise<PlanLoopStep>;
 };
 
+/** A reply that only announces work ("I'll check…", "let me look…") instead of doing it. */
+const PROMISE = /\b(?:I'?ll|I will|let me|I'?m going to|going to)\s+(?:check|look|find|pull|get|search|grab|see)\b/i;
+
 /** The last step when a turn would otherwise end with nothing for the contractor. */
 export const FINAL_STEP_TOOLS = ["reply", "ask"];
 const FINAL_STEP_NUDGE =
@@ -76,6 +79,8 @@ export async function runPlanLoop(input: {
   onStatus?: (text: string) => void;
   /** True once the turn has a card, a reply or a question. Without it the loop takes one final step. */
   hasOutput?: () => boolean;
+  /** True when the turn must end now, such as after a question to the contractor. */
+  shouldStop?: () => boolean;
   maxSteps?: number;
   budgetMs?: number;
   stepTimeoutMs?: number;
@@ -153,13 +158,23 @@ export async function runPlanLoop(input: {
   }
 
   let step = 0;
+  let nudged = false;
   for (; step < maxSteps; step += 1) {
     const next = await completeStep();
     if (next.toolCalls.length === 0) {
+      // "I'll look that up" with no lookup: the contractor would be left waiting for nothing. Once per turn,
+      // send the model back to do it.
+      if (!nudged && step < maxSteps - 1 && PROMISE.test(next.content ?? "")) {
+        nudged = true;
+        messages.push({ role: "assistant", content: next.content, toolCalls: [] });
+        messages.push({ role: "user", content: "Do that now with the tools, then answer." });
+        continue;
+      }
       await replyWith(next.content, step);
       break;
     }
     await runCalls(next);
+    if (input.shouldStop?.()) break;
   }
 
   // The model stopped, or ran out of steps, without a card, an answer or a question. One more step

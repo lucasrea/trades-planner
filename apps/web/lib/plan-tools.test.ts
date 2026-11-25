@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { runPlanLoop, type PlanLoopClient, type PlanStepOptions } from "@/lib/ai/plan-loop";
 import { PLAN_TOOL_NAMES, parseToolArgs, toolName } from "@/lib/ai/plan-tools";
 import { changeHref, parsePlanChange } from "@/lib/plan-changes";
-import { dateRangeMs, documentStatusFilter, localDate, localMidnightMs, periodStart } from "@/lib/plan-lookup";
+import { dateRangeMs, documentStatusFilter, localDate, localMidnightMs, moneyForModel, periodStart } from "@/lib/plan-lookup";
 import { messageAsksForWork } from "@/lib/plan-message";
 import { sumMoney } from "@/lib/money";
 
@@ -138,5 +138,20 @@ describe("the final step", () => {
     await runPlanLoop({ client, contextNote: "", userText: "hm", execute: async (call) => (ran.push(call.name), "{}"), hasOutput: () => ran.length > 0 });
     expect(step).toBe(2);
     expect(ran).toEqual(["reply"]);
+  });
+});
+
+describe("moneyForModel", () => {
+  it("writes every dollar field the way the contractor reads it and leaves counts alone", () => {
+    const formatted = moneyForModel(
+      { count: 2, total: 1774.1, documents: [{ number: "Q-0002", total: 508.5, quantity: 3 }], last_price: { unit_price: 780 } },
+      (amount) => `$${amount.toFixed(2)}`,
+    );
+    expect(formatted).toEqual({
+      count: 2,
+      total: "$1774.10",
+      documents: [{ number: "Q-0002", total: "$508.50", quantity: 3 }],
+      last_price: { unit_price: "$780.00" },
+    });
   });
 });

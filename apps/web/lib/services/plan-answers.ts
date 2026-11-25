@@ -4,6 +4,9 @@ import { clients, documents, jobs, lineItems } from "@/lib/db/schema";
 import { matchJobInText } from "@/lib/line-items";
 import { asksForAllJobs, formatAllJobsUnbilled, formatJobUnbilled, unbilledSummary } from "@/lib/plan-lookup";
 import { formatJobPaperwork, planChatReply } from "@/lib/plan-message";
+import { isOverdue, type DocStatus, type DocType } from "@/lib/documents";
+import { cad, sumMoney } from "@/lib/money";
+import { localDate } from "@/lib/plan-lookup";
 
 const ASKS_UNBILLED = /\bunbilled\b/i;
 const ASKS_JOBS_LIST = /\b(my\s+jobs|open\s+jobs|list\s+(?:my\s+|all\s+)?jobs|what\s+jobs|which\s+jobs)\b/i;
@@ -107,13 +110,37 @@ export async function answerPlanQuestion(
     return null;
   }
 
-  const docs = await db
-    .select({ type: documents.type, number: documents.number, status: documents.status })
-    .from(documents)
-    .where(and(eq(documents.contractorId, contractorId), eq(documents.jobId, job.id)))
-    .orderBy(desc(documents.updatedAt));
+  // "What's going on with the kitchen job?": its paperwork, which invoices are overdue, and what is unbilled.
+  const [docs, unbilledRows] = await Promise.all([
+    db
+      .select({ type: documents.type, number: documents.number, status: documents.status, dueDate: documents.dueDate })
+      .from(documents)
+      .where(and(eq(documents.contractorId, contractorId), eq(documents.jobId, job.id)))
+      .orderBy(desc(documents.updatedAt)),
+    db
+      .select({ lineTotal: lineItems.lineTotal })
+      .from(lineItems)
+      .where(
+        and(
+          eq(lineItems.contractorId, contractorId),
+          eq(lineItems.jobId, job.id),
+          isNull(lineItems.documentId),
+          isNull(lineItems.billedDocumentId),
+        ),
+      ),
+  ]);
+  const today = localDate(Date.now());
+  const unbilled = sumMoney(unbilledRows.map((row) => row.lineTotal));
   return {
-    reply: formatJobPaperwork({ jobTitle: job.title, jobNames: jobRows.map((row) => row.title), documents: docs }),
+    reply: formatJobPaperwork({
+      jobTitle: job.title,
+      jobNames: jobRows.map((row) => row.title),
+      documents: docs.map((doc) => ({
+        ...doc,
+        overdue: isOverdue({ type: doc.type as DocType, status: doc.status as DocStatus, dueDate: doc.dueDate }, today),
+      })),
+      unbilled: unbilled > 0 ? cad(unbilled) : null,
+    }),
     jobTitle: job.title,
   };
 }

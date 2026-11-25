@@ -161,3 +161,36 @@ export function documentStatusFilter(
       return { type: scoped, statuses: null, overdueOnly: false };
   }
 }
+
+/** Fields in a read tool's result that hold dollars. */
+const MONEY_FIELDS = new Set([
+  "total",
+  "unbilled_total",
+  "unit_price",
+  "unit_cost",
+  "line_total",
+  "subtotal",
+  "tax",
+  "lowest_price",
+  "highest_price",
+  "total_cost",
+  "total_sell",
+  "recorded_cost",
+  "invoiced_before_tax",
+  "paid",
+]);
+
+/**
+ * A read result as the model should see it: every dollar amount already written the way the contractor
+ * reads it ($1,265.60), so the model repeats it instead of printing 1265.6.
+ */
+export function moneyForModel(value: unknown, format: (amount: number) => string): unknown {
+  if (Array.isArray(value)) return value.map((item) => moneyForModel(item, format));
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, field]) => [
+      key,
+      MONEY_FIELDS.has(key) && typeof field === "number" ? format(field) : moneyForModel(field, format),
+    ]),
+  );
+}

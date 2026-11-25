@@ -579,3 +579,92 @@ describe("invoice the unbilled work", () => {
     expect(toConfirmPlan(tracked, { labourRate: 85, job: null })).toEqual({ ok: false, reason: "That job is no longer available." });
   });
 });
+
+describe("a new job is not attached to an old one", () => {
+  const oldKitchen: PlanJobRef = { id: "job-old-kitchen", title: "kitchen", clientId: "client-pippo" };
+  const theirJobs = [oldKitchen];
+  const theirClients = [{ id: "client-pippo", name: "pippo" }];
+  const said =
+    "starting a new job for someone named Joe. I need to Swap the Moen valve, rerun half-inch PEX to the kitchen, new toilet flange — call it a six-hour day.";
+  const drafted = extraction({
+    intent: "quote",
+    client_name: "Joe",
+    job_title: "Moen valve swap and PEX rerun",
+    lines: [
+      { kind: "labour", description: "Plumbing labour", quantity: 6, unit: "hr", unit_price: null },
+      { kind: "material", description: "Toilet flange", quantity: 1, unit: "ea", unit_price: null },
+    ],
+  });
+
+  it("keeps the model's new job and new client when the message says new job", () => {
+    const proposal = buildProposal({ extraction: drafted, selectedJob: null, jobs: theirJobs, clients: theirClients, transcript: said, trustJobTitle: true });
+    expect(proposal).toMatchObject({ action: "make_quote", job_id: null, client_id: null, job_title: "Moen valve swap and PEX rerun", client_name: "Joe" });
+  });
+
+  it("ignores the job open in Plan when the message says new job", () => {
+    const proposal = buildProposal({ extraction: drafted, selectedJob: oldKitchen, jobs: theirJobs, clients: theirClients, transcript: said });
+    expect(proposal.job_id).toBeNull();
+  });
+
+  it("does not let a word in the message replace a new title the model gave", () => {
+    const proposal = buildProposal({
+      extraction: drafted,
+      selectedJob: null,
+      jobs: theirJobs,
+      clients: theirClients,
+      transcript: "quote Joe to rerun PEX to the kitchen",
+      trustJobTitle: true,
+    });
+    expect(proposal.job_id).toBeNull();
+  });
+
+  it("drops a word match whose client is not the one named", () => {
+    const proposal = buildProposal({
+      extraction: { ...drafted, job_title: null },
+      selectedJob: null,
+      jobs: theirJobs,
+      clients: theirClients,
+      transcript: "quote Joe to rerun PEX to the kitchen",
+    });
+    expect(proposal.job_id).toBeNull();
+  });
+
+  it("still finds the job when the words name it and nothing says otherwise", () => {
+    const proposal = buildProposal({
+      extraction: extraction({ intent: "log", lines: [valve] }),
+      selectedJob: null,
+      jobs: theirJobs,
+      clients: theirClients,
+      transcript: "add a valve at $45 to the kitchen",
+    });
+    expect(proposal).toMatchObject({ action: "add_materials", job_id: oldKitchen.id, client_id: "client-pippo" });
+  });
+});
+
+describe("matching a job by its client's name", () => {
+  const jobs: PlanJobRef[] = [{ id: "job-kr", title: "Kitchen reno", clientId: "client-chen" }];
+  const clients = [{ id: "client-chen", name: "Chen" }];
+  const heater = extraction({
+    intent: "quote",
+    client_name: "Chen",
+    job_title: "Chen kitchen",
+    lines: [{ kind: "material", description: "40 gal water heater", quantity: 1, unit: "ea", unit_price: 780 }],
+  });
+
+  it("finds Kitchen reno from the model's title 'Chen kitchen'", () => {
+    const proposal = buildProposal({ extraction: heater, selectedJob: null, jobs, clients, transcript: "quote Chen the same water heater for the kitchen", trustJobTitle: true });
+    expect(proposal.job_id).toBe("job-kr");
+  });
+
+  it("falls back to a word in the message when the client agrees", () => {
+    const proposal = buildProposal({
+      extraction: { ...heater, job_title: "Water heater install" },
+      selectedJob: null,
+      jobs,
+      clients,
+      transcript: "quote Chen the same water heater for the kitchen",
+      trustJobTitle: true,
+    });
+    expect(proposal.job_id).toBe("job-kr");
+  });
+});

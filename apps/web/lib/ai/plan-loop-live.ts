@@ -25,7 +25,8 @@ function toApi(messages: PlanLoopMessage[]): OpenAI.Chat.Completions.ChatComplet
 
 export function createLivePlanClient(): PlanLoopClient & { model: string } {
   const client = getOpenAIClient();
-  const model = readExtractionModel();
+  // Plan can run on its own model; receipts and the describe eval keep EXTRACTION_MODEL.
+  const model = process.env.PLAN_MODEL?.trim() || readExtractionModel();
   return {
     model,
     async complete(messages, signal, options) {
@@ -37,6 +38,7 @@ export function createLivePlanClient(): PlanLoopClient & { model: string } {
           tools,
           ...(options?.tools ? { tool_choice: "required" as const } : {}),
           ...modelRequestOptions(model),
+          ...planModelOverrides(),
         },
         { signal },
       );
@@ -47,5 +49,18 @@ export function createLivePlanClient(): PlanLoopClient & { model: string } {
       });
       return { content: message?.content ?? null, toolCalls };
     },
+  };
+}
+
+/**
+ * Optional tuning for the Plan loop only, so a setting can be tried with the conversation eval (and then in
+ * production) without a code change. GPT-5 models ignore temperature; these are the settings that apply.
+ */
+function planModelOverrides(): { reasoning_effort?: "minimal" | "low" | "medium"; verbosity?: "low" | "medium" | "high" } {
+  const effort = process.env.PLAN_REASONING_EFFORT?.trim();
+  const verbosity = process.env.PLAN_VERBOSITY?.trim();
+  return {
+    ...(effort === "minimal" || effort === "low" || effort === "medium" ? { reasoning_effort: effort } : {}),
+    ...(verbosity === "low" || verbosity === "medium" || verbosity === "high" ? { verbosity } : {}),
   };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asksToInvoiceTrackedWork, classifyPlanMessage, formatJobPaperwork, messageAsksToInvoice, messageAsksToQuote, parseCompoundWork, parseObviousAct, stripGreeting } from "@/lib/plan-message";
+import { asksToInvoiceTrackedWork, classifyPlanMessage, formatJobPaperwork, messageAsksToInvoice, messageAsksToQuote, parseCompoundWork, parseObviousAct, stripGreeting, stripIds } from "@/lib/plan-message";
 
 describe("classifyPlanMessage", () => {
   it("treats a paperwork question as a question", () => {
@@ -143,5 +143,33 @@ describe("plain adds behind a greeting", () => {
     expect(parseObviousAct("Hi, add 2 hours of labour")?.lines[0]).toMatchObject({ kind: "labour", quantity: 2 });
     expect(stripGreeting("Thanks! log 3 hours of labour")).toBe("log 3 hours of labour");
     expect(stripGreeting("Hiking trail repair")).toBe("Hiking trail repair");
+  });
+});
+
+describe("stripIds", () => {
+  it("removes ids from the reply the contractor saw", () => {
+    const reply = [
+      "- Water heater replacement",
+      "- Q-0004 — draft — total $1,265.60 — valid until 2026-11-27 — id f94320e1-2cf3-4bae-a51e-00f370c2cfc8 — client Patel",
+      "- Q-0006 — draft — total $0.00 — id 83afba24-67ef-4f4d-ba2d-f37a90362cf7",
+    ].join("\n");
+    expect(stripIds(reply)).toBe(
+      [
+        "- Water heater replacement",
+        "- Q-0004 — draft — total $1,265.60 — valid until 2026-11-27 — client Patel",
+        "- Q-0006 — draft — total $0.00",
+      ].join("\n"),
+    );
+  });
+
+  it("removes labelled and bare ids in other shapes", () => {
+    expect(stripIds("Kitchen (job_id: 3b07d967-f8e7-4980-8eae-844e2a8f0edd) has 2 lines.")).toBe("Kitchen has 2 lines.");
+    expect(stripIds("Kitchen [id 3b07d967-f8e7-4980-8eae-844e2a8f0edd]")).toBe("Kitchen");
+    expect(stripIds("Use 3B07D967-F8E7-4980-8EAE-844E2A8F0EDD next")).toBe("Use next");
+  });
+
+  it("leaves ordinary text alone", () => {
+    const text = "Q-0003 for Patel is $1,265.60, due 2026-11-15. Paid-up: no.";
+    expect(stripIds(text)).toBe(text);
   });
 });

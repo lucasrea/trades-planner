@@ -47,6 +47,13 @@ export function asksToInvoiceTrackedWork(text: string | null | undefined) {
   return ASKS_TO_INVOICE.test(value) && TRACKED_WORK.test(value) && !/\d/.test(value);
 }
 
+const NEW_JOB = /\b(?:new|another|second|different)\s+(?:job|client|customer)\b|\bstart(?:ing)?\s+(?:a\s+)?(?:new\s+)?job\b/i;
+
+/** "Starting a new job for Joe", "new client", "another job": the work is not for a job they already have. */
+export function messageAsksForNewJob(text: string | null | undefined) {
+  return NEW_JOB.test(text ?? "");
+}
+
 /** The message asks to add, log, quote or invoice something, as opposed to asking about the books. */
 export function messageAsksForWork(text: string) {
   return /\d/.test(text) || ACTION.test(text) || ASKS_TO_INVOICE.test(text) || ASKS_TO_QUOTE.test(text);
@@ -174,7 +181,9 @@ export function planChatReply() {
 export function formatJobPaperwork(input: {
   jobTitle: string | null;
   jobNames: string[];
-  documents: { type: string; number: string; status: string }[];
+  documents: { type: string; number: string; status: string; overdue?: boolean }[];
+  /** The job's unbilled total, already written as money ("$327.00"), when there is any. */
+  unbilled?: string | null;
 }): string {
   if (!input.jobTitle) {
     if (input.jobNames.length === 0) return "You don't have any jobs yet. Tell me the job name and I can create it.";
@@ -182,7 +191,28 @@ export function formatJobPaperwork(input: {
   }
   const quotes = input.documents.filter((doc) => doc.type === "quote");
   const invoices = input.documents.filter((doc) => doc.type === "invoice");
-  const list = (rows: { number: string; status: string }[]) =>
-    rows.length ? rows.map((row) => `${row.number} ${row.status}`).join(", ") : "none";
-  return `${input.jobTitle}\nQuotes: ${list(quotes)}\nInvoices: ${list(invoices)}`;
+  const list = (rows: { number: string; status: string; overdue?: boolean }[]) =>
+    rows.length ? rows.map((row) => `${row.number} ${row.status}${row.overdue ? " (overdue)" : ""}`).join(", ") : "none";
+  const unbilled = input.unbilled ? `\nUnbilled: ${input.unbilled}` : "";
+  return `${input.jobTitle}\nQuotes: ${list(quotes)}\nInvoices: ${list(invoices)}${unbilled}`;
+}
+
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const LABELLED_ID = new RegExp(`\\s*[—–-]?\\s*[([]?\\b(?:[a-z]+_)?ids?\\b\\s*[:=]?\\s*${UUID}[\\])]?`, "gi");
+const BARE_ID = new RegExp(UUID, "gi");
+
+/**
+ * The model sees database ids so it can call tools; the contractor never should. Removes "— id …",
+ * "(job_id: …)" and any bare id from text the contractor will read, and tidies what is left.
+ */
+export function stripIds(text: string): string {
+  return text
+    .replace(LABELLED_ID, "")
+    .replace(BARE_ID, "")
+    .replace(/\(\s*\)|\[\s*\]/g, "")
+    .replace(/[ \t]+([,.;:])/g, "$1")
+    .replace(/[ \t]*[—–][ \t]*$/gm, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+$/gm, "")
+    .trim();
 }
