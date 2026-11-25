@@ -122,7 +122,7 @@ export function WorkflowDemo() {
         <DemoChrome
           kicker="Quote"
           title="Q-0042 · Kitchen rough-in"
-          action={<span className="rounded-full bg-ivory/10 px-2 py-0.5 text-xs font-medium text-ivory">Draft</span>}
+          action={<StatusBadge status="draft" />}
         >
           <ul className="space-y-2 text-sm">
             {[

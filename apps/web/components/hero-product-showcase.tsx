@@ -299,7 +299,7 @@ export function HeroProductShowcase() {
           </div>
           <div className="flex h-6 w-[4.5rem] shrink-0 items-center justify-end">
             {activeSlide.id === "quote" ? (
-              <span className="rounded-full bg-ivory/10 px-2 py-0.5 text-xs font-medium text-ivory">Draft</span>
+              <StatusBadge status="draft" />
             ) : null}
             {activeSlide.id === "invoice" ? <StatusBadge status="sent" /> : null}
           </div>
