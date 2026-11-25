@@ -23,6 +23,30 @@ export type PlanLoopClient = {
 };
 
 const STEP_TIMEOUT_MS = 20_000;
+/**
+ * The whole loop must finish well inside the route's 60 s limit, or the platform kills the request
+ * mid-stream and the contractor sees nothing. Four 20 s steps would not fit.
+ */
+export const PLAN_LOOP_BUDGET_MS = 40_000;
+/** Do not start a retry with less than this left. */
+const MIN_RETRY_MS = 3_000;
+
+export class PlanLoopTimeoutError extends Error {
+  constructor() {
+    super("Plan loop timeout.");
+    this.name = "PlanLoopTimeoutError";
+  }
+}
+
+/** Rate limits, provider outages, dropped connections and slow steps are worth one more try. */
+function isRetryable(error: unknown, timedOut: boolean) {
+  if (timedOut) return true;
+  if (typeof error !== "object" || error === null) return false;
+  const status = "status" in error ? Number((error as { status: unknown }).status) : NaN;
+  if (status === 429 || status >= 500) return true;
+  const name = "name" in error ? String((error as { name: unknown }).name) : "";
+  return name === "APIConnectionError" || name === "APIConnectionTimeoutError";
+}
 
 export type PlanHistoryMessage = {
   role: "user" | "assistant";
@@ -41,6 +65,8 @@ export async function runPlanLoop(input: {
   execute: (call: PlanToolCall) => Promise<string>;
   onStatus?: (text: string) => void;
   maxSteps?: number;
+  budgetMs?: number;
+  stepTimeoutMs?: number;
 }): Promise<void> {
   const prior: PlanLoopMessage[] = (input.history ?? [])
     .filter((entry) => entry.content.trim().length > 0)
@@ -51,16 +77,42 @@ export async function runPlanLoop(input: {
     { role: "user", content: `${input.contextNote}\n\nMessage:\n${input.userText}` },
   ];
   const maxSteps = input.maxSteps ?? PLAN_LOOP_MAX_STEPS;
+  const stopAt = Date.now() + (input.budgetMs ?? PLAN_LOOP_BUDGET_MS);
+  const stepTimeout = input.stepTimeoutMs ?? STEP_TIMEOUT_MS;
 
-  for (let step = 0; step < maxSteps; step += 1) {
+  async function attempt(): Promise<PlanLoopStep> {
+    const remaining = stopAt - Date.now();
+    if (remaining <= 0) throw new PlanLoopTimeoutError();
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), STEP_TIMEOUT_MS);
-    let next: PlanLoopStep;
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, Math.min(stepTimeout, remaining));
     try {
-      next = await input.client.complete(messages, controller.signal);
+      return await input.client.complete(messages, controller.signal);
+    } catch (error) {
+      const failure = timedOut ? new PlanLoopTimeoutError() : error instanceof Error ? error : new Error(String(error));
+      (failure as { retryable?: boolean }).retryable = isRetryable(error, timedOut);
+      throw failure;
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  async function completeStep(): Promise<PlanLoopStep> {
+    try {
+      return await attempt();
+    } catch (first) {
+      const retryable = typeof first === "object" && first !== null && (first as { retryable?: boolean }).retryable;
+      if (!retryable || stopAt - Date.now() < MIN_RETRY_MS) throw first;
+      await new Promise((resolve) => setTimeout(resolve, 250 + Math.floor(Math.random() * 250)));
+      return attempt();
+    }
+  }
+
+  for (let step = 0; step < maxSteps; step += 1) {
+    const next = await completeStep();
     if (next.toolCalls.length === 0) {
       const text = next.content?.trim();
       if (text) input.onStatus?.("Writing a reply");

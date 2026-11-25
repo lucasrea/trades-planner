@@ -8,9 +8,8 @@ import { jsonError } from "@/lib/http/json-error";
 import { textCaptureBodySchema } from "@/lib/services/capture-schemas";
 import { NotFoundError, RateLimitError } from "@/lib/services/context";
 import { encodePlanEvent } from "@/lib/http/plan-events";
-import { assertPlanTarget, listRecentPlanHistory, recordPlanTurn } from "@/lib/services/plans";
+import { assertPlanTarget, listRecentPlanHistory, planTurnResponse, recordAgentTurn } from "@/lib/services/plans";
 import { runPlanAgent, type PlanAgentResult } from "@/lib/services/plan-agent";
-import { describeReplyBody } from "@/lib/plans";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -67,42 +66,8 @@ export async function POST(request: Request) {
   const wantsStream = (request.headers.get("accept") ?? "").includes("application/x-ndjson");
 
   async function save(result: PlanAgentResult) {
-    const replies = result.parts.map((part) =>
-      part.kind === "card" ? { body: part.body, captureId: part.captureId } : { body: part.body, captureId: null as string | null },
-    );
-    if (replies.length === 1 && !replies[0]?.captureId && result.captureId) replies[0]!.captureId = result.captureId;
-    const first = replies[0] ?? {
-      body: describeReplyBody({ status: result.status, previewTitle: result.preview?.title ?? null }),
-      captureId: result.captureId || null,
-    };
-    let savedPlanId: string | null = null;
-    if (planId) {
-      try {
-        const card = result.parts.find((part) => part.kind === "card");
-        savedPlanId = await recordPlanTurn(ctx, {
-          planId,
-          userBody: message.text,
-          replyBody: first.body,
-          captureId: replies.length === 1 ? first.captureId : result.captureId || null,
-          replies: replies.length > 1 ? replies : undefined,
-          summaryTitle: result.reply ? null : (card?.body ?? result.preview?.title ?? null),
-          jobTitle: result.jobTitle ?? result.preview?.jobTitle ?? null,
-          jobId: message.jobId,
-        });
-      } catch {
-        console.error({ event: "plan_turn_failed", captureId: result.captureId, contractorId: ctx.contractorId });
-      }
-    }
-    return {
-      captureId: result.captureId,
-      status: result.status,
-      reviewUrl: result.reviewUrl,
-      preview: result.preview,
-      transcript: result.transcript,
-      reply: result.reply,
-      jobTitle: result.jobTitle,
-      planId: savedPlanId,
-    };
+    const savedPlanId = await recordAgentTurn(ctx, { planId, userBody: message.text, result, jobId: message.jobId });
+    return planTurnResponse(result, savedPlanId);
   }
 
   if (wantsStream) {

@@ -8,6 +8,7 @@ import {
   documents,
   jobs,
   lineItems,
+  mobileSessions,
   planMessages,
   plans,
   users,
@@ -17,6 +18,7 @@ import { deleteAccount, exportAccountData } from "@/lib/services/account";
 import { ValidationError } from "@/lib/services/context";
 import { createDraftDocument } from "@/lib/services/documents";
 import { saveTrackedLine } from "@/lib/services/line-items";
+import { createMobileSession } from "@/lib/mobile/sessions";
 import { createMemoryReceiptStorage } from "@/lib/storage/fake";
 import { receiptImagePath } from "@/lib/storage/receipts";
 import { getTestDb } from "../helpers/db";
@@ -116,11 +118,13 @@ describe("account export and deletion", () => {
     const pathA = await seedData(a, storage);
     const pathB = await seedData(b, storage);
     const db = getTestDb();
+    await createMobileSession(db, a);
+    await createMobileSession(db, b);
 
     const result = await deleteAccount({ db, contractorId: a.contractorId }, { confirmBusinessName: " a ", storage });
     expect(result).toEqual({ receiptsRemoved: 1, receiptsFailed: 0 });
 
-    for (const table of [clients, jobs, documents, lineItems, captures, plans, planMessages, documentLinks]) {
+    for (const table of [clients, jobs, documents, lineItems, captures, plans, planMessages, documentLinks, mobileSessions]) {
       expect(await db.select().from(table).where(eq(table.contractorId, a.contractorId))).toHaveLength(0);
       expect((await db.select().from(table).where(eq(table.contractorId, b.contractorId))).length).toBeGreaterThan(0);
     }

@@ -515,3 +515,67 @@ describe("toConfirmPlan", () => {
     expect(toConfirmPlan(extraction(), context).ok).toBe(false);
   });
 });
+
+describe("prices said earlier in the plan", () => {
+  const quote = extraction({ intent: "quote", action: "make_quote", job_id: kitchen.id, lines: [{ ...valve, unit_price: 780 }] });
+
+  it("blocks a price that is in neither this message nor the earlier ones", () => {
+    const preview = previewProposal(quote, { labourRate: 85, transcript: "yes, make that a quote" });
+    expect(preview?.blockers).toContain("This price was not in what you said.");
+  });
+
+  it("accepts a price the contractor gave in an earlier message", () => {
+    const withHistory = { ...quote, evidence: "the heater for the kitchen is 780" };
+    const preview = previewProposal(withHistory, { labourRate: 85, transcript: "yes, make that a quote" });
+    expect(preview?.canConfirm).toBe(true);
+    const plan = toConfirmPlan(withHistory, { labourRate: 85, job: { id: kitchen.id, clientId: kitchen.clientId }, transcript: "yes, make that a quote" });
+    expect(plan.ok && plan.kind === "capture" ? plan.input.lines[0]?.unitPrice : null).toBe(780);
+  });
+
+  it("accepts a unit price whose line total is what was said", () => {
+    const boxes = extraction({
+      intent: "log",
+      action: "add_materials",
+      job_id: kitchen.id,
+      lines: [{ kind: "material", description: "Screws", quantity: 3, unit: "box", unit_price: 12 }],
+    });
+    expect(previewProposal(boxes, { labourRate: 85, transcript: "3 boxes of screws, 36 bucks total" })?.canConfirm).toBe(true);
+    expect(previewProposal(boxes, { labourRate: 85, transcript: "3 boxes of screws, 40 bucks total" })?.canConfirm).toBe(false);
+  });
+});
+
+describe("invoice the unbilled work", () => {
+  const tracked = extraction({
+    intent: "invoice",
+    action: "invoice_tracked",
+    job_id: kitchen.id,
+    client_id: kitchen.clientId,
+    job_title: kitchen.title,
+    lines: [{ kind: "labour", description: "Labour", quantity: 3, unit: "hr", unit_price: 85 }],
+  });
+
+  it("shows the job's own lines without the said-price check", () => {
+    const preview = previewProposal(tracked, { labourRate: 85, jobTitle: kitchen.title, transcript: "invoice the kitchen for the unbilled work" });
+    expect(preview).toMatchObject({
+      action: "invoice_tracked",
+      title: "Invoice the unbilled work on Kitchen reno",
+      jobId: kitchen.id,
+      canConfirm: true,
+      lines: [{ description: "Labour", quantity: 3, unitPrice: 85, note: null }],
+    });
+  });
+
+  it("cannot confirm with nothing to bill or no job", () => {
+    expect(previewProposal({ ...tracked, lines: [] }, { labourRate: 85 })?.blockers).toEqual(["This job has no unbilled work."]);
+    expect(previewProposal({ ...tracked, job_id: null }, { labourRate: 85 })?.canConfirm).toBe(false);
+  });
+
+  it("confirms through the tracked-lines invoice, not a copy of the lines", () => {
+    expect(toConfirmPlan(tracked, { labourRate: 85, job: { id: kitchen.id, clientId: kitchen.clientId } })).toEqual({
+      ok: true,
+      kind: "invoice_tracked",
+      jobId: kitchen.id,
+    });
+    expect(toConfirmPlan(tracked, { labourRate: 85, job: null })).toEqual({ ok: false, reason: "That job is no longer available." });
+  });
+});

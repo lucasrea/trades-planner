@@ -1,9 +1,10 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { parseDescribeExtraction, type DescribeExtraction } from "@/lib/ai/extraction-types";
-import { captures, clients, contractors } from "@/lib/db/schema";
+import { captures, clients, contractors, lineItems } from "@/lib/db/schema";
 import { previewProposal, toConfirmPlan, type PlanPreview } from "@/lib/plan-proposal";
 import { confirmCapture, discardCapture } from "@/lib/services/captures";
 import { ConflictError, NotFoundError, ValidationError, type ServiceContext } from "@/lib/services/context";
+import { createInvoiceFromTrackedLines } from "@/lib/services/documents";
 import { createJobWithClient } from "@/lib/services/jobs";
 import { requireJob } from "@/lib/services/internal";
 
@@ -22,6 +23,30 @@ async function labourRateFor(ctx: ServiceContext) {
   return row.labourRateHourly;
 }
 
+/** The job's unbilled tracked lines, as proposal lines. What "Create invoice from tracked lines" would bill. */
+async function unbilledLines(ctx: ServiceContext, jobId: string) {
+  const rows = await ctx.db
+    .select()
+    .from(lineItems)
+    .where(
+      and(
+        eq(lineItems.contractorId, ctx.contractorId),
+        eq(lineItems.jobId, jobId),
+        isNull(lineItems.documentId),
+        isNull(lineItems.billedDocumentId),
+      ),
+    )
+    .orderBy(asc(lineItems.sortOrder), asc(lineItems.createdAt));
+  return rows.map((row) => ({
+    kind: (row.kind === "labour" || row.kind === "other" ? row.kind : "material") as "labour" | "material" | "other",
+    description: row.description,
+    quantity: row.quantity,
+    unit: row.unit,
+    unit_price: row.unitPrice,
+    unit_cost: row.unitCost,
+  }));
+}
+
 /** The preview card for a stored proposal. Looks up display names, scoped by contractor_id. */
 export async function previewStoredProposal(
   ctx: ServiceContext,
@@ -29,6 +54,12 @@ export async function previewStoredProposal(
   transcript: string | null,
 ): Promise<PlanPreview | null> {
   if (!proposal.action) return null;
+  if (proposal.action === "invoice_tracked") {
+    const job = proposal.job_id ? await requireJob(ctx.db, ctx.contractorId, proposal.job_id) : null;
+    // Read the lines now, not when the message was sent, so the card shows what confirm will bill.
+    const lines = job ? await unbilledLines(ctx, job.id) : [];
+    return previewProposal({ ...proposal, lines }, { labourRate: 0, jobTitle: job?.title, transcript });
+  }
   const [labourRate, job, client] = await Promise.all([
     labourRateFor(ctx),
     proposal.job_id ? requireJob(ctx.db, ctx.contractorId, proposal.job_id) : null,
@@ -69,6 +100,8 @@ export async function confirmPlanProposal(ctx: ServiceContext, captureId: string
   });
   if (!plan.ok) throw new ValidationError(plan.reason);
 
+  if (plan.kind === "invoice_tracked") return confirmTrackedInvoice(ctx, capture.id, plan.jobId);
+
   if (plan.kind === "capture") {
     const result = await confirmCapture(ctx, { captureId: capture.id, ...plan.input });
     return result.kind === "document" ? result : { kind: "log", jobIds: result.jobIds };
@@ -93,6 +126,31 @@ export async function confirmPlanProposal(ctx: ServiceContext, captureId: string
   });
 }
 
+/**
+ * Invoice a job's tracked lines from a Plan card. Same service as the job page button, so each line
+ * is marked billed and cannot be billed again. A second confirm opens the same invoice.
+ */
+async function confirmTrackedInvoice(ctx: ServiceContext, captureId: string, jobId: string): Promise<PlanConfirmResult> {
+  return ctx.db.transaction(async (tx) => {
+    const [locked] = await tx
+      .select()
+      .from(captures)
+      .where(and(eq(captures.id, captureId), eq(captures.contractorId, ctx.contractorId)))
+      .for("update")
+      .limit(1);
+    if (!locked) throw new NotFoundError("Capture not found.");
+    const stored = parseDescribeExtraction(locked.extraction);
+    if (locked.status === "confirmed" && stored?.document_id) return { kind: "document" as const, documentId: stored.document_id };
+    if (locked.status !== "needs_review") throw new ConflictError("This message was already confirmed or cancelled.");
+    const documentId = await createInvoiceFromTrackedLines({ db: tx, contractorId: ctx.contractorId }, jobId);
+    await tx
+      .update(captures)
+      .set({ status: "confirmed", confirmedAt: Date.now(), extraction: { ...stored, document_id: documentId } })
+      .where(and(eq(captures.id, captureId), eq(captures.contractorId, ctx.contractorId)));
+    return { kind: "document" as const, documentId };
+  });
+}
+
 /** Cancel drops the proposal. The message stays in the thread; nothing else is written. */
 export async function cancelPlanProposal(ctx: ServiceContext, captureId: string) {
   await discardCapture(ctx, captureId);
@@ -113,6 +171,7 @@ export async function updatePlanProposalLines(
   if (capture.type === "receipt") throw new ValidationError("Receipts are not edited from Plan.");
   if (capture.status !== "needs_review") throw new ConflictError("This message was already confirmed or cancelled.");
   const proposal = parseDescribeExtraction(capture.extraction);
+  if (proposal?.action === "invoice_tracked") throw new ValidationError("Edit these lines on the job.");
   if (!proposal?.action || !proposal.lines.length) throw new ValidationError("There are no lines to edit.");
   if (lines.length !== proposal.lines.length) throw new ValidationError("Line count does not match.");
   const nextLines = proposal.lines.map((line, index) => {

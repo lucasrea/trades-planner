@@ -3,8 +3,9 @@ import { parseDescribeExtraction } from "@/lib/ai/extraction-types";
 import { captures, jobs, planMessages, plans } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
 import type { PlanPreview } from "@/lib/plan-proposal";
-import { PLAN_NEW, planOutcome, planSummaryTitle, type PlanOutcome } from "@/lib/plans";
+import { describeReplyBody, PLAN_NEW, planOutcome, planSummaryTitle, type PlanOutcome } from "@/lib/plans";
 import { NotFoundError, ValidationError, type ServiceContext } from "@/lib/services/context";
+import type { PlanAgentResult } from "@/lib/services/plan-agent";
 import { previewStoredProposal } from "@/lib/services/plan-proposals";
 
 const LIST_LIMIT = 100;
@@ -188,4 +189,54 @@ export async function recordPlanTurn(
     ]);
     return planId;
   });
+}
+
+/**
+ * Save one Plan message and every card or answer the agent gave for it. Typed and spoken messages
+ * both land here. A failure to save the thread is logged and returns null; the capture still stands,
+ * so the caller can open its review page.
+ */
+export async function recordAgentTurn(
+  ctx: ServiceContext,
+  input: { planId: string | undefined; userBody: string; result: PlanAgentResult; jobId?: string | null },
+): Promise<string | null> {
+  const { result } = input;
+  if (!input.planId) return null;
+  const replies = result.parts.map((part) => ({ body: part.body, captureId: part.kind === "card" ? part.captureId : null }));
+  if (replies.length === 1 && !replies[0]!.captureId && result.captureId) replies[0]!.captureId = result.captureId;
+  const first = replies[0] ?? {
+    body: describeReplyBody({ status: result.status, previewTitle: result.preview?.title ?? null }),
+    captureId: result.captureId || null,
+  };
+  const card = result.parts.find((part) => part.kind === "card");
+  try {
+    return await recordPlanTurn(ctx, {
+      planId: input.planId,
+      userBody: input.userBody,
+      replyBody: first.body,
+      captureId: replies.length > 1 ? result.captureId || null : first.captureId,
+      replies: replies.length > 1 ? replies : undefined,
+      summaryTitle: result.reply ? null : (card?.body ?? result.preview?.title ?? null),
+      jobTitle: result.jobTitle ?? result.preview?.jobTitle ?? null,
+      jobId: input.jobId,
+    });
+  } catch {
+    // Never the message, transcript or model output: those can hold client details.
+    console.error({ event: "plan_turn_failed", captureId: result.captureId, contractorId: ctx.contractorId });
+    return null;
+  }
+}
+
+/** What the web Plan screen gets back for a message, typed or spoken. */
+export function planTurnResponse(result: PlanAgentResult, planId: string | null) {
+  return {
+    captureId: result.captureId,
+    status: result.status,
+    reviewUrl: result.reviewUrl,
+    preview: result.preview,
+    transcript: result.transcript,
+    reply: result.reply,
+    jobTitle: result.jobTitle,
+    planId,
+  };
 }

@@ -6,6 +6,7 @@
  * onto the inputs of the existing confirm services. It does no document arithmetic.
  */
 import type { DescribeExtraction, DescribeLine, PlanAction } from "@/lib/ai/extraction-types";
+import { roundMoney } from "@/lib/money";
 import { describeToDraft, fuzzyMatchClient, fuzzyMatchJob, matchJobInText } from "@/lib/line-items";
 import { messageAsksToInvoice, messageAsksToQuote } from "@/lib/plan-message";
 import { priceAppearsInTranscript, priceComesFromCostAndMarkup, transcriptNamesLabourPrice, UNSAID_PRICE } from "@/lib/plan-stated-price";
@@ -37,6 +38,7 @@ export type PlanConfirmPlan =
       kind: "create_job";
       input: { title: string; siteAddress?: string; client: { id: string } | { name: string } };
     }
+  | { ok: true; kind: "invoice_tracked"; jobId: string }
   | { ok: false; reason: string };
 
 export type PlanPreviewLine = {
@@ -51,6 +53,8 @@ export type PlanPreviewLine = {
 export type PlanPreview = {
   action: PlanAction;
   title: string;
+  /** The contractor's job this card writes to, when there is one. */
+  jobId: string | null;
   jobTitle: string | null;
   jobIsNew: boolean;
   clientName: string | null;
@@ -69,6 +73,7 @@ const ACTION_LABELS: Record<PlanAction, string> = {
   log_hours: "Log hours",
   make_quote: "Make a quote",
   make_invoice: "Make an invoice",
+  invoice_tracked: "Invoice the unbilled work",
 };
 
 export function planActionLabel(action: PlanAction) {
@@ -193,6 +198,43 @@ function lineNote(line: DescribeLine, price: number | null, defaultRate: boolean
   return null;
 }
 
+/**
+ * What the contractor said that a price may come from: this message plus their earlier messages in the
+ * same plan, so "yes, make that a quote" can use the 780 they gave a moment ago.
+ */
+export function saidText(proposal: Pick<DescribeExtraction, "evidence">, transcript: string | null | undefined) {
+  return [proposal.evidence, transcript].map((part) => part?.trim()).filter(Boolean).join("\n") || null;
+}
+
+/** The card for invoicing a job's tracked lines. The lines are the job's own rows, so no price check. */
+function previewTrackedInvoice(proposal: DescribeExtraction, jobTitle: string | null): PlanPreview {
+  const blockers: string[] = [];
+  if (!proposal.job_id) blockers.push("Pick the job this belongs to.");
+  else if (proposal.lines.length === 0) blockers.push("This job has no unbilled work.");
+  return {
+    action: "invoice_tracked",
+    title: jobTitle ? `Invoice the unbilled work on ${jobTitle}` : "Invoice the unbilled work",
+    jobId: proposal.job_id ?? null,
+    jobTitle,
+    jobIsNew: false,
+    clientName: null,
+    clientIsNew: false,
+    siteAddress: null,
+    notes: null,
+    lines: proposal.lines.map((line) => ({
+      kind: line.kind,
+      description: line.description,
+      quantity: line.quantity,
+      unit: line.unit,
+      unitPrice: line.unit_price,
+      note: null,
+    })),
+    warnings: [...proposal.warnings],
+    blockers,
+    canConfirm: blockers.length === 0,
+  };
+}
+
 /** The card the contractor reviews. Blockers disable Confirm; warnings do not. */
 export function previewProposal(
   proposal: DescribeExtraction,
@@ -205,10 +247,12 @@ export function previewProposal(
 ): PlanPreview | null {
   const action = proposal.action ?? null;
   if (!action) return null;
+  if (action === "invoice_tracked") return previewTrackedInvoice(proposal, clean(context.jobTitle) ?? clean(proposal.job_title));
 
-  const statedPrice = transcriptNamesLabourPrice(context.transcript);
+  const said = saidText(proposal, context.transcript);
+  const statedPrice = transcriptNamesLabourPrice(said);
   const drafts = describeToDraft(proposal, { labourRate: context.labourRate, statedPriceInTranscript: statedPrice });
-  const hasTranscript = Boolean(context.transcript?.trim());
+  const hasTranscript = Boolean(said);
   const lines: PlanPreviewLine[] = proposal.lines.map((line, index) => {
     const draft = drafts[index]!;
     let note = lineNote(line, draft.unitPrice, Boolean(draft.defaultRate));
@@ -217,8 +261,9 @@ export function previewProposal(
       !line.accepted &&
       !draft.defaultRate &&
       draft.unitPrice != null &&
-      !priceAppearsInTranscript(context.transcript, draft.unitPrice) &&
-      !priceComesFromCostAndMarkup(context.transcript, line.unit_cost, draft.unitPrice)
+      !priceAppearsInTranscript(said, draft.unitPrice) &&
+      !priceAppearsInTranscript(said, roundMoney(draft.unitPrice * line.quantity)) &&
+      !priceComesFromCostAndMarkup(said, line.unit_cost, draft.unitPrice)
     ) {
       note = UNSAID_PRICE;
     }
@@ -281,11 +326,13 @@ export function previewProposal(
     log_hours: `Log these hours${forJob}`,
     make_quote: `Make a draft quote${forJob}`,
     make_invoice: `Make a draft invoice${forJob}`,
+    invoice_tracked: `Invoice the unbilled work${forJob}`,
   };
 
   return {
     action,
     title: titles[action],
+    jobId: proposal.job_id ?? null,
     jobTitle,
     jobIsNew: !hasJob && action !== "add_materials" && action !== "log_hours" && Boolean(typedJobTitle),
     clientName,
@@ -307,6 +354,11 @@ export function toConfirmPlan(
   proposal: DescribeExtraction,
   context: { labourRate: number; job: { id: string; clientId: string } | null; transcript?: string | null },
 ): PlanConfirmPlan {
+  if (proposal.action === "invoice_tracked") {
+    // The lines are read and locked by the tracked-lines invoice itself, which refuses an empty job.
+    if (!proposal.job_id || !context.job || context.job.id !== proposal.job_id) return { ok: false, reason: "That job is no longer available." };
+    return { ok: true, kind: "invoice_tracked", jobId: context.job.id };
+  }
   const preview = previewProposal(proposal, { labourRate: context.labourRate, transcript: context.transcript });
   if (!preview) return { ok: false, reason: "This message has no action to confirm." };
   if (!preview.canConfirm) return { ok: false, reason: preview.blockers[0]! };
@@ -328,7 +380,7 @@ export function toConfirmPlan(
     return { ok: false, reason: "That job is no longer available." };
   }
 
-  const statedPrice = transcriptNamesLabourPrice(context.transcript);
+  const statedPrice = transcriptNamesLabourPrice(saidText(proposal, context.transcript));
   const drafts = describeToDraft(proposal, { labourRate: context.labourRate, statedPriceInTranscript: statedPrice });
   const lines: PlanConfirmLine[] = proposal.lines.map((line, index) => ({
     kind: line.kind,

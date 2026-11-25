@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { CaptureReviewForm } from "@/components/capture-review-form";
 import { CaptureReview } from "@/components/capture-review";
 import { ReceiptReviewForm } from "@/components/receipt-review-form";
@@ -132,6 +132,12 @@ export default async function CaptureReviewPage({
         </a>
       </div>
     );
+  }
+
+  const planCard = capture.type === "receipt" ? null : parseDescribeExtraction(capture.extraction);
+  if (planCard?.action === "invoice_tracked") {
+    // The lines are the job's tracked rows. Retyping them here would bill them twice.
+    redirect(planCard.job_id ? `/app/jobs/${planCard.job_id}` : "/app");
   }
 
   if (capture.type === "receipt") {

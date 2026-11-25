@@ -136,6 +136,10 @@ export function PlanProposalCard({
     return roundMoney(lines.reduce((sum, line) => sum + roundMoney(line.quantity * (line.unitPrice ?? 0)), 0));
   }, [lines]);
 
+  // Invoicing tracked lines bills the job's own rows. They are edited on the job, not on this card.
+  const readOnly = preview.action === "invoice_tracked";
+  const changeHref = readOnly && preview.jobId ? `/app/jobs/${preview.jobId}` : reviewUrl;
+
   const details: { label: string; value: string }[] = [];
   if (preview.jobTitle) {
     details.push({
@@ -183,59 +187,68 @@ export function PlanProposalCard({
             <span>Price</span>
           </div>
           <ul className="divide-y divide-line">
-            {lines.map((line, index) => (
-              <li key={index} className="grid gap-2 px-3 py-2.5 sm:grid-cols-[1fr_5rem_4rem_6rem]">
-                <input
-                  className="input"
-                  aria-label="Description"
-                  value={line.description}
-                  onChange={(event) =>
-                    updateLines((rows) => rows.map((row, i) => (i === index ? { ...row, description: event.target.value } : row)))
-                  }
-                  onBlur={() => void saveLines(linesRef.current)}
-                />
-                <input
-                  className="input"
-                  aria-label="Quantity"
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={line.quantity}
-                  onChange={(event) =>
-                    updateLines((rows) =>
-                      rows.map((row, i) => (i === index ? { ...row, quantity: Number(event.target.value) } : row)),
-                    )
-                  }
-                  onBlur={() => void saveLines(linesRef.current)}
-                />
-                <input
-                  className="input"
-                  aria-label="Unit"
-                  value={line.unit}
-                  onChange={(event) =>
-                    updateLines((rows) => rows.map((row, i) => (i === index ? { ...row, unit: event.target.value } : row)))
-                  }
-                  onBlur={() => void saveLines(linesRef.current)}
-                />
-                <input
-                  className="input"
-                  aria-label="Price"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={line.unitPrice ?? ""}
-                  onChange={(event) =>
-                    updateLines((rows) =>
-                      rows.map((row, i) =>
-                        i === index ? { ...row, unitPrice: event.target.value === "" ? null : Number(event.target.value) } : row,
-                      ),
-                    )
-                  }
-                  onBlur={() => void saveLines(linesRef.current)}
-                />
-                {line.note ? <p className="text-xs text-danger sm:col-span-4">{line.note}</p> : null}
-              </li>
-            ))}
+            {lines.map((line, index) =>
+              readOnly ? (
+                <li key={index} className="grid gap-2 px-3 py-2.5 text-ink sm:grid-cols-[1fr_5rem_4rem_6rem]">
+                  <span>{line.description}</span>
+                  <span className="tabular-nums">{line.quantity}</span>
+                  <span>{line.unit}</span>
+                  <span className="tabular-nums">{line.unitPrice == null ? "—" : cad(line.unitPrice)}</span>
+                </li>
+              ) : (
+                <li key={index} className="grid gap-2 px-3 py-2.5 sm:grid-cols-[1fr_5rem_4rem_6rem]">
+                  <input
+                    className="input"
+                    aria-label="Description"
+                    value={line.description}
+                    onChange={(event) =>
+                      updateLines((rows) => rows.map((row, i) => (i === index ? { ...row, description: event.target.value } : row)))
+                    }
+                    onBlur={() => void saveLines(linesRef.current)}
+                  />
+                  <input
+                    className="input"
+                    aria-label="Quantity"
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={line.quantity}
+                    onChange={(event) =>
+                      updateLines((rows) =>
+                        rows.map((row, i) => (i === index ? { ...row, quantity: Number(event.target.value) } : row)),
+                      )
+                    }
+                    onBlur={() => void saveLines(linesRef.current)}
+                  />
+                  <input
+                    className="input"
+                    aria-label="Unit"
+                    value={line.unit}
+                    onChange={(event) =>
+                      updateLines((rows) => rows.map((row, i) => (i === index ? { ...row, unit: event.target.value } : row)))
+                    }
+                    onBlur={() => void saveLines(linesRef.current)}
+                  />
+                  <input
+                    className="input"
+                    aria-label="Price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={line.unitPrice ?? ""}
+                    onChange={(event) =>
+                      updateLines((rows) =>
+                        rows.map((row, i) =>
+                          i === index ? { ...row, unitPrice: event.target.value === "" ? null : Number(event.target.value) } : row,
+                        ),
+                      )
+                    }
+                    onBlur={() => void saveLines(linesRef.current)}
+                  />
+                  {line.note ? <p className="text-xs text-danger sm:col-span-4">{line.note}</p> : null}
+                </li>
+              ),
+            )}
           </ul>
         </div>
       ) : null}
@@ -258,8 +271,8 @@ export function PlanProposalCard({
         <button type="button" className="btn btn-primary btn-sm" disabled={pending || !preview.canConfirm} onClick={confirm}>
           {pending && working === "confirm" ? "Confirming…" : "Confirm"}
         </button>
-        <Link href={reviewUrl} className="btn btn-ghost btn-sm" aria-disabled={pending}>
-          Change
+        <Link href={changeHref} className="btn btn-ghost btn-sm" aria-disabled={pending}>
+          {readOnly ? "Open job" : "Change"}
         </Link>
         <button type="button" className="btn btn-ghost btn-sm" disabled={pending} onClick={cancel}>
           {pending && working === "cancel" ? "Cancelling…" : "Cancel"}

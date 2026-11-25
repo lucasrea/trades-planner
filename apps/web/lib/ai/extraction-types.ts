@@ -13,7 +13,7 @@ export type DescribeLine = {
   accepted?: boolean | null;
 };
 
-export const PLAN_ACTIONS = ["create_job", "add_materials", "log_hours", "make_quote", "make_invoice"] as const;
+export const PLAN_ACTIONS = ["create_job", "add_materials", "log_hours", "make_quote", "make_invoice", "invoice_tracked"] as const;
 export type PlanAction = (typeof PLAN_ACTIONS)[number];
 
 export type DescribeExtraction = {
@@ -28,6 +28,10 @@ export type DescribeExtraction = {
   action?: PlanAction | null;
   job_id?: string | null;
   client_id?: string | null;
+  /** Earlier messages from the contractor in the same plan. A price said there counts as said. */
+  evidence?: string | null;
+  /** invoice_tracked only: the invoice a confirm created, so a second confirm opens it again. */
+  document_id?: string | null;
 };
 
 export type ReceiptLine = {
@@ -68,6 +72,8 @@ export function parseDescribeExtraction(value: unknown): DescribeExtraction | nu
     action: PLAN_ACTIONS.find((action) => action === value.action) ?? null,
     job_id: typeof value.job_id === "string" ? value.job_id : null,
     client_id: typeof value.client_id === "string" ? value.client_id : null,
+    evidence: typeof value.evidence === "string" ? value.evidence : null,
+    document_id: typeof value.document_id === "string" ? value.document_id : null,
   };
 }
 

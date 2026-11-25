@@ -5,19 +5,46 @@ import { addMoney } from "@/lib/money";
 const STARTS_WITH_QUESTION = /^(?:(?:for|on|across)\s+[^,?.]{1,40},\s*)?(what|which|who|when|where|why|how|show|list|tell me|do i|are there|is there)\b/i;
 const PAPERWORK = /\b(quotes?|invoices?|jobs?|drafts?|documents?|billed|unbilled)\b/i;
 const ACTION = /\b(add|log|create|make|record)\b/i;
-const GREETING = /^(hi|hey|hello|thanks|thank you|good morning|good afternoon)\b/i;
+const GREETING = /^(?:hi|hey|hello|thanks|thank you|good morning|good afternoon|ok(?:ay)?)\b[\s,!.:;-]*(?:there\b|again\b|so much\b|man\b|buddy\b)?[\s,!.:;-]*/i;
 const ASKS_TO_INVOICE = /\b(invoice|invoicing|billing|charge|charged)\b|\bbill(?!'s)\b/i;
 const ASKS_TO_QUOTE = /\b(quote for|quote the|make a quote|write a quote|new quote)\b/i;
+const WORK_WORDS =
+  /\b(add|log|create|make|record|quotes?|quoting|invoices?|bill|charge|price|jobs?|hours?|labou?r|materials?|receipts?|clients?|unbilled|drafts?)\b/i;
+/** Work already on the job: "the unbilled work", "what I logged", "everything on the kitchen". */
+const TRACKED_WORK =
+  /\b(unbilled|tracked|logged|everything\s+(?:on|for)|all\s+(?:of\s+)?(?:the\s+)?(?:work|hours|materials|lines))\b/i;
 
 export type PlanMessageKind = "act" | "question" | "chat";
+
+/** "Hi, add 2 hours" → "add 2 hours". Only a greeting at the very start is removed. */
+export function stripGreeting(text: string) {
+  const trimmed = text.trim();
+  const greeting = GREETING.exec(trimmed);
+  return greeting ? trimmed.slice(greeting[0].length).trim() : trimmed;
+}
 
 export function classifyPlanMessage(text: string): PlanMessageKind {
   const trimmed = text.trim();
   if (!trimmed) return "chat";
+  const greeting = GREETING.exec(trimmed);
+  if (greeting) {
+    // "Hi, quote Patel for the heater" is a request with a greeting in front, not small talk.
+    const rest = trimmed.slice(greeting[0].length).trim();
+    const smallTalk = !WORK_WORDS.test(rest) && !/\d/.test(rest) && rest.split(/\s+/).length <= 6;
+    return !rest || smallTalk ? "chat" : classifyPlanMessage(rest);
+  }
   if (ACTION.test(trimmed)) return "act";
   if (STARTS_WITH_QUESTION.test(trimmed) && PAPERWORK.test(trimmed)) return "question";
-  if (GREETING.test(trimmed)) return "chat";
   return "act";
+}
+
+/**
+ * "Invoice the kitchen for the unbilled work." The job's tracked lines become the invoice, so nothing
+ * is retyped or billed twice. A message with new numbers in it is new work, not this.
+ */
+export function asksToInvoiceTrackedWork(text: string | null | undefined) {
+  const value = text ?? "";
+  return ASKS_TO_INVOICE.test(value) && TRACKED_WORK.test(value) && !/\d/.test(value);
 }
 
 export function messageAsksToInvoice(text: string | null | undefined) {
@@ -50,7 +77,8 @@ export function parseObviousAct(text: string): {
     uncertain: null;
   }[];
 } | null {
-  const hours = HOURS_MESSAGE.exec(text.trim());
+  const message = stripGreeting(text);
+  const hours = HOURS_MESSAGE.exec(message);
   if (hours) {
     return {
       intent: "log",
@@ -71,7 +99,7 @@ export function parseObviousAct(text: string): {
       ],
     };
   }
-  const costing = EXPENSE_MESSAGE.exec(text.trim());
+  const costing = EXPENSE_MESSAGE.exec(message);
   if (costing) {
     const price = Number(costing[2]!.replace(/,/g, ""));
     if (!Number.isFinite(price)) return null;
