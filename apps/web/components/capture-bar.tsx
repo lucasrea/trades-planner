@@ -171,6 +171,7 @@ export function CaptureBar({
   fill = false,
   plan,
   dock,
+  syncPlan,
 }: {
   jobs?: CaptureJobOption[];
   lockedJob?: CaptureJobOption;
@@ -179,6 +180,8 @@ export function CaptureBar({
   plan?: OpenPlan;
   /** Plan screen only: controls tucked above the composer (e.g. receipt upload). */
   dock?: ReactNode;
+  /** Plan screen: reload the thread without a full-page refresh when the plan id stays the same. */
+  syncPlan?: (savedPlanId: string | null | undefined) => Promise<void>;
 }) {
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
@@ -243,9 +246,16 @@ export function CaptureBar({
 
   /** Show the saved thread. A new plan gets its own address so a refresh stays on it. */
   function showPlan(savedPlanId: string | null | undefined) {
+    if (syncPlan) {
+      startRefresh(() => void syncPlan(savedPlanId));
+      return;
+    }
     startRefresh(() => {
-      if (savedPlanId && savedPlanId !== plan?.id) router.replace(`/app?plan=${encodeURIComponent(savedPlanId)}`);
-      else router.refresh();
+      if (savedPlanId && savedPlanId !== plan?.id) {
+        router.replace(`/app?plan=${encodeURIComponent(savedPlanId)}`, { scroll: false });
+      } else {
+        router.refresh();
+      }
     });
   }
 
@@ -542,7 +552,10 @@ export function CaptureBar({
               <div key={message.id} className="mb-3">
                 <PlanReply
                   message={message}
-                  onCancelled={() => startRefresh(() => router.refresh())}
+                  onCancelled={() => {
+                    if (syncPlan) startRefresh(() => void syncPlan(plan?.id));
+                    else startRefresh(() => router.refresh());
+                  }}
                   onChoose={
                     message.id === plan?.messages.at(-1)?.id && !busy
                       ? (label, jobId) => {

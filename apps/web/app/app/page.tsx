@@ -1,14 +1,12 @@
-import { notFound } from "next/navigation";
-import { CaptureBar } from "@/components/capture-bar";
+import { Suspense } from "react";
 import { HomeLists } from "@/components/home-lists";
+import { PlanChatPane } from "@/components/plan-chat-pane";
+import { PlanChatSkeleton } from "@/components/plan-chat-skeleton";
 import { PlanSidebar } from "@/components/plan-list";
-import { ReceiptUpload } from "@/components/receipt-upload";
 import { ensureDb } from "@/lib/db";
 import { getContractor } from "@/lib/auth";
 import { getHome, getJobs } from "@/lib/queries";
-import { jobIdForPlanTitle, PLAN_NEW } from "@/lib/plans";
-import { getPlanThread, listPlans } from "@/lib/services/plans";
-import { NotFoundError } from "@/lib/services/context";
+import { listPlans } from "@/lib/services/plans";
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ plan?: string | string[] }> }) {
   const raw = (await searchParams).plan;
@@ -16,18 +14,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   const contractor = await getContractor();
   const ctx = { db: await ensureDb(), contractorId: contractor.id };
-  const [allJobs, plans, home, thread] = await Promise.all([
-    getJobs(),
-    listPlans(ctx),
-    getHome(),
-    planId
-      ? getPlanThread(ctx, planId).catch((error) => {
-          if (error instanceof NotFoundError) return null;
-          throw error;
-        })
-      : Promise.resolve(null),
-  ]);
-  if (planId && !thread) notFound();
+  const [allJobs, plans, home] = await Promise.all([getJobs(), listPlans(ctx), getHome()]);
 
   const jobs = allJobs
     .filter((job) => job.status === "quoted" || job.status === "active")
@@ -36,23 +23,14 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       title: job.title,
       clientName: job.client?.name ?? null,
     }));
-  const open = {
-    id: thread?.plan.id ?? null,
-    messages: thread?.messages ?? [],
-    jobId: jobIdForPlanTitle(thread?.plan.jobTitle, jobs),
-  };
 
   return (
-    <PlanSidebar plans={plans} currentId={open.id}>
+    <PlanSidebar plans={plans} currentId={planId}>
       <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-6">
         <div className="order-2 flex min-h-0 min-w-0 flex-1 flex-col lg:order-1">
-          <CaptureBar
-            key={open.id ?? PLAN_NEW}
-            jobs={jobs}
-            fill
-            plan={open}
-            dock={<ReceiptUpload jobs={jobs} planId={open.id ?? PLAN_NEW} initialJobId={open.jobId} compact />}
-          />
+          <Suspense fallback={<PlanChatSkeleton fill />} key={planId ?? "new"}>
+            <PlanChatPane planId={planId} jobs={jobs} />
+          </Suspense>
         </div>
         <div className="order-1 shrink-0 lg:order-2">
           <HomeLists home={home} />

@@ -39,6 +39,7 @@ function PlanRows({ plans, currentId, onPick }: { plans: PlanSummary[]; currentI
                 <li key={plan.id}>
                   <Link
                     href={`/app?plan=${encodeURIComponent(plan.id)}`}
+                    scroll={false}
                     onClick={onPick}
                     className={`block truncate rounded-lg px-3 py-2 text-sm transition-colors ${
                       active
