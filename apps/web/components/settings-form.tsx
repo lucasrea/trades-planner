@@ -54,11 +54,11 @@ function SettingsSection({
           {description ? <p className="mt-1 text-sm text-muted">{description}</p> : null}
         </div>
         {!editing ? (
-          <button type="button" className="btn btn-ghost shrink-0" onClick={() => onEdit(section)}>
+          <button type="button" className="btn btn-ghost btn-sm shrink-0" onClick={() => onEdit(section)}>
             Edit
           </button>
         ) : (
-          <button type="button" className="btn btn-ghost shrink-0" onClick={onCancel}>
+          <button type="button" className="btn btn-ghost btn-sm shrink-0" onClick={onCancel}>
             Cancel
           </button>
         )}
@@ -231,7 +231,7 @@ export function SettingsForm({ contractor }: { contractor: ContractorSettings })
   }
 
   return (
-    <div className="max-w-xl space-y-4">
+    <div className="max-w-2xl space-y-4">
       <SettingsSection
         title="Business"
         description="Shown on quotes and invoices."

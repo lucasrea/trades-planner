@@ -103,7 +103,7 @@ export function ShareLinkControls({
         </button>
       ) : null}
       {token ? (
-        <button type="button" className="btn btn-ghost" onClick={turnOff} disabled={pending}>
+        <button type="button" className="btn btn-danger" onClick={turnOff} disabled={pending}>
           Turn off link
         </button>
       ) : null}

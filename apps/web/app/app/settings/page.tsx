@@ -10,10 +10,9 @@ export default async function SettingsPage() {
       <PageHeader
         title="Settings"
         subtitle="This is what prints on quotes and invoices."
-        back={{ href: "/app", label: "Plan" }}
       />
       <SettingsForm contractor={contractor} />
-      <div className="mt-4 max-w-xl">
+      <div className="mt-4 max-w-2xl">
         <AccountSection businessName={contractor.businessName} />
       </div>
     </div>

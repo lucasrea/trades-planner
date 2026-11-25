@@ -40,23 +40,25 @@ export function JobDocumentActions({
   if (!hasUnbilled) return newDocs;
 
   return (
-    <div className="card space-y-4 p-4 sm:p-6">
+    <div className="card flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-muted">Unbilled</p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums">{unbilledTotal}</p>
-        <p className="text-sm text-muted">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-muted">Unbilled work</p>
+        <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">{unbilledTotal}</p>
+        <p className="mt-0.5 text-sm text-muted">
           {unbilledCount} tracked {unbilledCount === 1 ? "line" : "lines"}, before tax
         </p>
       </div>
-      <form action={createInvoiceFromTrackedLinesAction}>
-        <input type="hidden" name="jobId" value={jobId} />
-        <FormSubmitButton
-          label="Create invoice from tracked lines"
-          pendingLabel="Creating…"
-          className="btn btn-primary w-full sm:w-auto"
-        />
-      </form>
-      {newDocs}
+      <div className="flex flex-col gap-2 sm:items-end">
+        <form action={createInvoiceFromTrackedLinesAction} className="w-full sm:w-auto">
+          <input type="hidden" name="jobId" value={jobId} />
+          <FormSubmitButton
+            label="Create invoice from tracked lines"
+            pendingLabel="Creating…"
+            className="btn btn-primary w-full sm:w-auto"
+          />
+        </form>
+        {newDocs}
+      </div>
     </div>
   );
 }

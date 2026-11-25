@@ -209,9 +209,9 @@ export function ReceiptReviewForm({
       </div>
 
       {mathBlockers.length ? (
-        <div className="card border-accent/30 bg-accent/5 p-4 text-sm" role="status">
+        <div className="card border-danger/30 bg-danger/10 p-4 text-sm" role="status">
           <p className="font-medium text-danger">Check these</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-ink/90">
             {mathBlockers.map((warning) => (
               <li key={warning}>{warning}</li>
             ))}

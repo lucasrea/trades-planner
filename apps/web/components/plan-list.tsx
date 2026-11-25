@@ -23,26 +23,35 @@ function subscribeSidebar() {
 }
 
 function PlanRows({ plans, currentId, onPick }: { plans: PlanSummary[]; currentId: string | null; onPick?: () => void }) {
-  if (plans.length === 0) return <p className="px-3 py-2 text-sm text-muted">No plans yet.</p>;
+  if (plans.length === 0) return <p className="px-4 py-3 text-sm text-muted">No plans yet.</p>;
   const groups = groupPlansByJob(plans);
   return (
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 pb-3">
       {groups.map((group) => (
         <section key={group.jobTitle ?? ""}>
-          <h2 className="truncate px-3 pb-1 text-xs font-medium text-muted">{group.jobTitle ?? "No job"}</h2>
+          <h2 className="truncate px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted/80">
+            {group.jobTitle ?? "No job"}
+          </h2>
           <ul className="space-y-0.5">
-            {group.plans.map((plan) => (
-              <li key={plan.id}>
-                <Link
-                  href={`/app?plan=${encodeURIComponent(plan.id)}`}
-                  onClick={onPick}
-                  className={`block truncate rounded-lg px-3 py-2 text-sm hover:bg-elevated ${plan.id === currentId ? "bg-elevated" : ""}`}
-                  aria-current={plan.id === currentId ? "page" : undefined}
-                >
-                  {plan.title}
-                </Link>
-              </li>
-            ))}
+            {group.plans.map((plan) => {
+              const active = plan.id === currentId;
+              return (
+                <li key={plan.id}>
+                  <Link
+                    href={`/app?plan=${encodeURIComponent(plan.id)}`}
+                    onClick={onPick}
+                    className={`block truncate rounded-lg px-3 py-2 text-sm transition-colors ${
+                      active
+                        ? "bg-elevated font-medium text-ink"
+                        : "text-muted hover:bg-elevated/60 hover:text-ink"
+                    }`}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {plan.title}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </section>
       ))}
@@ -53,7 +62,7 @@ function PlanRows({ plans, currentId, onPick }: { plans: PlanSummary[]; currentI
 function NewPlanLink({ onPick }: { onPick?: () => void }) {
   return (
     <Link href="/app" onClick={onPick} className="btn btn-primary btn-sm">
-      <Plus className="mr-1 inline h-4 w-4" aria-hidden />
+      <Plus className="h-4 w-4" aria-hidden />
       New plan
     </Link>
   );
@@ -99,7 +108,9 @@ export function PlanSidebar({
 
   return (
     <div className="-mx-4 -my-6 flex min-h-0 flex-1 sm:-mx-6 sm:-my-8">
-      {open ? <aside className="hidden w-64 shrink-0 flex-col border-r border-line lg:flex">{sidebar(false)}</aside> : null}
+      {open ? (
+        <aside className="hidden w-64 shrink-0 flex-col border-r border-line bg-navy/50 lg:flex">{sidebar(false)}</aside>
+      ) : null}
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className={`flex items-center gap-2 border-b border-line px-4 py-2 ${open ? "lg:hidden" : ""}`}>
@@ -110,8 +121,15 @@ export function PlanSidebar({
         </div>
         {open ? (
           <div className="fixed inset-0 z-40 lg:hidden">
-            <button type="button" className="absolute inset-0 bg-black/40" aria-label="Close plans" onClick={() => setSidebar(false)} />
-            <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r border-line bg-card">{sidebar(true)}</aside>
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
+              aria-label="Close plans"
+              onClick={() => setSidebar(false)}
+            />
+            <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r border-line bg-navy shadow-2xl">
+              {sidebar(true)}
+            </aside>
           </div>
         ) : null}
         <div className="flex min-h-0 flex-1 flex-col px-4 py-4 sm:px-6 sm:py-6">{children}</div>

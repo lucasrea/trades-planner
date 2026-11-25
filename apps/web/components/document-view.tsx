@@ -96,23 +96,27 @@ function DocumentMetaForm({
   return (
     <form action={action} className="card mt-6 space-y-4 p-6">
       <input type="hidden" name="documentId" value={documentId} />
-      <Field label="Notes">
-        <textarea className="input min-h-24" name="notes" defaultValue={notes} />
-      </Field>
-      {isQuote ? (
-        <Field label="Valid until">
-          <input className="input" type="date" name="validUntil" defaultValue={validUntil ?? ""} />
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+        <Field label="Notes">
+          <textarea className="input min-h-24" name="notes" defaultValue={notes} placeholder="Optional notes shown on the PDF" />
         </Field>
-      ) : (
-        <Field label="Due date">
-          <input className="input" type="date" name="dueDate" defaultValue={dueDate ?? ""} />
-        </Field>
-      )}
+        {isQuote ? (
+          <Field label="Valid until">
+            <input className="input" type="date" name="validUntil" defaultValue={validUntil ?? ""} />
+          </Field>
+        ) : (
+          <Field label="Due date">
+            <input className="input" type="date" name="dueDate" defaultValue={dueDate ?? ""} />
+          </Field>
+        )}
+      </div>
       <ActionError state={state} />
-      {state?.ok ? <p className="text-sm text-muted">Saved.</p> : null}
-      <button className="btn btn-primary" disabled={pending}>
-        {pending ? "Saving…" : "Save details"}
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <button className="btn btn-primary" disabled={pending}>
+          {pending ? "Saving…" : "Save details"}
+        </button>
+        {state?.ok ? <p className="text-sm text-ok" role="status">Saved.</p> : null}
+      </div>
     </form>
   );
 }
@@ -189,7 +193,7 @@ export function DocumentView({
   );
 
   return (
-    <div className="min-w-0">
+    <div className="max-w-5xl min-w-0">
       <PageHeader
         title={document.number}
         subtitle={typeLabel}
@@ -248,7 +252,7 @@ export function DocumentView({
         {actions.has("delete-draft") ? (
           <form action={deleteDraftDocumentAction}>
             <input type="hidden" name="documentId" value={document.id} />
-            <FormSubmitButton label="Delete draft" pendingLabel="Deleting…" className="btn btn-ghost" />
+            <FormSubmitButton label="Delete draft" pendingLabel="Deleting…" className="btn btn-danger" />
           </form>
         ) : null}
         {shareable || shareToken ? (
@@ -324,7 +328,7 @@ export function DocumentView({
         <>
           <TableCard>
             <table className="w-full min-w-[640px] text-sm">
-              <thead className="bg-paper text-left text-muted">
+              <thead className="bg-navy-2 text-left text-xs uppercase tracking-wider text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">Type</th>
                   <th className="px-4 py-3 font-medium">Description</th>

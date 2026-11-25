@@ -7,9 +7,9 @@ import { Files, HardHat, Menu, Settings, X } from "lucide-react";
 import type { AuthUser } from "@/lib/auth";
 import { UserAvatar, UserMenu } from "@/components/user-menu";
 
-function PlanIcon({ size = 16 }: { size?: number }) {
+function PlanIcon({ size = 16, className }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true" className={className}>
       <rect x="1.25" y="1.25" width="13.5" height="9.5" rx="2" stroke="currentColor" strokeWidth="1.5" />
       <path d="M4.2 13.6 5.4 10.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       <path d="M5 6.2v2.2M8 4.8v3.6M11 5.6v2.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -35,11 +35,14 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
             key={link.href}
             href={link.href}
             onClick={onNavigate}
-            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
-              active ? "bg-elevated text-ink" : "text-muted hover:bg-elevated hover:text-ink"
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+              active
+                ? "bg-elevated font-medium text-ink shadow-xs"
+                : "text-muted hover:bg-elevated/60 hover:text-ink"
             }`}
           >
-            <Icon size={16} />
+            <Icon size={16} className={active ? "text-accent" : undefined} />
             {link.label}
           </Link>
         );
@@ -90,18 +93,21 @@ export function AppShell({
         <div className="no-print fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
             aria-label="Close menu"
             onClick={() => setMenuOpen(false)}
           />
-          <aside className="relative flex h-full w-64 flex-col bg-navy text-ink shadow-xl">
-            <div className="flex items-center justify-between px-5 py-4">
-              <Link href="/app" className="text-base font-semibold" onClick={() => setMenuOpen(false)}>
-                Trades Planner
-              </Link>
+          <aside className="relative flex h-full w-64 flex-col border-r border-line bg-navy text-ink shadow-2xl">
+            <div className="flex items-start justify-between gap-2 px-5 py-4">
+              <div className="min-w-0">
+                <Link href="/app" className="text-base font-semibold tracking-tight" onClick={() => setMenuOpen(false)}>
+                  Trades Planner
+                </Link>
+                <p className="mt-0.5 truncate text-xs text-muted">{businessName || "Your business"}</p>
+              </div>
               <button
                 type="button"
-                className="rounded-lg p-1.5 hover:bg-elevated"
+                className="rounded-lg p-1.5 text-muted transition-colors hover:bg-elevated hover:text-ink"
                 aria-label="Close menu"
                 onClick={() => setMenuOpen(false)}
               >
@@ -111,21 +117,33 @@ export function AppShell({
             <nav className="flex flex-1 flex-col gap-1 px-3">
               <NavLinks pathname={pathname} onNavigate={() => setMenuOpen(false)} />
             </nav>
+            <div className="border-t border-line p-3">
+              <div className="flex items-center gap-3 rounded-lg px-2 py-1.5">
+                <UserAvatar user={user} size={32} />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{user.name || "Your account"}</p>
+                  <p className="truncate text-xs text-muted">{user.email}</p>
+                </div>
+              </div>
+            </div>
           </aside>
         </div>
       ) : null}
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="no-print flex items-center justify-between gap-3 border-b border-line bg-card px-4 py-2 lg:justify-end lg:px-6">
-          <div className="flex items-center lg:hidden">
+        <div className="no-print flex items-center justify-between gap-3 border-b border-line bg-navy/95 px-4 py-2 backdrop-blur lg:justify-end lg:px-6">
+          <div className="flex items-center gap-2 lg:hidden">
             <button
               type="button"
-              className="rounded-lg p-2 text-ink hover:bg-paper lg:hidden"
+              className="rounded-lg p-2 text-ink transition-colors hover:bg-elevated lg:hidden"
               aria-label="Open menu"
               onClick={() => setMenuOpen(true)}
             >
               <Menu size={18} />
             </button>
+            <Link href="/app" className="text-sm font-semibold tracking-tight text-ink">
+              Trades Planner
+            </Link>
           </div>
           <UserMenu user={user} />
         </div>

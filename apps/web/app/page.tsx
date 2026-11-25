@@ -17,7 +17,7 @@ import { VoiceFeatureSection } from "@/components/voice-feature-section";
 
 const title = "Describe the job. Get the paperwork.";
 const description =
-  "Clients, jobs, quotes, and GST/HST invoices for solo trades in Canada — line items on the job, print-ready PDFs, and capture on the roadmap.";
+  "Clients, jobs, quotes, and GST/HST invoices for solo trades in Canada — describe work by voice or text, snap supply receipts, and print clean PDFs.";
 
 export const metadata: Metadata = {
   title: `Trades Planner — ${title}`,
@@ -45,8 +45,8 @@ export default function HomePage() {
               {title}
             </h1>
             <p className="mt-5 max-w-lg text-lg leading-relaxed text-muted">
-              Keep clients, jobs, quotes, and invoices in one place. Track materials on the job, then print or save
-              PDFs with tax on the right lines — describe-it and receipt capture are on the way.
+              Keep clients, jobs, quotes, and invoices in one place. Describe the work by voice or text, snap supply
+              receipts, review every line, and print PDFs with GST/HST on the right lines.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/signup" className="btn btn-primary px-5 py-3">

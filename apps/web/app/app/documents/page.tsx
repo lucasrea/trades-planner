@@ -75,13 +75,20 @@ export default async function DocumentsPage({
         </p>
       ) : null}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          <Link href={listHref({ status })} className={type ? "btn btn-ghost btn-sm" : "btn btn-primary btn-sm"}>
+        <div className="inline-flex rounded-xl border border-line bg-card p-1">
+          <Link
+            href={listHref({ status })}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              !type ? "bg-accent text-white shadow-xs" : "text-muted hover:bg-elevated hover:text-ink"
+            }`}
+          >
             All
           </Link>
           <Link
             href={listHref({ type: "quote", status: status && (quoteStatuses as readonly string[]).includes(status) ? status : undefined })}
-            className={type === "quote" ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              type === "quote" ? "bg-accent text-white shadow-xs" : "text-muted hover:bg-elevated hover:text-ink"
+            }`}
           >
             Quotes
           </Link>
@@ -90,7 +97,9 @@ export default async function DocumentsPage({
               type: "invoice",
               status: status && (invoiceStatuses as readonly string[]).includes(status) ? status : undefined,
             })}
-            className={type === "invoice" ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+              type === "invoice" ? "bg-accent text-white shadow-xs" : "text-muted hover:bg-elevated hover:text-ink"
+            }`}
           >
             Invoices
           </Link>
@@ -99,7 +108,7 @@ export default async function DocumentsPage({
           {type ? <input type="hidden" name="type" value={type} /> : null}
           <label className="flex items-center gap-2 text-sm text-muted">
             Status
-            <select className="input" name="status" defaultValue={status ?? ""}>
+            <select className="input w-auto py-1.5 text-sm" name="status" defaultValue={status ?? ""}>
               <option value="">All</option>
               {allowed.map((value) => (
                 <option key={value} value={value}>
@@ -108,7 +117,7 @@ export default async function DocumentsPage({
               ))}
             </select>
           </label>
-          <button className="btn btn-ghost btn-sm">Apply</button>
+          <button className="btn btn-navy btn-sm">Apply</button>
         </form>
       </div>
 
