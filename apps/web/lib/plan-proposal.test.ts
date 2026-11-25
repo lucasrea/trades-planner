@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DescribeExtraction } from "@/lib/ai/extraction-types";
+import { parseObviousAct } from "@/lib/plan-message";
 import { buildProposal, chooseAction, previewProposal, toConfirmPlan, type PlanJobRef } from "@/lib/plan-proposal";
 
 const kitchen: PlanJobRef = { id: "job-kitchen", title: "Kitchen reno", clientId: "client-chen" };
@@ -69,6 +70,41 @@ describe("chooseAction", () => {
   it("returns no action when the message names nothing to do", () => {
     expect(chooseAction({ intent: null, lines: [], job: null, namesWork: false })).toBeNull();
     expect(chooseAction({ intent: "log", lines: [], job: "selected", namesWork: true })).toBeNull();
+  });
+});
+
+describe("obvious messages", () => {
+  function card(text: string) {
+    const obvious = parseObviousAct(text);
+    expect(obvious).not.toBeNull();
+    const proposal = buildProposal({
+      extraction: obvious!,
+      selectedJob: kitchen,
+      jobs,
+      clients,
+      transcript: text,
+    });
+    return previewProposal(proposal, { labourRate: 85, jobTitle: kitchen.title, transcript: text });
+  }
+
+  it("adds hours of labour onto the open job", () => {
+    for (const text of ["add 5 hours of labour", "add 5 hours of labour to the job too"]) {
+      const preview = card(text);
+      expect(preview).toMatchObject({
+        action: "log_hours",
+        canConfirm: true,
+        lines: [{ kind: "labour", quantity: 5, unitPrice: 85 }],
+      });
+    }
+  });
+
+  it("adds a priced expense when the dollar sign follows the number", () => {
+    const preview = card("need to add an expense, new granite countertops costing 2000$");
+    expect(preview).toMatchObject({
+      action: "add_materials",
+      canConfirm: true,
+      lines: [{ kind: "material", description: "granite countertops", quantity: 1, unitPrice: 2000, note: null }],
+    });
   });
 });
 

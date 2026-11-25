@@ -4,7 +4,7 @@ import type { DescribeExtraction } from "@/lib/ai/extraction-types";
 import type { Database } from "@/lib/db";
 import { captures, clients, jobs } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
-import { classifyPlanMessage } from "@/lib/plan-message";
+import { classifyPlanMessage, parseObviousAct } from "@/lib/plan-message";
 import { buildProposal, type PlanPreview } from "@/lib/plan-proposal";
 import { answerPlanQuestion, chatPlanReply } from "@/lib/services/plan-answers";
 import { assertCaptureRateLimit } from "@/lib/services/capture-rate-limit";
@@ -125,27 +125,37 @@ export async function createDescribeCapture(
         .orderBy(desc(jobs.updatedAt))
         .limit(50),
     ]);
-    const result = await runDescribeExtraction({
-      text: transcript,
-      context: {
-        labourRate: contractor.labourRateHourly,
-        clients: clientRows,
-        openJobs: jobRows.map((row) => ({ id: row.id, title: row.title, clientName: row.clientName ?? "" })),
-      },
-    });
-    extraction = buildProposal({
-      extraction: result.extraction,
+    const proposalInput = {
       selectedJob: selectedJob ? { id: selectedJob.id, title: selectedJob.title, clientId: selectedJob.clientId } : null,
       jobs: jobRows.map((row) => ({ id: row.id, title: row.title, clientId: row.clientId })),
       clients: clientRows,
       transcript,
+    };
+    const obvious = parseObviousAct(transcript);
+    if (obvious) {
+      extraction = buildProposal({ extraction: obvious, ...proposalInput });
+    } else {
+      const result = await runDescribeExtraction({
+        text: transcript,
+        context: {
+          labourRate: contractor.labourRateHourly,
+          clients: clientRows,
+          openJobs: jobRows.map((row) => ({ id: row.id, title: row.title, clientName: row.clientName ?? "" })),
+        },
+      });
+      extraction = buildProposal({ extraction: result.extraction, ...proposalInput });
+      model = result.model;
+      latencyMs = result.latencyMs;
+      inputTokens = result.inputTokens;
+      outputTokens = result.outputTokens;
+      promptVersion = result.promptVersion;
+    }
+  } catch (caught) {
+    console.error({
+      event: "describe_failed",
+      name: caught instanceof Error ? caught.name : "Error",
+      message: caught instanceof Error ? caught.message.slice(0, 200) : "",
     });
-    model = result.model;
-    latencyMs = result.latencyMs;
-    inputTokens = result.inputTokens;
-    outputTokens = result.outputTokens;
-    promptVersion = result.promptVersion;
-  } catch {
     status = "failed";
     error = EXTRACTION_FAILED_MESSAGE;
   } finally {

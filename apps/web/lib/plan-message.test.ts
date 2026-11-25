@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyPlanMessage, formatJobPaperwork, messageAsksToInvoice, messageAsksToQuote } from "@/lib/plan-message";
+import { classifyPlanMessage, formatJobPaperwork, messageAsksToInvoice, messageAsksToQuote, parseObviousAct } from "@/lib/plan-message";
 
 describe("classifyPlanMessage", () => {
   it("treats a paperwork question as a question", () => {
@@ -21,6 +21,32 @@ describe("classifyPlanMessage", () => {
     expect(classifyPlanMessage("3 hours at the Smith place")).toBe("act");
     expect(classifyPlanMessage("valve at 45 for the kitchen")).toBe("act");
     expect(classifyPlanMessage("Can you add a valve to the kitchen?")).toBe("act");
+  });
+});
+
+describe("parseObviousAct", () => {
+  it("reads hours of labour", () => {
+    expect(parseObviousAct("add 5 hours of labour")?.lines[0]).toMatchObject({
+      kind: "labour",
+      quantity: 5,
+      unit: "hr",
+      unit_price: null,
+    });
+    expect(parseObviousAct("add 5 hours of labour to the job too")?.lines[0]?.quantity).toBe(5);
+  });
+
+  it("leaves mixed or quoted work for the model", () => {
+    expect(parseObviousAct("quote 5 hours of labour and a tank")).toBeNull();
+    expect(parseObviousAct("add 5 hours of labour and a valve at 45")).toBeNull();
+  });
+
+  it("reads a cost with the dollar sign after the number", () => {
+    expect(parseObviousAct("need to add an expense, new granite countertops costing 2000$")?.lines[0]).toMatchObject({
+      kind: "material",
+      description: "granite countertops",
+      quantity: 1,
+      unit_price: 2000,
+    });
   });
 });
 
