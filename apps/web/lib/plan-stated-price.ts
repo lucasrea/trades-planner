@@ -3,7 +3,7 @@
  */
 import { roundMoney } from "@/lib/money";
 
-const DOLLAR_SIGN = /\$\s*\d+(?:\.\d+)?/;
+const DOLLAR_SIGN = /\$\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*\$/;
 const DOLLARS_WORD = /\d+(?:\.\d+)?\s+dollars?\b/i;
 const AT_PRICE = /\bat\s+(\d+(?:\.\d+)?)(?:\s+(\S+))?/gi;
 const TIME_UNIT = /^(?:hours?|hrs?|hr)\b/i;

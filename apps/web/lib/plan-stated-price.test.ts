@@ -7,6 +7,7 @@ describe("transcriptNamesPrice", () => {
     expect(transcriptNamesPrice("80 dollars for the valve")).toBe(true);
     expect(transcriptNamesPrice("Log 1 hour at 80")).toBe(true);
     expect(transcriptNamesPrice("Log 1 hour at 80 dollars")).toBe(true);
+    expect(transcriptNamesPrice("granite countertops costing 2000$")).toBe(true);
   });
 
   it("does not treat hours or bare quantities as prices", () => {

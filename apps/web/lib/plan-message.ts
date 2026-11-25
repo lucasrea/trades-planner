@@ -26,6 +26,75 @@ export function messageAsksToQuote(text: string | null | undefined) {
   return ASKS_TO_QUOTE.test(text ?? "");
 }
 
+const HOURS_MESSAGE =
+  /^(?:please\s+)?(?:(?:i\s+)?need\s+to\s+)?(?:add|log)\s+(\d+(?:\.\d+)?)\s+hours?\s+of\s+(?:labour|labor)(?:\s+(?:to\s+(?:the|this)\s+job(?:\s+too)?|too))?[.!]?\s*$/i;
+const EXPENSE_MESSAGE =
+  /^(?:please\s+)?(?:(?:i\s+)?need\s+to\s+)?add\s+an?\s+expense[,:]?\s+(?:new\s+)?([a-z][a-z\s]{2,60})\s+costing\s+\$?\s*(\d[\d,]*(?:\.\d+)?)\s*\$?[.!]?\s*$/i;
+
+/** A plainly worded add, so a model failure does not throw the message away. */
+export function parseObviousAct(text: string): {
+  intent: "log";
+  client_name: null;
+  job_title: null;
+  site_address: null;
+  scope_notes: null;
+  warnings: string[];
+  lines: {
+    kind: "labour" | "material";
+    description: string;
+    quantity: number;
+    unit: string;
+    unit_price: number | null;
+    uncertain: null;
+  }[];
+} | null {
+  const hours = HOURS_MESSAGE.exec(text.trim());
+  if (hours) {
+    return {
+      intent: "log",
+      client_name: null,
+      job_title: null,
+      site_address: null,
+      scope_notes: null,
+      warnings: [],
+      lines: [
+        {
+          kind: "labour",
+          description: "Labour",
+          quantity: Number(hours[1]),
+          unit: "hr",
+          unit_price: null,
+          uncertain: null,
+        },
+      ],
+    };
+  }
+  const costing = EXPENSE_MESSAGE.exec(text.trim());
+  if (costing) {
+    const price = Number(costing[2]!.replace(/,/g, ""));
+    if (!Number.isFinite(price)) return null;
+    return {
+      intent: "log",
+      client_name: null,
+      job_title: null,
+      site_address: null,
+      scope_notes: null,
+      warnings: [],
+      lines: [
+        {
+          kind: "material",
+          description: costing[1]!.trim(),
+          quantity: 1,
+          unit: "ea",
+          unit_price: price,
+          uncertain: null,
+        },
+      ],
+    };
+  }
+  return null;
+}
+
 export function planChatReply() {
   return "I can add materials, log hours, write a quote or an invoice, or look up what's already on a job. Name the job and what you want.";
 }
