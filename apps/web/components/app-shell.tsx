@@ -248,7 +248,7 @@ export function RelatedList({
         {items.length === 0 ? <li className="text-muted">None yet</li> : null}
         {items.map((item) => (
           <li key={item.href}>
-            <Link href={item.href} className="text-ink hover:underline">
+            <Link href={item.href} scroll={false} className="text-ink hover:underline">
               {item.label}
             </Link>
           </li>

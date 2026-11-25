@@ -19,12 +19,14 @@ export default async function DocumentDetailPage({
   const { id } = await params;
   const raw = await searchParams;
   const notice = actionErrorNotice(Array.isArray(raw.error) ? raw.error[0] : raw.error);
-  const document = await getDocument(id);
+  const [document, contractor] = await Promise.all([getDocument(id), getContractor()]);
   if (!document) notFound();
-  const contractor = await getContractor();
-  const tracked = document.type === "invoice" ? await getTrackedLines(document.jobId) : [];
+  const ctx = { db: await ensureDb(), contractorId: contractor.id };
+  const [tracked, shareToken] = await Promise.all([
+    document.type === "invoice" ? getTrackedLines(document.jobId) : Promise.resolve([]),
+    getActiveLinkToken(ctx, document.id),
+  ]);
   const unbilledCount = tracked.filter((line) => !line.billedDocumentId).length;
-  const shareToken = await getActiveLinkToken({ db: await ensureDb(), contractorId: contractor.id }, document.id);
   const today = calendarDateInTimeZone();
   const displayStatus = isOverdue(
     {

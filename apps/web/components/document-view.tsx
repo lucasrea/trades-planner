@@ -296,7 +296,11 @@ export function DocumentView({
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted">Job</p>
           {document.job ? (
-            <Link href={`/app/jobs/${document.job.id}`} className="mt-1 inline-block font-medium hover:underline">
+            <Link
+              href={`/app/jobs/${document.job.id}`}
+              scroll={false}
+              className="mt-1 inline-block font-medium hover:underline"
+            >
               {document.job.title}
             </Link>
           ) : (

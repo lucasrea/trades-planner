@@ -43,6 +43,7 @@ function renderAction(item: ExpandableAction) {
   return (
     <Link
       href={item.href}
+      scroll={item.external ? undefined : false}
       target={item.external ? "_blank" : undefined}
       rel={item.external ? "noopener noreferrer" : undefined}
       className="btn btn-ghost btn-sm"
@@ -77,7 +78,7 @@ function renderDetail(detail: ExpandableDetail) {
   }
   if (detail.href) {
     return (
-      <Link href={detail.href} className="hover:underline">
+      <Link href={detail.href} scroll={false} className="hover:underline">
         {detail.value}
       </Link>
     );
@@ -162,7 +163,7 @@ function RowGroup({
                 className={`transition-transform ${expanded ? "rotate-90" : ""}`}
               />
             </button>
-            <Link href={row.href} className="font-medium text-ink hover:underline">
+            <Link href={row.href} scroll={false} className="font-medium text-ink hover:underline">
               {row.label}
             </Link>
           </div>

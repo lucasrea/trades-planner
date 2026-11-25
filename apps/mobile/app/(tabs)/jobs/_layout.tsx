@@ -13,6 +13,7 @@ export default function JobsLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="[id]" options={{ title: "Job" }} />
       <Stack.Screen name="new" options={{ title: "New job" }} />
     </Stack>
   );

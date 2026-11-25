@@ -1,6 +1,10 @@
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as confirmCapture } from "@/app/api/v1/captures/[id]/confirm/route";
+import { GET as listDocuments } from "@/app/api/v1/documents/route";
+import { GET as getDocument } from "@/app/api/v1/documents/[id]/route";
+import { GET as listJobs } from "@/app/api/v1/jobs/route";
+import { GET as getJob } from "@/app/api/v1/jobs/[id]/route";
 import { POST as textCapture } from "@/app/api/v1/captures/text/route";
 import { POST as mobileSession } from "@/app/api/mobile/session/route";
 import type { DescribeExtraction } from "@/lib/ai/extraction-types";
@@ -144,5 +148,69 @@ describe("mobile API", () => {
       .where(and(eq(lineItems.contractorId, tenant.contractorId), eq(lineItems.captureId, captureId)));
     expect(lines).toHaveLength(1);
     expect(await db.select().from(documents).where(eq(documents.contractorId, tenant.contractorId))).toHaveLength(0);
+  });
+
+  it("read routes return tenant data and hide other tenants", async () => {
+    const tenant = await seedTenant("mobile-reads");
+    const { b } = await seedTwoContractors();
+    const tokenA = await bearerFor(tenant);
+    const tokenB = await bearerFor(b);
+
+    const jobsRes = await listJobs(
+      new Request("http://localhost/api/v1/jobs", { headers: { authorization: `Bearer ${tokenA}` } }),
+    );
+    expect(jobsRes.status).toBe(200);
+    const jobsBody = await jobsRes.json();
+    expect(jobsBody.jobs.some((job: { id: string }) => job.id === tenant.jobId)).toBe(true);
+
+    const jobRes = await getJob(
+      new Request(`http://localhost/api/v1/jobs/${tenant.jobId}`, { headers: { authorization: `Bearer ${tokenA}` } }),
+      { params: Promise.resolve({ id: tenant.jobId }) },
+    );
+    expect(jobRes.status).toBe(200);
+    const foreignJob = await getJob(
+      new Request(`http://localhost/api/v1/jobs/${tenant.jobId}`, { headers: { authorization: `Bearer ${tokenB}` } }),
+      { params: Promise.resolve({ id: tenant.jobId }) },
+    );
+    expect(foreignJob.status).toBe(404);
+
+    const docsRes = await listDocuments(
+      new Request("http://localhost/api/v1/documents", { headers: { authorization: `Bearer ${tokenA}` } }),
+    );
+    expect(docsRes.status).toBe(200);
+
+    const docId = newId();
+    const db = getTestDb();
+    await db.insert(documents).values({
+      id: docId,
+      contractorId: tenant.contractorId,
+      clientId: tenant.clientId,
+      jobId: tenant.jobId,
+      type: "quote",
+      status: "draft",
+      number: "Q-TEST-1",
+      notes: "",
+      validUntil: null,
+      dueDate: null,
+      subtotal: 100,
+      tax: 13,
+      total: 113,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    const docRes = await getDocument(
+      new Request(`http://localhost/api/v1/documents/${docId}`, { headers: { authorization: `Bearer ${tokenA}` } }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+    expect(docRes.status).toBe(200);
+    const docBody = await docRes.json();
+    expect(docBody.document.number).toBe("Q-TEST-1");
+
+    const foreignDoc = await getDocument(
+      new Request(`http://localhost/api/v1/documents/${docId}`, { headers: { authorization: `Bearer ${tokenB}` } }),
+      { params: Promise.resolve({ id: docId }) },
+    );
+    expect(foreignDoc.status).toBe(404);
   });
 });

@@ -1,7 +1,8 @@
 import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
-import { captures, clients, documents, jobs, lineItems } from "@/lib/db/schema";
+import { captures, clients, contractors, documents, jobs, lineItems } from "@/lib/db/schema";
 import { isOverdue } from "@/lib/documents";
+import { roundMoney } from "@/lib/money";
 
 export type DocumentListFilter = { type?: "quote" | "invoice"; status?: string };
 
@@ -59,6 +60,62 @@ export async function getDocumentForContractor(db: Database, contractorId: strin
   if (!row) return null;
   const lines = await db.select().from(lineItems).where(and(eq(lineItems.documentId, id), eq(lineItems.contractorId, contractorId)));
   return { ...row.document, client: row.client, job: row.job, lines: lines.slice().sort((a, b) => a.sortOrder - b.sortOrder) };
+}
+
+export async function getJobsForContractor(db: Database, contractorId: string) {
+  const rows = await db
+    .select({ job: jobs, client: clients })
+    .from(jobs)
+    .leftJoin(clients, and(eq(clients.id, jobs.clientId), eq(clients.contractorId, contractorId)))
+    .where(eq(jobs.contractorId, contractorId))
+    .orderBy(desc(jobs.createdAt));
+  const mapped = rows.map(({ job, client }) => ({ ...job, client }));
+  const jobIds = mapped.map((job) => job.id);
+  const unbilledByJob = new Map<string, number>();
+  if (jobIds.length) {
+    const totals = await db
+      .select({
+        jobId: lineItems.jobId,
+        unbilled: sql<number>`coalesce(sum(${lineItems.lineTotal}), 0)`.mapWith(Number),
+      })
+      .from(lineItems)
+      .where(
+        and(
+          eq(lineItems.contractorId, contractorId),
+          inArray(lineItems.jobId, jobIds),
+          isNull(lineItems.documentId),
+          isNull(lineItems.billedDocumentId),
+        ),
+      )
+      .groupBy(lineItems.jobId);
+    for (const row of totals) unbilledByJob.set(row.jobId, roundMoney(row.unbilled));
+  }
+  return mapped.map((job) => ({ ...job, unbilledTotal: unbilledByJob.get(job.id) ?? 0 }));
+}
+
+export async function getJobForContractor(db: Database, contractorId: string, id: string) {
+  const [row] = await db
+    .select({ job: jobs, client: clients })
+    .from(jobs)
+    .leftJoin(clients, and(eq(clients.id, jobs.clientId), eq(clients.contractorId, contractorId)))
+    .where(and(eq(jobs.id, id), eq(jobs.contractorId, contractorId)))
+    .limit(1);
+  if (!row) return null;
+  return { ...row.job, client: row.client };
+}
+
+export async function getContractorProfile(db: Database, contractorId: string) {
+  const [row] = await db
+    .select({
+      taxRate: contractors.taxRate,
+      taxLabel: contractors.taxLabel,
+      labourRateHourly: contractors.labourRateHourly,
+      businessName: contractors.businessName,
+    })
+    .from(contractors)
+    .where(eq(contractors.id, contractorId))
+    .limit(1);
+  return row ?? null;
 }
 
 export async function getJobDocumentsForContractor(db: Database, contractorId: string, jobId: string) {

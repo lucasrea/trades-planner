@@ -56,6 +56,7 @@ function RowLink({
     <li>
       <Link
         href={href}
+        scroll={false}
         className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-elevated lg:-mx-2"
       >
         <span className="min-w-0 flex-1">

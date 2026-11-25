@@ -1,6 +1,7 @@
 import { type ComponentRef, useCallback, useMemo, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { confirmCapture, sendTextCapture, type ConfirmResult, type TextCaptureResult } from "../../src/api";
 import { getBearer } from "../../src/session";
 import { GhostButton, Notice, PrimaryButton, StatusPill } from "../../src/ui";
@@ -75,6 +76,8 @@ export default function HomeScreen() {
       }
       const result = await confirmCapture(bearer, preview.captureId);
       setConfirmed(result);
+      if (result.kind === "document") router.push(`/documents/${result.documentId}`);
+      if (result.kind === "job") router.push(`/jobs/${result.jobId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Confirm failed.");
     } finally {
