@@ -22,7 +22,17 @@ function subscribeSidebar() {
   return () => {};
 }
 
-function PlanRows({ plans, currentId, onPick }: { plans: PlanSummary[]; currentId: string | null; onPick?: () => void }) {
+function PlanRows({
+  plans,
+  currentId,
+  onPick,
+  onSelectPlan,
+}: {
+  plans: PlanSummary[];
+  currentId: string | null;
+  onPick?: () => void;
+  onSelectPlan?: (planId: string) => void;
+}) {
   if (plans.length === 0) return <p className="px-4 py-3 text-sm text-muted">No plans yet.</p>;
   const groups = groupPlansByJob(plans);
   return (
@@ -37,19 +47,37 @@ function PlanRows({ plans, currentId, onPick }: { plans: PlanSummary[]; currentI
               const active = plan.id === currentId;
               return (
                 <li key={plan.id}>
-                  <Link
-                    href={`/app?plan=${encodeURIComponent(plan.id)}`}
-                    scroll={false}
-                    onClick={onPick}
-                    className={`block truncate rounded-lg px-3 py-2 text-sm transition-colors ${
-                      active
-                        ? "bg-elevated font-medium text-ink"
-                        : "text-muted hover:bg-elevated/60 hover:text-ink"
-                    }`}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    {plan.title}
-                  </Link>
+                  {onSelectPlan ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSelectPlan(plan.id);
+                        onPick?.();
+                      }}
+                      className={`block w-full truncate rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                        active
+                          ? "bg-elevated font-medium text-ink"
+                          : "text-muted hover:bg-elevated/60 hover:text-ink"
+                      }`}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      {plan.title}
+                    </button>
+                  ) : (
+                    <Link
+                      href={`/app?plan=${encodeURIComponent(plan.id)}`}
+                      scroll={false}
+                      onClick={onPick}
+                      className={`block truncate rounded-lg px-3 py-2 text-sm transition-colors ${
+                        active
+                          ? "bg-elevated font-medium text-ink"
+                          : "text-muted hover:bg-elevated/60 hover:text-ink"
+                      }`}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      {plan.title}
+                    </Link>
+                  )}
                 </li>
               );
             })}
@@ -60,7 +88,15 @@ function PlanRows({ plans, currentId, onPick }: { plans: PlanSummary[]; currentI
   );
 }
 
-function NewPlanLink({ onPick }: { onPick?: () => void }) {
+function NewPlanLink({ onPick, onNewPlan }: { onPick?: () => void; onNewPlan?: () => void }) {
+  if (onNewPlan) {
+    return (
+      <button type="button" onClick={() => { onNewPlan(); onPick?.(); }} className="btn btn-primary btn-sm">
+        <Plus className="h-4 w-4" aria-hidden />
+        New plan
+      </button>
+    );
+  }
   return (
     <Link href="/app" onClick={onPick} className="btn btn-primary btn-sm">
       <Plus className="h-4 w-4" aria-hidden />
@@ -74,10 +110,13 @@ export function PlanSidebar({
   plans,
   currentId,
   children,
+  onSelectPlan,
 }: {
   plans: PlanSummary[];
   currentId: string | null;
   children: ReactNode;
+  /** Client-side plan switch without reloading the Plan page. */
+  onSelectPlan?: (planId: string | null) => void;
 }) {
   const persisted = useSyncExternalStore(subscribeSidebar, readSidebarOpen, () => false);
   const [override, setOverride] = useState<boolean | null>(null);
@@ -116,9 +155,14 @@ export function PlanSidebar({
           <button type="button" className="btn btn-ghost btn-sm" aria-label="Hide plans" onClick={() => setSidebar(false)}>
             <PanelLeft className="h-4 w-4" aria-hidden />
           </button>
-          <NewPlanLink onPick={close} />
+          <NewPlanLink onPick={close} onNewPlan={onSelectPlan ? () => onSelectPlan(null) : undefined} />
         </div>
-        <PlanRows plans={plans} currentId={currentId} onPick={close} />
+        <PlanRows
+          plans={plans}
+          currentId={currentId}
+          onPick={close}
+          onSelectPlan={onSelectPlan ? (id) => onSelectPlan(id) : undefined}
+        />
       </>
     );
   }
@@ -134,7 +178,9 @@ export function PlanSidebar({
           <button type="button" className="btn btn-ghost btn-sm" aria-label="Show plans" onClick={() => setSidebar(true)}>
             <PanelLeft className="h-4 w-4" aria-hidden />
           </button>
-          {open ? null : <NewPlanLink />}
+          {open ? null : (
+            <NewPlanLink onNewPlan={onSelectPlan ? () => onSelectPlan(null) : undefined} />
+          )}
         </div>
         {open ? (
           <div className="fixed inset-0 z-40 lg:hidden">

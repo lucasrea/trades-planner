@@ -1,12 +1,12 @@
-import { Suspense } from "react";
-import { HomeLists } from "@/components/home-lists";
-import { PlanChatPane } from "@/components/plan-chat-pane";
-import { PlanChatSkeleton } from "@/components/plan-chat-skeleton";
-import { PlanSidebar } from "@/components/plan-list";
+import type { CaptureJobOption, OpenPlan } from "@/components/capture-bar";
+import { PlanHomeClient } from "@/components/plan-home-client";
 import { ensureDb } from "@/lib/db";
 import { getContractor } from "@/lib/auth";
+import { jobIdForPlanTitle } from "@/lib/plans";
 import { getHome, getJobs } from "@/lib/queries";
-import { listPlans } from "@/lib/services/plans";
+import { getPlanThread, listPlans } from "@/lib/services/plans";
+import { NotFoundError } from "@/lib/services/context";
+import { notFound } from "next/navigation";
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ plan?: string | string[] }> }) {
   const raw = (await searchParams).plan;
@@ -16,7 +16,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const ctx = { db: await ensureDb(), contractorId: contractor.id };
   const [allJobs, plans, home] = await Promise.all([getJobs(), listPlans(ctx), getHome()]);
 
-  const jobs = allJobs
+  const jobs: CaptureJobOption[] = allJobs
     .filter((job) => job.status === "quoted" || job.status === "active")
     .map((job) => ({
       id: job.id,
@@ -24,18 +24,28 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       clientName: job.client?.name ?? null,
     }));
 
+  let initialOpen: OpenPlan = { id: null, messages: [], jobId: null };
+  if (planId) {
+    try {
+      const thread = await getPlanThread(ctx, planId);
+      initialOpen = {
+        id: thread.plan.id,
+        messages: thread.messages,
+        jobId: jobIdForPlanTitle(thread.plan.jobTitle, jobs),
+      };
+    } catch (error) {
+      if (error instanceof NotFoundError) notFound();
+      throw error;
+    }
+  }
+
   return (
-    <PlanSidebar plans={plans} currentId={planId}>
-      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-6">
-        <div className="order-2 flex min-h-0 min-w-0 flex-1 flex-col lg:order-1">
-          <Suspense fallback={<PlanChatSkeleton fill />} key={planId ?? "new"}>
-            <PlanChatPane planId={planId} jobs={jobs} />
-          </Suspense>
-        </div>
-        <div className="order-1 shrink-0 lg:order-2">
-          <HomeLists home={home} />
-        </div>
-      </div>
-    </PlanSidebar>
+    <PlanHomeClient
+      plans={plans}
+      jobs={jobs}
+      home={home}
+      initialPlanId={planId}
+      initialOpen={initialOpen}
+    />
   );
 }
