@@ -8,9 +8,8 @@ import { assertCaptureEnabled } from "@/lib/captures/enabled";
 import { assertSameOrigin } from "@/lib/http/assert-same-origin";
 import { jsonError } from "@/lib/http/json-error";
 import { NotFoundError, RateLimitError } from "@/lib/services/context";
-import { createDescribeCapture } from "@/lib/services/describe-capture";
-import { assertPlanTarget, recordPlanTurn } from "@/lib/services/plans";
-import { describeReplyBody } from "@/lib/plans";
+import { runVoicePlan } from "@/lib/services/plan-agent";
+import { assertPlanTarget, listRecentPlanHistory, planTurnResponse, recordAgentTurn } from "@/lib/services/plans";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -62,35 +61,22 @@ export async function POST(request: Request) {
 
   const audioBytes = validated.bytes;
   const mimeType = validated.mimeType;
+  const history = await listRecentPlanHistory(ctx, planId);
 
   try {
-    const result = await createDescribeCapture(db, contractor, {
-      type: "voice",
+    // Same agent as a typed message. The plan keeps the transcript only; the audio is never stored.
+    const result = await runVoicePlan(db, contractor, {
       jobId,
-      resolveTranscript: () => getTranscriptionProvider().transcribe({ audioBytes, mimeType }),
+      history,
+      transcribe: () => getTranscriptionProvider().transcribe({ audioBytes, mimeType }),
     });
-    // The plan keeps the transcript only. The audio is never stored.
-    let savedPlanId: string | null = null;
-    if (planId) {
-      try {
-        savedPlanId = await recordPlanTurn(ctx, {
-          planId,
-          userBody: result.transcript || "Voice message",
-          replyBody: result.reply ?? describeReplyBody({ status: result.status, previewTitle: result.preview?.title ?? null }),
-          summaryTitle: result.reply ? null : result.preview?.title ?? null,
-          jobTitle: result.jobTitle ?? result.preview?.jobTitle ?? null,
-          jobId,
-          captureId: result.captureId || null,
-        });
-      } catch {
-        console.error({
-          event: "plan_turn_failed",
-          captureId: result.captureId,
-          contractorId: contractor.id,
-        });
-      }
-    }
-    return json({ ...result, planId: savedPlanId });
+    const savedPlanId = await recordAgentTurn(ctx, {
+      planId,
+      userBody: result.transcript || "Voice message",
+      result,
+      jobId,
+    });
+    return json(planTurnResponse(result, savedPlanId));
   } catch (error) {
     if (error instanceof RateLimitError) return jsonError("rate_limited", error.message, 429);
     if (error instanceof NotFoundError) return jsonError("not_found", "Job not found.", 404);

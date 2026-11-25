@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyPlanMessage, formatJobPaperwork, messageAsksToInvoice, messageAsksToQuote, parseCompoundWork, parseObviousAct } from "@/lib/plan-message";
+import { asksToInvoiceTrackedWork, classifyPlanMessage, formatJobPaperwork, messageAsksToInvoice, messageAsksToQuote, parseCompoundWork, parseObviousAct, stripGreeting } from "@/lib/plan-message";
 
 describe("classifyPlanMessage", () => {
   it("treats a paperwork question as a question", () => {
@@ -104,5 +104,44 @@ describe("formatJobPaperwork", () => {
     expect(formatJobPaperwork({ jobTitle: null, jobNames: ["Kitchen", "Bath"], documents: [] })).toBe(
       "Which job? I see Kitchen, Bath.",
     );
+  });
+});
+
+describe("greetings in front of a request", () => {
+  it("handles the request instead of answering with small talk", () => {
+    expect(classifyPlanMessage("Hi, quote Patel for a water heater, the tank is 780")).toBe("act");
+    expect(classifyPlanMessage("Thanks! Invoice Chen for the valve")).toBe("act");
+    expect(classifyPlanMessage("hey there, what quotes are on the kitchen?")).toBe("question");
+    expect(classifyPlanMessage("OK log 3 hours on the deck")).toBe("act");
+  });
+
+  it("still treats a greeting on its own, or with pleasantries, as small talk", () => {
+    expect(classifyPlanMessage("Hi")).toBe("chat");
+    expect(classifyPlanMessage("thanks so much!")).toBe("chat");
+    expect(classifyPlanMessage("Thanks for the help")).toBe("chat");
+    expect(classifyPlanMessage("good morning, how are you")).toBe("chat");
+  });
+});
+
+describe("asksToInvoiceTrackedWork", () => {
+  it("recognises billing for work already on the job", () => {
+    expect(asksToInvoiceTrackedWork("invoice the kitchen for the unbilled work")).toBe(true);
+    expect(asksToInvoiceTrackedWork("bill Chen for what I logged")).toBe(true);
+    expect(asksToInvoiceTrackedWork("Invoice everything on the deck job")).toBe(true);
+  });
+
+  it("leaves new work, questions about unbilled work and quotes alone", () => {
+    expect(asksToInvoiceTrackedWork("invoice Chen for 3 hours I logged today")).toBe(false);
+    expect(asksToInvoiceTrackedWork("what unbilled work do I have?")).toBe(false);
+    expect(asksToInvoiceTrackedWork("quote the unbilled work on the kitchen")).toBe(false);
+    expect(asksToInvoiceTrackedWork("invoice Chen for the valve")).toBe(false);
+  });
+});
+
+describe("plain adds behind a greeting", () => {
+  it("are still read without the model", () => {
+    expect(parseObviousAct("Hi, add 2 hours of labour")?.lines[0]).toMatchObject({ kind: "labour", quantity: 2 });
+    expect(stripGreeting("Thanks! log 3 hours of labour")).toBe("log 3 hours of labour");
+    expect(stripGreeting("Hiking trail repair")).toBe("Hiking trail repair");
   });
 });

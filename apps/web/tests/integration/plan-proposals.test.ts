@@ -4,7 +4,7 @@ import type { DescribeExtraction } from "@/lib/ai/extraction-types";
 import { captures, clients, documents, jobs, lineItems } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
 import { NotFoundError, ValidationError } from "@/lib/services/context";
-import { createDescribeCapture } from "@/lib/services/describe-capture";
+import { runPlanAgent } from "@/lib/services/plan-agent";
 import { cancelPlanProposal, confirmPlanProposal } from "@/lib/services/plan-proposals";
 import { getTestDb } from "../helpers/db";
 import { seedTenant, seedTwoContractors } from "../helpers/seed";
@@ -66,11 +66,7 @@ describe("plan proposals", () => {
     const tenant = await seedTenant("kitchen");
     const db = getTestDb();
     const ctx = { db, contractorId: tenant.contractorId };
-    const result = await createDescribeCapture(
-      db,
-      { id: tenant.contractorId, labourRateHourly: 85 },
-      { type: "text", resolveTranscript: async () => "add a valve at $45 to the kitchen" },
-    );
+    const result = await runPlanAgent(db, { id: tenant.contractorId, labourRateHourly: 85 }, { text: "add a valve at $45 to the kitchen" });
     expect(result.status).toBe("needs_review");
     expect(result.preview).toMatchObject({
       action: "add_materials",
@@ -103,11 +99,7 @@ describe("plan proposals", () => {
     const tenant = await seedTenant("hours");
     const db = getTestDb();
     const ctx = { db, contractorId: tenant.contractorId };
-    const result = await createDescribeCapture(
-      db,
-      { id: tenant.contractorId, labourRateHourly: 85 },
-      { type: "text", resolveTranscript: async () => "log 3 hours on the hours" },
-    );
+    const result = await runPlanAgent(db, { id: tenant.contractorId, labourRateHourly: 85 }, { text: "log 3 hours on the hours" });
     expect(result.preview?.action).toBe("log_hours");
     await confirmPlanProposal(ctx, result.captureId);
     const [line] = await db

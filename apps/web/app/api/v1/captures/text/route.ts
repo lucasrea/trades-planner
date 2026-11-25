@@ -3,8 +3,7 @@ import { assertCaptureEnabled } from "@/lib/captures/enabled";
 import { jsonError } from "@/lib/http/json-error";
 import { contractorFromBearer } from "@/lib/mobile/bearer-auth";
 import { NotFoundError, RateLimitError } from "@/lib/services/context";
-import { createDescribeCapture } from "@/lib/services/describe-capture";
-import { requireJob } from "@/lib/services/internal";
+import { runPlanAgent } from "@/lib/services/plan-agent";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -31,27 +30,19 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) return jsonError("invalid", "Text must be 1–4000 characters.", 400);
 
-  if (parsed.data.jobId) {
-    try {
-      await requireJob(auth.db, auth.contractorId, parsed.data.jobId);
-    } catch (error) {
-      if (error instanceof NotFoundError) return jsonError("not_found", "Job not found.", 404);
-      throw error;
-    }
-  }
-
   try {
-    const result = await createDescribeCapture(auth.db, auth.contractor, {
-      type: "text",
-      jobId: parsed.data.jobId,
-      resolveTranscript: async () => parsed.data.text,
-    });
+    // Same agent as the web Plan screen, so the phone gets the same cards for the same words.
+    const result = await runPlanAgent(auth.db, auth.contractor, { text: parsed.data.text, jobId: parsed.data.jobId });
+    const cards = result.parts.flatMap((part) =>
+      part.kind === "card" ? [{ captureId: part.captureId, title: part.body, preview: part.preview }] : [],
+    );
     return Response.json({
       captureId: result.captureId,
       status: result.status,
       preview: result.preview,
       transcript: result.transcript,
       reply: result.reply ?? null,
+      cards,
     });
   } catch (error) {
     if (error instanceof RateLimitError) return jsonError("rate_limited", error.message, 429);

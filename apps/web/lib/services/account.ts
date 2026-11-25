@@ -7,6 +7,7 @@ import {
   documents,
   jobs,
   lineItems,
+  mobileSessions,
   planMessages,
   plans,
   users,
@@ -79,6 +80,7 @@ export async function deleteAccount(
       .from(captures)
       .where(eq(captures.contractorId, contractorId));
 
+    await tx.delete(mobileSessions).where(eq(mobileSessions.contractorId, contractorId));
     await tx.delete(planMessages).where(eq(planMessages.contractorId, contractorId));
     await tx.delete(plans).where(eq(plans.contractorId, contractorId));
     await tx.delete(documentLinks).where(eq(documentLinks.contractorId, contractorId));

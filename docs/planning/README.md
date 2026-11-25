@@ -14,5 +14,6 @@ Product scope, feature roadmap, and engineering checklist for Trades Planner.
 | [plan-ops.md](./plan-ops.md) | Capture off switch, plan-thread failure, approve-link limit. |
 | [plan-email-document.md](./plan-email-document.md) | Email the client the document link and total. |
 | [plan-phone.md](./plan-phone.md) | Phone sign-in and one text plan through confirm. |
+| [plan-production.md](./plan-production.md) | Phases to a production phone app and the web checks left before launch. |
 
 Cursor may also keep a copy under `.cursor/plans/` for in-IDE task tracking. **This folder is the source of truth in git.**

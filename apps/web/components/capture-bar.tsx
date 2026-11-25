@@ -168,6 +168,8 @@ export function CaptureBar({
   const threadRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const stickToBottom = useRef(true);
+  // Two Enter presses can land before React re-renders with `pending`. This guard is synchronous.
+  const sendingRef = useRef(false);
   const busy = pending || reading || refreshing;
   const threadKey = `${plan?.messages.length ?? 0}:${plan?.messages.at(-1)?.id ?? ""}:${sentText}:${statusText}`;
   useEffect(() => {
@@ -190,12 +192,33 @@ export function CaptureBar({
     });
   }
 
+  /**
+   * After a message is handled. If the thread could not be saved (planId null), a refresh would show
+   * nothing, so open the card's review page or keep the answer on screen instead of dropping it.
+   */
+  function land(result: { planId?: string | null; reviewUrl?: string; reply?: string | null }) {
+    if (!fill || (planTarget && !result.planId)) {
+      if (result.reply) {
+        setAnswer(result.reply);
+        return;
+      }
+      if (result.reviewUrl && result.reviewUrl !== "/app") {
+        router.push(result.reviewUrl);
+        return;
+      }
+    }
+    showPlan(result.planId);
+  }
+
   async function sendRecording(audio: RecordedAudio) {
+    if (sendingRef.current) return;
+    sendingRef.current = true;
     setUnsentAudio(null);
     setError(null);
     setMenuOpen(false);
     const check = checkRecording(audio.blob.size);
     if (!check.ok) {
+      sendingRef.current = false;
       setError(check.message);
       return;
     }
@@ -215,6 +238,7 @@ export function CaptureBar({
         reviewUrl?: string;
         transcript?: string;
         planId?: string | null;
+        reply?: string | null;
         error?: { message?: string };
       } | null;
       if (response.status === 429) {
@@ -227,22 +251,21 @@ export function CaptureBar({
         setError(body?.error?.message ?? "Couldn't send that recording. You can try again.");
         return;
       }
-      if (!fill) {
-        router.push(body.reviewUrl);
-        return;
-      }
-      showPlan(body.planId);
+      setAnswer(null);
+      land(body);
     } catch {
       setUnsentAudio(audio);
       setError("Network error. Your recording is kept, so you can try again.");
     } finally {
+      sendingRef.current = false;
       setReading(false);
     }
   }
 
   async function submit(next = text) {
     const trimmed = next.trim();
-    if (!trimmed || busy || recorder.recording) return;
+    if (!trimmed || busy || recorder.recording || sendingRef.current) return;
+    sendingRef.current = true;
     stickToBottom.current = true;
     setText(next);
     setPending(true);
@@ -274,20 +297,13 @@ export function CaptureBar({
         setError(body.message ?? "Couldn't send that. Your text is still here.");
         return;
       }
-      if (body.reply && !fill) {
-        setAnswer(body.reply);
-        setText("");
-        return;
-      }
-      if (!fill) {
-        router.push(body.reviewUrl);
-        return;
-      }
-      showPlan(body.planId);
+      setAnswer(null);
+      land(body);
       setText("");
     } catch {
       setError("Network error. Your text is still here.");
     } finally {
+      sendingRef.current = false;
       setPending(false);
     }
   }
@@ -476,7 +492,7 @@ export function CaptureBar({
               {pending ? <span className="text-sm text-muted">{statusText}</span> : null}
             </div>
           ) : null}
-          {answer && !fill ? <p className="whitespace-pre-line text-sm leading-relaxed">{answer}</p> : null}
+          {answer ? <p className="mb-3 max-w-[40rem] whitespace-pre-line text-sm leading-relaxed text-ink">{answer}</p> : null}
           {recorder.error || error ? (
             <p className="mb-2 text-sm text-danger" role="alert">
               {error ?? recorder.error}

@@ -77,15 +77,20 @@ const optionalNumber = z.preprocess(
   z.coerce.number().finite().nonnegative().optional(),
 );
 
-const lineSchema = z.object({
-  kind: z.enum(["labour", "material", "other"]),
-  description: z.string().trim().min(1).max(200),
-  quantity: z.coerce.number().finite().positive().max(100000),
-  unit: z.string().trim().min(1).max(20),
-  unit_price: optionalNumber,
-  unit_cost: optionalNumber,
-  markup_amount: optionalNumber,
-});
+const blankToUndefined = (value: unknown) => (value === null || (typeof value === "string" && !value.trim()) ? undefined : value);
+
+const lineSchema = z
+  .object({
+    kind: z.enum(["labour", "material", "other"]),
+    description: z.string().trim().min(1).max(200),
+    quantity: z.coerce.number().finite().positive().max(100000),
+    // Models often leave the unit out. Hours are "hr", everything else "ea".
+    unit: z.preprocess(blankToUndefined, z.string().trim().min(1).max(20).optional()),
+    unit_price: optionalNumber,
+    unit_cost: optionalNumber,
+    markup_amount: optionalNumber,
+  })
+  .transform((line) => ({ ...line, unit: line.unit ?? (line.kind === "labour" ? "hr" : "ea") }));
 
 const proposeSchema = z.object({
   intent: z.enum(["quote", "invoice", "log"]).nullable().optional(),
@@ -93,7 +98,7 @@ const proposeSchema = z.object({
   client_name: z.string().trim().min(1).max(120).nullable().optional(),
   site_address: z.string().trim().min(1).max(200).nullable().optional(),
   notes: z.string().trim().min(1).max(1000).nullable().optional(),
-  lines: z.array(lineSchema).max(30),
+  lines: z.preprocess((value) => value ?? [], z.array(lineSchema).max(30)),
 });
 
 const replySchema = z.object({
@@ -119,6 +124,18 @@ export function parseLookupArgs(raw: string) {
 export function parseProposeArgs(raw: string) {
   const parsed = proposeSchema.safeParse(readArgs(raw));
   return parsed.success ? parsed.data : null;
+}
+
+/** Why a propose call was rejected, in words the model can act on in its next step. */
+export function proposeArgsProblem(raw: string): string {
+  const value = readArgs(raw);
+  if (value == null) return "The arguments were not valid JSON.";
+  const parsed = proposeSchema.safeParse(value);
+  if (parsed.success) return "";
+  return parsed.error.issues
+    .slice(0, 3)
+    .map((issue) => `${issue.path.join(".") || "arguments"}: ${issue.message}`)
+    .join("; ");
 }
 
 export function parseReplyArgs(raw: string) {
