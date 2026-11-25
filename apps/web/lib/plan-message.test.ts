@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyPlanMessage, formatJobPaperwork, messageAsksToInvoice, messageAsksToQuote, parseObviousAct } from "@/lib/plan-message";
+import { classifyPlanMessage, formatJobPaperwork, messageAsksToInvoice, messageAsksToQuote, parseCompoundWork, parseObviousAct } from "@/lib/plan-message";
 
 describe("classifyPlanMessage", () => {
   it("treats a paperwork question as a question", () => {
@@ -41,6 +41,19 @@ describe("parseObviousAct", () => {
     expect(parseObviousAct("add 5 hours of labour to the Chen job and add a valve at 45")).toBeNull();
     expect(parseObviousAct("add 5 hours of labour to the job at 90")).toBeNull();
     expect(parseObviousAct("add 5 hours of labour to the job. Also add a tank at 45")).toBeNull();
+  });
+
+  it("splits hours and a sink with a dollar markup", () => {
+    const parts = parseCompoundWork(
+      "we need 4 hours of labour and adding the kitchen sink which cost me 500, put it in for a +150 markup",
+    );
+    expect(parts?.[0]?.lines[0]).toMatchObject({ kind: "labour", quantity: 4, unit_price: null });
+    expect(parts?.[1]?.lines[0]).toMatchObject({
+      kind: "material",
+      description: "kitchen sink",
+      unit_cost: 500,
+      unit_price: 650,
+    });
   });
 
   it("reads a cost with the dollar sign after the number", () => {

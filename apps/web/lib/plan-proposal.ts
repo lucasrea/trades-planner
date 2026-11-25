@@ -8,7 +8,7 @@
 import type { DescribeExtraction, DescribeLine, PlanAction } from "@/lib/ai/extraction-types";
 import { describeToDraft, fuzzyMatchClient, fuzzyMatchJob, matchJobInText } from "@/lib/line-items";
 import { messageAsksToInvoice, messageAsksToQuote } from "@/lib/plan-message";
-import { priceAppearsInTranscript, transcriptNamesLabourPrice, UNSAID_PRICE } from "@/lib/plan-stated-price";
+import { priceAppearsInTranscript, priceComesFromCostAndMarkup, transcriptNamesLabourPrice, UNSAID_PRICE } from "@/lib/plan-stated-price";
 
 export type PlanJobRef = { id: string; title: string; clientId: string };
 export type PlanClientRef = { id: string; name: string };
@@ -217,7 +217,8 @@ export function previewProposal(
       !line.accepted &&
       !draft.defaultRate &&
       draft.unitPrice != null &&
-      !priceAppearsInTranscript(context.transcript, draft.unitPrice)
+      !priceAppearsInTranscript(context.transcript, draft.unitPrice) &&
+      !priceComesFromCostAndMarkup(context.transcript, line.unit_cost, draft.unitPrice)
     ) {
       note = UNSAID_PRICE;
     }
@@ -334,7 +335,7 @@ export function toConfirmPlan(
     description: line.description,
     quantity: line.quantity,
     unit: line.unit,
-    unitCost: null,
+    unitCost: line.unit_cost ?? null,
     unitPrice: drafts[index]!.unitPrice ?? 0,
   }));
 

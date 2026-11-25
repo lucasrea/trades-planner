@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  addMoney,
   applyMarkup,
   computeTotals,
   documentTotals,
@@ -14,6 +15,7 @@ describe("money helpers", () => {
   it("rounds currency to two decimal places", () => {
     expect(roundMoney(1.005)).toBe(1.01);
     expect(roundMoney(10.999)).toBe(11);
+    expect(addMoney(500, 150)).toBe(650);
   });
 
   it("computes categorized totals and tax", () => {

@@ -9,6 +9,11 @@ export function roundMoney(amount: number) {
   return Math.round((amount + Number.EPSILON) * 100) / 100;
 }
 
+/** Add two money amounts. The sell price after a dollar markup uses this. */
+export function addMoney(left: number, right: number) {
+  return roundMoney((Number(left) || 0) + (Number(right) || 0));
+}
+
 export type LineKind = "material" | "labour" | "other";
 
 export type DraftLine = {

@@ -1,8 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { fakeMixedProposes } from "@/lib/ai/fake-plan-client";
 import { runPlanLoop, type PlanLoopClient } from "@/lib/ai/plan-loop";
-import { statusForTool } from "@/lib/ai/plan-tools";
+import { PLAN_TOOLS, statusForTool } from "@/lib/ai/plan-tools";
 import { parsePlanStreamLine } from "@/lib/http/plan-events";
+
+describe("plan tool schema", () => {
+  it("uses a single JSON type for every field so the API accepts the tools", () => {
+    const types: unknown[] = [];
+    const walk = (value: unknown) => {
+      if (!value || typeof value !== "object") return;
+      if (Array.isArray(value)) {
+        value.forEach(walk);
+        return;
+      }
+      const record = value as { type?: unknown };
+      if ("type" in record) types.push(record.type);
+      Object.values(record).forEach(walk);
+    };
+    walk(PLAN_TOOLS);
+    expect(types.every((type) => type === "object" || type === "string" || type === "number" || type === "array" || type === "function")).toBe(true);
+  });
+});
 
 describe("statusForTool", () => {
   it("names the step from the tool the model chose", () => {

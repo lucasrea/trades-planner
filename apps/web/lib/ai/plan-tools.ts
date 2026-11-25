@@ -10,7 +10,6 @@ export const PLAN_TOOLS = [
         "Look up this contractor's jobs, a job's quotes and invoices, or its unbilled lines. Call this before answering a question about existing work. Use the totals in the result. Do not add them yourself.",
       parameters: {
         type: "object",
-        additionalProperties: false,
         properties: {
           what: { type: "string", enum: ["jobs", "paperwork", "unbilled"] },
           job: { type: "string", description: "Job title. Omit to use the open job, or to list jobs." },
@@ -27,26 +26,26 @@ export const PLAN_TOOLS = [
         "Show one card for the contractor to confirm. Call once per action. Hours and materials are two calls. Two jobs are two calls. A quote or an invoice is one call and may include both. This does not save anything.",
       parameters: {
         type: "object",
-        additionalProperties: false,
         properties: {
           intent: { type: "string", enum: ["quote", "invoice", "log"] },
-          job_title: { type: ["string", "null"] },
-          client_name: { type: ["string", "null"] },
-          site_address: { type: ["string", "null"] },
-          notes: { type: ["string", "null"] },
+          job_title: { type: "string" },
+          client_name: { type: "string" },
+          site_address: { type: "string" },
+          notes: { type: "string" },
           lines: {
             type: "array",
             items: {
               type: "object",
-              additionalProperties: false,
               properties: {
                 kind: { type: "string", enum: ["labour", "material", "other"] },
                 description: { type: "string" },
                 quantity: { type: "number" },
                 unit: { type: "string" },
-                unit_price: { type: ["number", "null"] },
+                unit_price: { type: "number", description: "Sell price. Omit when unit_cost and markup_amount are set." },
+                unit_cost: { type: "number", description: "What it cost the contractor, before markup." },
+                markup_amount: { type: "number", description: "Dollars to add to unit_cost. The app computes the sell price." },
               },
-              required: ["kind", "description", "quantity", "unit", "unit_price"],
+              required: ["kind", "description", "quantity", "unit"],
             },
           },
         },
@@ -61,7 +60,6 @@ export const PLAN_TOOLS = [
       description: "Say something in plain text when no card is needed, or add a short note after the cards.",
       parameters: {
         type: "object",
-        additionalProperties: false,
         properties: { text: { type: "string" } },
         required: ["text"],
       },
@@ -74,12 +72,19 @@ const lookupSchema = z.object({
   job: z.string().trim().min(1).max(120).nullable().optional(),
 });
 
+const optionalNumber = z.preprocess(
+  (value) => (value === null || value === "" ? undefined : value),
+  z.coerce.number().finite().nonnegative().optional(),
+);
+
 const lineSchema = z.object({
   kind: z.enum(["labour", "material", "other"]),
   description: z.string().trim().min(1).max(200),
-  quantity: z.number().finite().positive().max(100000),
+  quantity: z.coerce.number().finite().positive().max(100000),
   unit: z.string().trim().min(1).max(20),
-  unit_price: z.number().finite().nonnegative().nullable(),
+  unit_price: optionalNumber,
+  unit_cost: optionalNumber,
+  markup_amount: optionalNumber,
 });
 
 const proposeSchema = z.object({

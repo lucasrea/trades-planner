@@ -267,6 +267,16 @@ describe("previewProposal", () => {
     expect(preview.canConfirm).toBe(true);
   });
 
+  it("accepts a sell price that is the named cost plus the named markup", () => {
+    const sink = { kind: "material" as const, description: "kitchen sink", quantity: 1, unit: "ea", unit_price: 650, unit_cost: 500 };
+    const preview = previewProposal(
+      { ...extraction({ intent: "log", lines: [sink] }), action: "add_materials", job_id: "job-kitchen", client_id: "client-chen" },
+      { ...ctx, jobTitle: "Kitchen reno", transcript: "kitchen sink which cost me 500, put it in for a +150 markup" },
+    )!;
+    expect(preview.lines[0]).toMatchObject({ unitPrice: 650, note: null });
+    expect(preview.canConfirm).toBe(true);
+  });
+
   it("uses the labour rate when the named price belongs to a material", () => {
     const preview = previewProposal(
       { ...extraction({ lines: [hours] }), action: "log_hours", job_id: "job-kitchen", client_id: "client-chen" },
