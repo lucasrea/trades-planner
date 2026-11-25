@@ -154,7 +154,6 @@ export async function createDescribeCapture(
     console.error({
       event: "describe_failed",
       name: caught instanceof Error ? caught.name : "Error",
-      message: caught instanceof Error ? caught.message.slice(0, 200) : "",
     });
     status = "failed";
     error = EXTRACTION_FAILED_MESSAGE;

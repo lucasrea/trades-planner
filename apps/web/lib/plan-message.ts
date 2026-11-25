@@ -27,7 +27,7 @@ export function messageAsksToQuote(text: string | null | undefined) {
 }
 
 const HOURS_MESSAGE =
-  /^(?:please\s+)?(?:(?:i\s+)?need\s+to\s+)?(?:add|log)\s+(\d+(?:\.\d+)?)\s+hours?\s+of\s+(?:labour|labor)(?:\s+to\s+\S(?:.*\S)?)?[.!]?\s*$/i;
+  /^(?:please\s+)?(?:(?:i\s+)?need\s+to\s+)?(?:add|log)\s+(\d+(?:\.\d+)?)\s+hours?\s+of\s+(?:labour|labor)(?:\s+(?:to\s+(?:the|this)\s+job(?:\s+too)?|too))?[.!]?\s*$/i;
 const EXPENSE_MESSAGE =
   /^(?:please\s+)?(?:(?:i\s+)?need\s+to\s+)?add\s+an?\s+expense[,:]?\s+(?:new\s+)?([a-z][a-z\s]{2,60})\s+costing\s+\$?\s*(\d[\d,]*(?:\.\d+)?)\s*\$?[.!]?\s*$/i;
 

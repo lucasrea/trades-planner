@@ -38,6 +38,9 @@ describe("parseObviousAct", () => {
   it("leaves mixed or quoted work for the model", () => {
     expect(parseObviousAct("quote 5 hours of labour and a tank")).toBeNull();
     expect(parseObviousAct("add 5 hours of labour and a valve at 45")).toBeNull();
+    expect(parseObviousAct("add 5 hours of labour to the Chen job and add a valve at 45")).toBeNull();
+    expect(parseObviousAct("add 5 hours of labour to the job at 90")).toBeNull();
+    expect(parseObviousAct("add 5 hours of labour to the job. Also add a tank at 45")).toBeNull();
   });
 
   it("reads a cost with the dollar sign after the number", () => {
