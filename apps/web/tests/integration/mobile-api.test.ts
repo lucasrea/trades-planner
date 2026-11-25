@@ -125,7 +125,7 @@ describe("mobile API", () => {
       jobId: tenant.jobId,
       type: "text",
       status: "needs_review",
-      transcript: "add valve",
+      transcript: "add a valve at 45",
       extraction,
       createdAt: Date.now(),
     });

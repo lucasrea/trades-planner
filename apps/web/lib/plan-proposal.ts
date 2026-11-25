@@ -8,7 +8,7 @@
 import type { DescribeExtraction, DescribeLine, PlanAction } from "@/lib/ai/extraction-types";
 import { describeToDraft, fuzzyMatchClient, fuzzyMatchJob, matchJobInText } from "@/lib/line-items";
 import { messageAsksToInvoice, messageAsksToQuote } from "@/lib/plan-message";
-import { transcriptNamesPrice } from "@/lib/plan-stated-price";
+import { priceAppearsInTranscript, transcriptNamesPrice, UNSAID_PRICE } from "@/lib/plan-stated-price";
 
 export type PlanJobRef = { id: string; title: string; clientId: string };
 export type PlanClientRef = { id: string; name: string };
@@ -205,15 +205,26 @@ export function previewProposal(
 
   const statedPrice = transcriptNamesPrice(context.transcript);
   const drafts = describeToDraft(proposal, { labourRate: context.labourRate, statedPriceInTranscript: statedPrice });
+  const hasTranscript = Boolean(context.transcript?.trim());
   const lines: PlanPreviewLine[] = proposal.lines.map((line, index) => {
     const draft = drafts[index]!;
+    let note = lineNote(line, draft.unitPrice, Boolean(draft.defaultRate));
+    if (
+      hasTranscript &&
+      !line.accepted &&
+      !draft.defaultRate &&
+      draft.unitPrice != null &&
+      !priceAppearsInTranscript(context.transcript, draft.unitPrice)
+    ) {
+      note = UNSAID_PRICE;
+    }
     return {
       kind: line.kind,
       description: line.description,
       quantity: line.quantity,
       unit: line.unit,
       unitPrice: draft.unitPrice,
-      note: lineNote(line, draft.unitPrice, Boolean(draft.defaultRate)),
+      note,
     };
   });
 
@@ -243,6 +254,7 @@ export function previewProposal(
       blockers.push("Add a price to every line.");
     }
     if (lines.some((line) => line.note === "No quantity")) blockers.push("Add a quantity to every line.");
+    if (lines.some((line) => line.note === UNSAID_PRICE)) blockers.push(UNSAID_PRICE);
     if (action === "add_materials" || action === "log_hours") {
       if (!hasJob) {
         blockers.push(

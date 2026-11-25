@@ -3,6 +3,7 @@ import {
   describeToDraft,
   fuzzyMatchClient,
   matchJobInText,
+  receiptConfirmBlockers,
   receiptToDraft,
   receiptWarnings,
   sumLines,
@@ -49,6 +50,20 @@ describe("line-items", () => {
     const draft = receiptToDraft(extraction, { markupPct: 20 });
     expect(draft[0]?.unitCost).toBe(5);
     expect(draft[0]?.unitPrice).toBe(6);
+  });
+
+  it("blocks confirm when a receipt line or subtotal does not match the print", () => {
+    const line = { description: "Valve", quantity: 2, unitCost: 4, printedLineTotal: 25 };
+    expect(receiptConfirmBlockers({ subtotal: 25, lines: [line] })).toEqual([
+      '"Valve" does not match the printed line total.',
+      "Line totals do not match the receipt subtotal.",
+    ]);
+    expect(
+      receiptConfirmBlockers({
+        subtotal: 25,
+        lines: [{ description: "Valve", quantity: 2, unitCost: 12.5, printedLineTotal: 25 }],
+      }),
+    ).toEqual([]);
   });
 
   it("fuzzyMatchClient matches normalized names", () => {
