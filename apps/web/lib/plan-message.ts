@@ -186,3 +186,23 @@ export function formatJobPaperwork(input: {
     rows.length ? rows.map((row) => `${row.number} ${row.status}`).join(", ") : "none";
   return `${input.jobTitle}\nQuotes: ${list(quotes)}\nInvoices: ${list(invoices)}`;
 }
+
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const LABELLED_ID = new RegExp(`\\s*[—–-]?\\s*[([]?\\b(?:[a-z]+_)?ids?\\b\\s*[:=]?\\s*${UUID}[\\])]?`, "gi");
+const BARE_ID = new RegExp(UUID, "gi");
+
+/**
+ * The model sees database ids so it can call tools; the contractor never should. Removes "— id …",
+ * "(job_id: …)" and any bare id from text the contractor will read, and tidies what is left.
+ */
+export function stripIds(text: string): string {
+  return text
+    .replace(LABELLED_ID, "")
+    .replace(BARE_ID, "")
+    .replace(/\(\s*\)|\[\s*\]/g, "")
+    .replace(/[ \t]+([,.;:])/g, "$1")
+    .replace(/[ \t]*[—–][ \t]*$/gm, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+$/gm, "")
+    .trim();
+}

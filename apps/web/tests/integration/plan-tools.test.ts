@@ -150,6 +150,28 @@ describe("questions about the books", () => {
   });
 });
 
+describe("ids stay out of what the contractor reads", () => {
+  it("strips ids from a reply and from a question's choices", async () => {
+    const tenant = await seedTenant("ids");
+    const quote = await draft(tenant, "quote", [{ description: "Tank", quantity: 1, unitPrice: 780 }]);
+    const client = scripted(
+      [{ name: "ask", args: { question: `Which one? (id ${quote.id})`, options: [{ label: `${quote.number} — id ${quote.id}`, job_id: tenant.jobId }] } }],
+    );
+    const asked = await runPlanAgent(getTestDb(), contractorOf(tenant), { text: "which quote", client });
+    expect(JSON.stringify(asked.parts)).not.toContain(quote.id);
+    expect(asked.parts[0]).toMatchObject({ kind: "ask", body: "Which one?", options: [{ label: quote.number, jobId: tenant.jobId }] });
+
+    const replied = await runPlanAgent(getTestDb(), contractorOf(tenant), {
+      text: "lay them out by job name",
+      client: scripted([{ name: "find_documents", args: {} }], (results) => {
+        const found = results[0] as { documents: { id: string; number: string }[] };
+        return found.documents.map((doc) => `- ${doc.number} — id ${doc.id}`).join("\n");
+      }),
+    });
+    expect(replied.reply).toBe(`- ${quote.number}`);
+  });
+});
+
 describe("no empty turns", () => {
   it("takes one more step that may only answer or ask", async () => {
     const tenant = await seedTenant("empty");

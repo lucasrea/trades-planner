@@ -15,6 +15,7 @@ import {
   classifyPlanMessage,
   messageAsksForWork,
   parseCompoundWork,
+  stripIds,
   parseObviousAct,
 } from "@/lib/plan-message";
 import type { DescribeExtraction } from "@/lib/ai/extraction-types";
@@ -460,13 +461,19 @@ export async function runPlanAgent(
         if (!target) return json({ error: "Nothing was confirmed in the last day, so there is nothing to undo." });
         return storeChangeCard({ kind: "undo", capture_id: target });
       }
-      case "reply":
-        parts.push({ kind: "text", body: (parsed.args as PlanToolArgs<"reply">).text });
+      // Ids are for tool calls. Whatever the model writes, the contractor never sees one.
+      case "reply": {
+        const text = stripIds((parsed.args as PlanToolArgs<"reply">).text);
+        if (!text) return json({ error: "The reply was empty. Write it without ids." });
+        parts.push({ kind: "text", body: text });
         return json({ sent: true });
+      }
       case "ask": {
         const args = parsed.args as PlanToolArgs<"ask">;
-        const options = args.options.map((option) => ({ label: option.label, jobId: ownJob(option.job_id)?.id ?? null }));
-        parts.push({ kind: "ask", body: args.question, options });
+        const options = args.options
+          .map((option) => ({ label: stripIds(option.label), jobId: ownJob(option.job_id)?.id ?? null }))
+          .filter((option) => option.label);
+        parts.push({ kind: "ask", body: stripIds(args.question), options });
         return json({ asked: true });
       }
     }
