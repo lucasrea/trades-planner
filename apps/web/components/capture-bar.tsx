@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mic, Send, Square } from "lucide-react";
@@ -146,7 +146,20 @@ export function CaptureBar({
   const [statusText, setStatusText] = useState("Reading your message");
   const selected = lockedJob ?? jobs.find((job) => job.id === jobId) ?? null;
   const recorder = useVoiceRecorder((audio) => void sendRecording(audio));
+  const threadRef = useRef<HTMLDivElement>(null);
+  const stickToBottom = useRef(true);
   const busy = pending || reading || refreshing;
+  const threadKey = `${plan?.messages.length ?? 0}:${plan?.messages.at(-1)?.id ?? ""}:${sentText}:${statusText}`;
+  useEffect(() => {
+    const el = threadRef.current;
+    if (!el || !stickToBottom.current) return;
+    const scroll = () => {
+      el.scrollTop = el.scrollHeight;
+    };
+    scroll();
+    const frame = requestAnimationFrame(scroll);
+    return () => cancelAnimationFrame(frame);
+  }, [threadKey]);
   const planTarget = fill ? (plan?.id ?? PLAN_NEW) : null;
 
   /** Show the saved thread. A new plan gets its own address so a refresh stays on it. */
@@ -359,7 +372,20 @@ export function CaptureBar({
 
   return (
     <section className={fill ? "flex min-h-0 flex-1 flex-col" : "space-y-3"}>
-      <div className={fill ? "flex min-h-0 flex-1 flex-col justify-end overflow-y-auto overscroll-contain pb-2" : undefined}>
+      <div
+        ref={threadRef}
+        className={fill ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : undefined}
+        onScroll={
+          fill
+            ? () => {
+                const el = threadRef.current;
+                if (!el) return;
+                stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+              }
+            : undefined
+        }
+      >
+        <div className={fill ? "flex min-h-full flex-col justify-end pb-2" : undefined}>
         {(plan?.messages ?? []).map((message) =>
           message.role === "user" ? (
             <div key={message.id} className="mb-3 flex justify-end">
@@ -404,6 +430,7 @@ export function CaptureBar({
             </button>
           </div>
         ) : null}
+        </div>
       </div>
       {fill ? (
         <div className="shrink-0 space-y-2 border-t border-line pt-3">
