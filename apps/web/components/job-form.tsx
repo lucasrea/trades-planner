@@ -164,12 +164,31 @@ export function JobEditForm({
 export function JobStatusForm({ jobId, status }: { jobId: string; status: string }) {
   const [state, action, pending] = useActionState(setJobStatusAction, null);
   const known = (jobStatusOptions as readonly string[]).includes(status);
+  const initial = known ? status : "quoted";
+  const [selected, setSelected] = useState(initial);
+  const [dirty, setDirty] = useState(false);
+  const saved = Boolean(state && "ok" in state && state.ok) && !dirty;
+  const changed = selected !== status;
 
   return (
-    <form action={action} className="space-y-3">
+    <form
+      action={(formData) => {
+        setDirty(false);
+        return action(formData);
+      }}
+      className="space-y-3"
+    >
       <input type="hidden" name="jobId" value={jobId} />
       <Field label="Status">
-        <select className="input" name="status" defaultValue={known ? status : "quoted"}>
+        <select
+          className="input"
+          name="status"
+          value={selected}
+          onChange={(event) => {
+            setSelected(event.target.value);
+            setDirty(true);
+          }}
+        >
           {jobStatusOptions.map((value) => (
             <option key={value} value={value}>
               {value.charAt(0).toUpperCase() + value.slice(1)}
@@ -181,9 +200,14 @@ export function JobStatusForm({ jobId, status }: { jobId: string; status: string
         <p className="text-sm text-muted">This job is marked {status}. Choose quoted, active, or done.</p>
       )}
       <ActionError state={state} />
-      <button className="btn btn-navy btn-sm w-full" disabled={pending}>
+      <button className={`btn ${changed ? "btn-primary" : "btn-navy"} btn-sm w-full`} disabled={pending || !changed}>
         {pending ? "Saving…" : "Update status"}
       </button>
+      {saved ? (
+        <p className="text-center text-xs text-ok" role="status">
+          Status updated.
+        </p>
+      ) : null}
     </form>
   );
 }

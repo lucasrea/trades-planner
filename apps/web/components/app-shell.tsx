@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Files, HardHat, Menu, Settings, X } from "lucide-react";
 import type { AuthUser } from "@/lib/auth";
 import { UserAvatar, UserMenu } from "@/components/user-menu";
@@ -63,6 +63,15 @@ export function AppShell({
   const pathname = usePathname();
   const isPrint = pathname.endsWith("/print");
   const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
 
   if (isPrint) return <>{children}</>;
 

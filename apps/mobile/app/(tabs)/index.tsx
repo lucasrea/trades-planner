@@ -25,29 +25,41 @@ export default function HomeScreen() {
   const [preview, setPreview] = useState<TextCaptureResult | null>(null);
   const [confirmed, setConfirmed] = useState<ConfirmResult | null>(null);
   const inputRef = useRef<ComponentRef<typeof TextInput>>(null);
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  const submittingRef = useRef(false);
 
   const submit = useCallback(async () => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed || submittingRef.current) return;
+    submittingRef.current = true;
+    setText("");
     setBusy(true);
     setError(null);
     setConfirmed(null);
+    setPreview(null);
     setSentText(trimmed);
     try {
       const bearer = await getBearer();
       if (!bearer) {
+        setSentText(null);
+        setText((current) => current || trimmed);
         setError("Sign in on the Settings tab first.");
         return;
       }
       const result = await sendTextCapture(bearer, trimmed);
       setPreview(result);
-      setText("");
-      if (result.status === "failed") setError("We could not read that message.");
+      if (result.status === "failed") {
+        setText((current) => current || trimmed);
+        setError("We could not read that message.");
+      }
     } catch (err) {
+      setSentText(null);
+      setText((current) => current || trimmed);
       setError(err instanceof Error ? err.message : "Send failed.");
       setPreview(null);
     } finally {
       setBusy(false);
+      submittingRef.current = false;
     }
   }, [text]);
 
@@ -103,9 +115,13 @@ export default function HomeScreen() {
         </View>
 
         <ScrollView
+          ref={scrollRef}
           style={styles.flex}
           contentContainerStyle={[styles.scrollContent, isEmpty ? styles.scrollCentered : styles.scrollEnd]}
           keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() => {
+            if (!isEmpty) scrollRef.current?.scrollToEnd({ animated: true });
+          }}
         >
           {isEmpty ? (
             <View style={styles.welcome}>
@@ -136,6 +152,12 @@ export default function HomeScreen() {
                   <View style={styles.userBubble}>
                     <Text style={styles.userText}>{sentText}</Text>
                   </View>
+                </View>
+              ) : null}
+
+              {busy && !preview ? (
+                <View style={styles.thinkingRow}>
+                  <StatusPill label="Reading your message…" tone="accent" />
                 </View>
               ) : null}
 
@@ -329,6 +351,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   userText: { color: colors.ink, fontSize: 14, lineHeight: 20 },
+  thinkingRow: { flexDirection: "row", alignItems: "center" },
   replyBox: { paddingHorizontal: 2, paddingVertical: 4 },
   replyText: { color: colors.ink, fontSize: 14, lineHeight: 21 },
   proposalCard: {
