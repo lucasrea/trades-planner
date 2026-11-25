@@ -113,6 +113,8 @@ export function chooseAction(input: {
   /** When false, the words did not ask to invoice, so a model "invoice" is ignored. */
   asksToInvoice?: boolean;
   asksToQuote?: boolean;
+  /** The message says this is a new job. Hours and materials can only be logged on a job that exists. */
+  newJob?: boolean;
 }): PlanAction | null {
   if (input.intent === "invoice") {
     if (input.asksToInvoice === false && input.asksToQuote) return "make_quote";
@@ -123,6 +125,8 @@ export function chooseAction(input: {
     return "make_invoice";
   }
   if (input.lines.length === 0) return input.namesWork && !input.job ? "create_job" : null;
+  // A new job's first paperwork is its quote. Logging would need a job to log onto.
+  if (input.newJob && !input.job) return "make_quote";
   if (input.job === "selected") {
     if (input.intent === "quote") return "make_quote";
     return trackedAction(input.lines);
@@ -155,16 +159,23 @@ export function buildProposal(input: {
   // "Starting a new job for Joe" means a new job, even when the work mentions a room an old job is named after.
   const newJob = messageAsksForNewJob(input.transcript);
   const fromText = !newJob && input.transcript && extraction.lines.length > 0 ? matchJobInText(input.transcript, input.jobs) : null;
-  const fromTitle = !newJob && jobTitle && extraction.lines.length > 0 ? fuzzyMatchJob(jobTitle, input.jobs)?.id : undefined;
-  // A title the model gave that matches none of the contractor's jobs is a new job; a stray word in the
-  // message ("to the kitchen") does not get to pick an old one instead.
-  const namedId = input.trustJobTitle ? fromTitle : (fromText ?? fromTitle);
-  let namedJob = input.jobs.find((job) => job.id === namedId) ?? null;
-  if (namedJob && namedId === fromText && clientName) {
-    // Matched only by a word in the message, and the job belongs to someone else than the client named.
-    const owner = input.clients.find((client) => client.id === namedJob!.clientId);
-    if (owner && !fuzzyMatchClient(clientName, [owner])) namedJob = null;
-  }
+  // "Chen kitchen" is the Kitchen reno job of client Chen: match the title together with the client's name.
+  const labelled = input.jobs.map((job) => ({
+    id: job.id,
+    title: `${job.title} ${input.clients.find((client) => client.id === job.clientId)?.name ?? ""}`,
+  }));
+  const fromTitle = !newJob && jobTitle && extraction.lines.length > 0 ? fuzzyMatchJob(jobTitle, labelled)?.id : undefined;
+  /** A job picked by a word in the message counts only when it belongs to the client named, if one was. */
+  const clientAgrees = (jobId: string | null | undefined) => {
+    if (!jobId || !clientName) return true;
+    const owner = input.clients.find((client) => client.id === input.jobs.find((job) => job.id === jobId)?.clientId);
+    return !owner || Boolean(fuzzyMatchClient(clientName, [owner]));
+  };
+  const textMatch = fromText && clientAgrees(fromText) ? fromText : null;
+  // A title the model gave that matches none of the jobs falls back to a word in the message only when the
+  // client agrees; "rerun PEX to the kitchen" for Joe does not land on Chen's kitchen.
+  const namedId = input.trustJobTitle ? (fromTitle ?? (clientName ? textMatch : null)) : (textMatch ?? fromTitle);
+  const namedJob = input.jobs.find((job) => job.id === namedId) ?? null;
   const matchedJob = newJob ? null : (input.selectedJob ?? namedJob);
 
   const action = chooseAction({
@@ -174,6 +185,7 @@ export function buildProposal(input: {
     namesWork: Boolean(jobTitle || clientName || fromText),
     asksToInvoice: input.transcript == null ? undefined : messageAsksToInvoice(input.transcript),
     asksToQuote: input.transcript == null ? undefined : messageAsksToQuote(input.transcript),
+    newJob,
   });
 
   const warnings = [...extraction.warnings];

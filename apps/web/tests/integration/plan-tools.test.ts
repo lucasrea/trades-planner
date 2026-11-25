@@ -4,6 +4,7 @@ import type { PlanLoopClient, PlanLoopMessage, PlanStepOptions } from "@/lib/ai/
 import { captures, clients, contractors, documents, jobs, lineItems } from "@/lib/db/schema";
 import { clearFakeEmails, getFakeEmails } from "@/lib/email";
 import { newId } from "@/lib/id";
+import { cad } from "@/lib/money";
 import { PLAN_NEW } from "@/lib/plans";
 import { createDraftDocument, createInvoiceFromTrackedLines, setDocumentStatus } from "@/lib/services/documents";
 import { saveDocumentLine, saveTrackedLine } from "@/lib/services/line-items";
@@ -137,7 +138,7 @@ describe("questions about the books", () => {
     const late = await sent(tenant, "invoice", [{ description: "Late", quantity: 1, unitPrice: 100 }]);
     await sent(tenant, "invoice", [{ description: "Fine", quantity: 3, unitPrice: 33.33 }]);
     await ctx.db.update(documents).set({ dueDate: "2020-01-01" }).where(eq(documents.id, late.id));
-    let snapshot: Record<string, { count: number; total: number }> = {};
+    let snapshot: Record<string, { count: number; total: string }> = {};
     const client = scripted([{ name: "business_snapshot", args: { period: "month" } }], (results) => {
       snapshot = results[0] as typeof snapshot;
       return "ok";
@@ -145,7 +146,8 @@ describe("questions about the books", () => {
     await runPlanAgent(getTestDb(), contractorOf(tenant), { text: "who owes me", client });
     const rows = await ctx.db.select().from(documents).where(eq(documents.contractorId, tenant.contractorId));
     const owed = Math.round(rows.reduce((sum, doc) => sum + doc.total, 0) * 100) / 100;
-    expect(snapshot.owed).toEqual({ count: 2, total: owed });
+    // The model gets dollars already formatted, so it repeats "$1,234.56" instead of 1234.56.
+    expect(snapshot.owed).toEqual({ count: 2, total: cad(owed) });
     expect(snapshot.overdue!.count).toBe(1);
   });
 });
@@ -312,7 +314,7 @@ describe("prices from the contractor's records", () => {
     const tenant = await seedTenant("memory");
     const old = await sent(tenant, "quote", [{ description: "40 gal water heater", quantity: 1, unitPrice: 780 }]);
     const [oldLine] = await getTestDb().select().from(lineItems).where(eq(lineItems.documentId, old.id));
-    let found: { last_price: { unit_price: number } | null; lines: { id: string }[] } | null = null;
+    let found: { last_price: { unit_price: string } | null; lines: { id: string }[] } | null = null;
     const client: PlanLoopClient = {
       async complete(messages) {
         const tools = messages.filter((message) => message.role === "tool");
@@ -340,7 +342,7 @@ describe("prices from the contractor's records", () => {
       },
     };
     const result = await runPlanAgent(getTestDb(), contractorOf(tenant), { text: "quote the same water heater as last time", client });
-    expect(found!.last_price?.unit_price).toBe(780);
+    expect(found!.last_price?.unit_price).toBe("$780.00");
     const [card] = cards(result);
     expect(card?.preview?.canConfirm).toBe(true);
     expect(card?.preview?.lines[0]).toMatchObject({ unitPrice: 780, note: expect.stringContaining(`From ${old.number}`) });

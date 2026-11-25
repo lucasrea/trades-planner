@@ -181,7 +181,9 @@ export function planChatReply() {
 export function formatJobPaperwork(input: {
   jobTitle: string | null;
   jobNames: string[];
-  documents: { type: string; number: string; status: string }[];
+  documents: { type: string; number: string; status: string; overdue?: boolean }[];
+  /** The job's unbilled total, already written as money ("$327.00"), when there is any. */
+  unbilled?: string | null;
 }): string {
   if (!input.jobTitle) {
     if (input.jobNames.length === 0) return "You don't have any jobs yet. Tell me the job name and I can create it.";
@@ -189,9 +191,10 @@ export function formatJobPaperwork(input: {
   }
   const quotes = input.documents.filter((doc) => doc.type === "quote");
   const invoices = input.documents.filter((doc) => doc.type === "invoice");
-  const list = (rows: { number: string; status: string }[]) =>
-    rows.length ? rows.map((row) => `${row.number} ${row.status}`).join(", ") : "none";
-  return `${input.jobTitle}\nQuotes: ${list(quotes)}\nInvoices: ${list(invoices)}`;
+  const list = (rows: { number: string; status: string; overdue?: boolean }[]) =>
+    rows.length ? rows.map((row) => `${row.number} ${row.status}${row.overdue ? " (overdue)" : ""}`).join(", ") : "none";
+  const unbilled = input.unbilled ? `\nUnbilled: ${input.unbilled}` : "";
+  return `${input.jobTitle}\nQuotes: ${list(quotes)}\nInvoices: ${list(invoices)}${unbilled}`;
 }
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";

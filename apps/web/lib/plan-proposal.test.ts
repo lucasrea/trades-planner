@@ -640,3 +640,31 @@ describe("a new job is not attached to an old one", () => {
     expect(proposal).toMatchObject({ action: "add_materials", job_id: oldKitchen.id, client_id: "client-pippo" });
   });
 });
+
+describe("matching a job by its client's name", () => {
+  const jobs: PlanJobRef[] = [{ id: "job-kr", title: "Kitchen reno", clientId: "client-chen" }];
+  const clients = [{ id: "client-chen", name: "Chen" }];
+  const heater = extraction({
+    intent: "quote",
+    client_name: "Chen",
+    job_title: "Chen kitchen",
+    lines: [{ kind: "material", description: "40 gal water heater", quantity: 1, unit: "ea", unit_price: 780 }],
+  });
+
+  it("finds Kitchen reno from the model's title 'Chen kitchen'", () => {
+    const proposal = buildProposal({ extraction: heater, selectedJob: null, jobs, clients, transcript: "quote Chen the same water heater for the kitchen", trustJobTitle: true });
+    expect(proposal.job_id).toBe("job-kr");
+  });
+
+  it("falls back to a word in the message when the client agrees", () => {
+    const proposal = buildProposal({
+      extraction: { ...heater, job_title: "Water heater install" },
+      selectedJob: null,
+      jobs,
+      clients,
+      transcript: "quote Chen the same water heater for the kitchen",
+      trustJobTitle: true,
+    });
+    expect(proposal.job_id).toBe("job-kr");
+  });
+});
