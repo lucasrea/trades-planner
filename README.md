@@ -19,6 +19,7 @@ npm install
 cp apps/web/.env.example apps/web/.env.local
 # Fill in .env.local (see Supabase setup below)
 npm run dev
+cp apps/mobile/.env.example apps/mobile/.env.local   # the phone app needs it
 npm run dev:mobile
 ```
 
