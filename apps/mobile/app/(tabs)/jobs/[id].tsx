@@ -1,11 +1,18 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { fetchJobSummary, fetchJobWorkspace, type JobSummary, type JobWorkspace } from "../../../src/api";
+import {
+  fetchJobSummary,
+  fetchJobWorkspace,
+  invoiceQuote,
+  invoiceTrackedLines,
+  type JobSummary,
+  type JobWorkspace,
+} from "../../../src/api";
 import { getBearer } from "../../../src/session";
 import { formatCad } from "../../../src/money";
 import { JobDetailSkeleton } from "../../../src/skeletons";
-import { Card, Notice, StatusPill } from "../../../src/ui";
+import { Card, Notice, PrimaryButton, SecondaryButton, StatusPill } from "../../../src/ui";
 import { colors } from "../../../src/theme";
 
 export default function JobDetailScreen() {
@@ -14,6 +21,28 @@ export default function JobDetailScreen() {
   const [job, setJob] = useState<JobSummary | null>(null);
   const [workspace, setWorkspace] = useState<JobWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const invoicingRef = useRef(false);
+
+  const createInvoice = useCallback(async (make: (bearer: string) => Promise<string>) => {
+    if (invoicingRef.current) return;
+    invoicingRef.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      const bearer = await getBearer();
+      if (!bearer) {
+        setError("Sign in on the Settings tab first.");
+        return;
+      }
+      router.push(`/documents/${await make(bearer)}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create the invoice.");
+    } finally {
+      invoicingRef.current = false;
+      setBusy(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -51,6 +80,8 @@ export default function JobDetailScreen() {
     return <Notice>Missing job.</Notice>;
   }
 
+  const unbilledCount = workspace?.tracked.filter((line) => !line.billedDocumentId).length ?? 0;
+
   return (
     <ScrollView contentContainerStyle={styles.wrap} keyboardShouldPersistTaps="handled">
       {error ? <Notice>{error}</Notice> : null}
@@ -76,27 +107,36 @@ export default function JobDetailScreen() {
               <Text style={styles.muted}>None yet.</Text>
             ) : (
               workspace.documents.map((doc) => (
-                <Pressable
-                  key={doc.id}
-                  accessibilityRole="link"
-                  onPress={() => router.push(`/documents/${doc.id}`)}
-                  style={({ pressed }) => [styles.docRow, pressed ? styles.docRowPressed : null]}
-                >
-                  <View style={styles.docCopy}>
-                    <Text style={styles.docTitle}>
-                      {doc.type === "quote" ? "Quote" : "Invoice"} {doc.number}
-                    </Text>
-                    <StatusPill label={doc.status} />
-                  </View>
-                  <Text style={styles.docAmount}>{formatCad(doc.total)}</Text>
-                </Pressable>
+                <View key={doc.id} style={styles.docBlock}>
+                  <Pressable
+                    accessibilityRole="link"
+                    onPress={() => router.push(`/documents/${doc.id}`)}
+                    style={({ pressed }) => [styles.docRow, pressed ? styles.docRowPressed : null]}
+                  >
+                    <View style={styles.docCopy}>
+                      <Text style={styles.docTitle}>
+                        {doc.type === "quote" ? "Quote" : "Invoice"} {doc.number}
+                      </Text>
+                      <StatusPill label={doc.status} />
+                    </View>
+                    <Text style={styles.docAmount}>{formatCad(doc.total)}</Text>
+                  </Pressable>
+                  {doc.canInvoice ? (
+                    <SecondaryButton
+                      size="sm"
+                      label={`Create invoice from ${doc.number}`}
+                      disabled={busy}
+                      onPress={() => void createInvoice((bearer) => invoiceQuote(bearer, doc.id))}
+                    />
+                  ) : null}
+                </View>
               ))
             )}
           </Card>
           <Card>
             <Text style={styles.sectionTitle}>Tracked lines</Text>
             {workspace.tracked.length === 0 ? (
-              <Text style={styles.muted}>Nothing unbilled on this job.</Text>
+              <Text style={styles.muted}>No tracked lines on this job.</Text>
             ) : (
               workspace.tracked.map((line) => (
                 <View key={line.id} style={styles.lineRow}>
@@ -104,12 +144,20 @@ export default function JobDetailScreen() {
                     <Text style={styles.lineDesc}>{line.description}</Text>
                     <Text style={styles.lineMeta}>
                       {line.quantity} {line.unit} × {formatCad(line.unitPrice)}
+                      {line.billedDocumentId ? " · Billed" : ""}
                     </Text>
                   </View>
                   <Text style={styles.lineAmount}>{formatCad(line.lineTotal)}</Text>
                 </View>
               ))
             )}
+            {unbilledCount > 0 ? (
+              <PrimaryButton
+                label="Create invoice from tracked lines"
+                disabled={busy}
+                onPress={() => void createInvoice((bearer) => invoiceTrackedLines(bearer, jobId))}
+              />
+            ) : null}
           </Card>
         </View>
       ) : null}
@@ -127,15 +175,8 @@ const styles = StyleSheet.create({
   body: { gap: 12 },
   sectionTitle: { color: colors.ink, fontSize: 14, fontWeight: "600" },
   muted: { color: colors.muted, fontSize: 13 },
-  docRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-  },
+  docBlock: { gap: 4, borderTopWidth: 1, borderTopColor: colors.line, paddingVertical: 8 },
+  docRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   docRowPressed: { opacity: 0.85 },
   docCopy: { flex: 1, gap: 6 },
   docTitle: { color: colors.ink, fontSize: 14, fontWeight: "500" },

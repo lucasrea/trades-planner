@@ -41,6 +41,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       number: doc.number,
       total: doc.total,
       dueDate: doc.dueDate,
+      // An approved quote that has not been invoiced yet.
+      canInvoice:
+        doc.type === "quote" && doc.status === "approved" && !documents.some((row) => row.sourceQuoteId === doc.id),
     })),
     contractor,
   });

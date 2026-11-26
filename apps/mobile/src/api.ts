@@ -132,6 +132,7 @@ export type JobWorkspace = {
     number: string;
     total: number;
     dueDate: string | null;
+    canInvoice: boolean;
   }[];
   contractor: {
     taxRate: number;
@@ -140,6 +141,8 @@ export type JobWorkspace = {
     businessName: string;
   } | null;
 };
+
+export type DocumentStatusChange = "sent" | "approved" | "declined" | "paid";
 
 export type DocumentListItem = {
   id: string;
@@ -177,6 +180,11 @@ export type DocumentDetail = {
     unitPrice: number;
     lineTotal: number;
   }[];
+  /** What the web offers for this type and status (`lib/documents.ts`). */
+  actions: string[];
+  canShare: boolean;
+  /** The invoice already made from an approved quote. */
+  invoiceId: string | null;
 };
 
 async function bearerGet<T>(bearer: string, path: string): Promise<T> {
@@ -212,4 +220,35 @@ export async function listDocuments(bearer: string, filter?: { type?: "quote" | 
 export async function fetchDocument(bearer: string, documentId: string) {
   const body = await bearerGet<{ document: DocumentDetail }>(bearer, `/api/v1/documents/${documentId}`);
   return body.document;
+}
+
+async function bearerSend<T>(bearer: string, method: "POST" | "PATCH", path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method,
+    headers: {
+      authorization: `Bearer ${bearer}`,
+      ...(body === undefined ? {} : { "content-type": "application/json" }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  return (await parseJson(res)) as T;
+}
+
+export async function setDocumentStatus(bearer: string, documentId: string, status: DocumentStatusChange) {
+  await bearerSend(bearer, "POST", `/api/v1/documents/${encodeURIComponent(documentId)}/status`, { status });
+}
+
+export async function createShareLink(bearer: string, documentId: string) {
+  const body = await bearerSend<{ url: string }>(bearer, "POST", `/api/v1/documents/${encodeURIComponent(documentId)}/share`);
+  return body.url;
+}
+
+export async function invoiceQuote(bearer: string, quoteId: string) {
+  const body = await bearerSend<{ documentId: string }>(bearer, "POST", `/api/v1/documents/${encodeURIComponent(quoteId)}/invoice`);
+  return body.documentId;
+}
+
+export async function invoiceTrackedLines(bearer: string, jobId: string) {
+  const body = await bearerSend<{ documentId: string }>(bearer, "POST", `/api/v1/jobs/${encodeURIComponent(jobId)}/invoice`);
+  return body.documentId;
 }
