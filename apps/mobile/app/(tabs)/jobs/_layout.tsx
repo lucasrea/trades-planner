@@ -1,6 +1,9 @@
 import { Stack } from "expo-router";
 import { colors } from "../../../src/theme";
 
+/** A detail screen opened from another tab keeps the list underneath it. */
+export const unstable_settings = { anchor: "index" };
+
 export default function JobsLayout() {
   return (
     <Stack

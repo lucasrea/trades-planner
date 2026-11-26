@@ -1,3 +1,4 @@
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 import { securityHeaders } from "./lib/http/security-headers";
 
@@ -8,4 +9,21 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Source maps go to Sentry only from a build that reports errors (a DSN) and has all three upload settings.
+// Local, CI and Preview builds without a DSN upload nothing.
+const { NEXT_PUBLIC_SENTRY_DSN, SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT } = process.env;
+
+export default NEXT_PUBLIC_SENTRY_DSN?.trim() && SENTRY_AUTH_TOKEN && SENTRY_ORG && SENTRY_PROJECT
+  ? withSentryConfig(nextConfig, {
+      authToken: SENTRY_AUTH_TOKEN,
+      org: SENTRY_ORG,
+      project: SENTRY_PROJECT,
+      telemetry: false,
+      silent: !process.env.CI,
+      sourcemaps: { deleteSourcemapsAfterUpload: true },
+      // What gets collected is decided in instrumentation, not added by the build.
+      buildTimeInstrumentation: false,
+      routeManifestInjection: false,
+      suppressOnRouterTransitionStartWarning: true,
+    })
+  : nextConfig;

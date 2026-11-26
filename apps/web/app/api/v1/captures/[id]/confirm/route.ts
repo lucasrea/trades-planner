@@ -1,7 +1,6 @@
-import { ACTION_ERROR_MESSAGES, codeFromServiceError } from "@/lib/action-errors";
 import { jsonError } from "@/lib/http/json-error";
+import { planErrorResponse } from "@/lib/http/service-error";
 import { contractorFromBearer } from "@/lib/mobile/bearer-auth";
-import { ConflictError, NotFoundError, ValidationError } from "@/lib/services/context";
 import { confirmPlanProposal } from "@/lib/services/plan-proposals";
 
 export const runtime = "nodejs";
@@ -15,7 +14,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
 
   try {
     const result = await confirmPlanProposal(serviceCtx, captureId, { authUrl: process.env.AUTH_URL });
-    if (result.kind === "done") return Response.json({ kind: "done", message: result.message });
+    if (result.kind === "done") return Response.json({ kind: "done", message: result.message, href: result.href });
     if (result.kind === "document") {
       return Response.json({ kind: "document", documentId: result.documentId });
     }
@@ -24,15 +23,6 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     }
     return Response.json({ kind: "log", jobIds: result.jobIds });
   } catch (error) {
-    if (error instanceof NotFoundError) return jsonError("not_found", ACTION_ERROR_MESSAGES["not-found"], 404);
-    if (error instanceof ValidationError) {
-      // Service validation messages are written for the contractor ("Q-0004 is sent, so its lines can't change.").
-      return jsonError(codeFromServiceError(error), error.message, 400);
-    }
-    if (error instanceof ConflictError) {
-      const code = codeFromServiceError(error);
-      return jsonError(code, ACTION_ERROR_MESSAGES[code], 409);
-    }
-    throw error;
+    return planErrorResponse(error);
   }
 }

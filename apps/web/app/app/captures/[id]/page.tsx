@@ -6,24 +6,11 @@ import { actionErrorNotice } from "@/lib/action-errors";
 import { parseDescribeExtraction, parseReceiptExtraction } from "@/lib/ai/extraction-types";
 import { changeHref, parsePlanChange } from "@/lib/plan-changes";
 import { getContractor } from "@/lib/auth";
-import { receiptToDraft } from "@/lib/line-items";
+import { receiptReviewLines } from "@/lib/line-items";
 import { captureProcessingIsStale } from "@/lib/captures-display";
 import { getCapture, getCaptureResultJobs, getClients, getJobs } from "@/lib/queries";
 import { isActiveJobStatus } from "@/lib/status";
-import {
-  getReceiptStorage,
-  receiptPathBelongsTo,
-  RECEIPT_SIGNED_URL_TTL_SECONDS,
-} from "@/lib/storage/receipts";
-
-async function receiptImageUrl(contractorId: string, imagePath: string | null) {
-  if (!imagePath || !receiptPathBelongsTo(imagePath, contractorId)) return null;
-  try {
-    return await getReceiptStorage().signedUrl(imagePath, RECEIPT_SIGNED_URL_TTL_SECONDS);
-  } catch {
-    return null;
-  }
-}
+import { signedReceiptUrl } from "@/lib/storage/receipts";
 
 export default async function CaptureReviewPage({
   params,
@@ -147,10 +134,14 @@ export default async function CaptureReviewPage({
 
   if (capture.type === "receipt") {
     const receipt = parseReceiptExtraction(capture.extraction);
-    const imageUrl = await receiptImageUrl(contractor.id, capture.imagePath);
+    const imageUrl = await signedReceiptUrl(contractor.id, capture.imagePath);
     const openJobs = jobs.filter((job) => isActiveJobStatus(job.status) || job.id === capture.jobId);
     const openJobIds = new Set(openJobs.map((job) => job.id));
-    const drafts = receipt ? receiptToDraft(receipt, { markupPct: contractor.defaultMarkupPct }) : [];
+    const reviewLines = receiptReviewLines(receipt, {
+      markupPct: contractor.defaultMarkupPct,
+      captureJobId: capture.jobId,
+      openJobIds,
+    });
     return (
       <div>
         {notice ? (
@@ -165,16 +156,7 @@ export default async function CaptureReviewPage({
           purchasedAt={receipt?.purchased_at ?? null}
           note={capture.transcript}
           subtotal={receipt?.subtotal ?? null}
-          lines={drafts.map((line, index) => {
-            const jobId = receipt?.lines[index]?.jobId ?? capture.jobId;
-            return {
-              description: line.description,
-              quantity: line.quantity,
-              cost: line.unitCost ?? 0,
-              printedLineTotal: receipt?.lines[index]?.line_total ?? 0,
-              jobId: jobId && openJobIds.has(jobId) ? jobId : null,
-            };
-          })}
+          lines={reviewLines}
           jobs={openJobs.map((job) => ({ id: job.id, title: job.title }))}
           clients={clients.map((c) => ({ id: c.id, name: c.name }))}
           markupPct={contractor.defaultMarkupPct}

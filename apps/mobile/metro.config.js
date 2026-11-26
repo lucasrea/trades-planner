@@ -1,10 +1,11 @@
 const path = require("node:path");
-const { getDefaultConfig } = require("expo/metro-config");
+// Expo's default config, plus the debug ids Sentry needs to match stack traces to source maps.
+const { getSentryExpoConfig } = require("@sentry/react-native/metro");
 
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, "../..");
 
-const config = getDefaultConfig(projectRoot);
+const config = getSentryExpoConfig(projectRoot);
 config.watchFolders = [monorepoRoot];
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, "node_modules"),
