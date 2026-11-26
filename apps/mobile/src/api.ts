@@ -1,4 +1,5 @@
 import { API_URL } from "./config";
+import { expireSession } from "./session";
 
 export type PlanPreviewLine = {
   description: string;
@@ -37,21 +38,55 @@ export type ConfirmResult =
   | { kind: "done"; message: string };
 
 async function parseJson(res: Response) {
-  const body = (await res.json()) as { error?: { message?: string } };
-  if (!res.ok) {
-    throw new Error(body.error?.message ?? "Request failed.");
+  const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+  if (!res.ok || !body) {
+    throw new Error(body?.error?.message ?? "Request failed.");
   }
   return body;
 }
 
-export async function exchangeGoogleIdToken(idToken: string): Promise<string> {
+/** Every signed-in request goes through here, so that any 401 ends the session. */
+async function bearerFetch(
+  bearer: string,
+  path: string,
+  init: Omit<RequestInit, "headers"> & { headers?: Record<string, string> } = {},
+) {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: { ...init.headers, authorization: `Bearer ${bearer}` },
+  });
+  if (res.status === 401) {
+    await expireSession(bearer);
+    throw new Error("Your session ended. Log in again.");
+  }
+  return res;
+}
+
+export type SignInProvider = "google" | "apple";
+
+export async function exchangeIdToken(provider: SignInProvider, idToken: string): Promise<string> {
   const res = await fetch(`${API_URL}/api/mobile/session`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ idToken }),
+    body: JSON.stringify({ provider, idToken }),
   });
   const body = (await parseJson(res)) as { token: string };
   return body.token;
+}
+
+/** Log out on the server. Not through bearerFetch: a session that is already gone is fine here. */
+export async function revokeSession(bearer: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    await fetch(`${API_URL}/api/mobile/session`, {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${bearer}` },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function sendTextCapture(
@@ -59,12 +94,9 @@ export async function sendTextCapture(
   text: string,
   options?: { planId?: string; jobId?: string },
 ): Promise<TextCaptureResult> {
-  const res = await fetch(`${API_URL}/api/v1/captures/text`, {
+  const res = await bearerFetch(bearer, "/api/v1/captures/text", {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${bearer}`,
-    },
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({ text, planId: options?.planId, jobId: options?.jobId }),
   });
   return (await parseJson(res)) as TextCaptureResult;
@@ -88,10 +120,7 @@ export async function fetchPlanThread(bearer: string, planId: string) {
 }
 
 export async function confirmCapture(bearer: string, captureId: string): Promise<ConfirmResult> {
-  const res = await fetch(`${API_URL}/api/v1/captures/${captureId}/confirm`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${bearer}` },
-  });
+  const res = await bearerFetch(bearer, `/api/v1/captures/${captureId}/confirm`, { method: "POST" });
   return (await parseJson(res)) as ConfirmResult;
 }
 
@@ -180,7 +209,7 @@ export type DocumentDetail = {
 };
 
 async function bearerGet<T>(bearer: string, path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, { headers: { authorization: `Bearer ${bearer}` } });
+  const res = await bearerFetch(bearer, path);
   return (await parseJson(res)) as T;
 }
 

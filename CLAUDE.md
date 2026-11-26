@@ -69,7 +69,7 @@ Actions report most failures by redirecting with `?error=<code>`. `lib/action-er
 
 - Pages and actions: NextAuth v5 with Google and JWT sessions; `getContractor()` / `requireSession()` from `lib/auth.ts`. `proxy.ts` only redirects page routes and does not protect `app/api`.
 - `app/api/captures/*`: session cookie plus `assertSameOrigin`.
-- `app/api/v1/*` (mobile): bearer token via `contractorFromBearer`. `app/api/mobile/session` exchanges a Google ID token for it; only the hash is stored.
+- `app/api/v1/*` (mobile): bearer token via `contractorFromBearer`. `app/api/mobile/session` exchanges a Google or Apple ID token for it (`DELETE` revokes it); only the hash is stored. Apple sign-in never creates an account: it links by verified email, then matches `users.apple_id`.
 - `app/d/[token]`: public share page where a client can approve or decline a quote. The contractor and document come from the link row, never from a browser-supplied id.
 
 ### Captures and Plan

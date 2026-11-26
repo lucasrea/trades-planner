@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
-import { clearBearer, getBearer } from "../../src/session";
+import { getBearer } from "../../src/session";
+import { logOut } from "../../src/sign-out";
 import { Card, DangerButton, GhostButton, Header, Notice, PrimaryButton, Screen, StatusPill } from "../../src/ui";
 import { colors } from "../../src/theme";
 
@@ -35,6 +36,7 @@ const SECTIONS = [
 export default function SettingsScreen() {
   const [signedIn, setSignedIn] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -49,9 +51,15 @@ export default function SettingsScreen() {
   );
 
   async function onSignOut() {
-    await clearBearer();
-    setSignedIn(false);
+    setLoggingOut(true);
     setNotice(null);
+    try {
+      await logOut();
+    } catch {
+      setNotice("Could not log out. Try again.");
+    } finally {
+      setLoggingOut(false);
+    }
   }
 
   return (
@@ -62,15 +70,19 @@ export default function SettingsScreen() {
           <View style={styles.sectionCopy}>
             <Text style={styles.sectionTitle}>Account</Text>
             <Text style={styles.muted}>
-              {signedIn ? "Connected to your Trades Planner account." : "Use the Google account for this business."}
+              {signedIn ? "Connected to your Trades Planner account." : "Use the account with this business's email."}
             </Text>
           </View>
           <StatusPill label={signedIn ? "Signed in" : "Not signed in"} tone={signedIn ? "ok" : "neutral"} />
         </View>
         {signedIn ? (
-          <DangerButton label="Log out" onPress={() => void onSignOut()} />
+          <DangerButton
+            label={loggingOut ? "Logging out…" : "Log out"}
+            disabled={loggingOut}
+            onPress={() => void onSignOut()}
+          />
         ) : (
-          <PrimaryButton label="Continue with Google" onPress={() => router.push("/sign-in")} />
+          <PrimaryButton label="Log in" onPress={() => router.push("/sign-in")} />
         )}
       </Card>
       {notice ? <Notice>{notice}</Notice> : null}

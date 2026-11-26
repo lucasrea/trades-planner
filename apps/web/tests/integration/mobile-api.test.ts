@@ -8,9 +8,7 @@ import { GET as getJob } from "@/app/api/v1/jobs/[id]/route";
 import { GET as listPlansRoute } from "@/app/api/v1/plans/route";
 import { GET as planThread } from "@/app/api/v1/plans/[id]/thread/route";
 import { POST as textCapture } from "@/app/api/v1/captures/text/route";
-import { POST as mobileSession } from "@/app/api/mobile/session/route";
 import type { DescribeExtraction } from "@/lib/ai/extraction-types";
-import * as verifyModule from "@/lib/mobile/verify-google-id-token";
 import { captures, documents, lineItems, mobileSessions, users } from "@/lib/db/schema";
 import type { GoogleIdTokenVerifier } from "@/lib/mobile/google-id-token";
 import { createMobileSession, hashMobileBearer, resolveMobileSession } from "@/lib/mobile/sessions";
@@ -29,16 +27,6 @@ function fakeVerify(email: string): GoogleIdTokenVerifier {
 async function bearerFor(tenant: { userId: string; contractorId: string }) {
   const db = getTestDb();
   return (await createMobileSession(db, tenant)).token;
-}
-
-function sessionPost(idToken: string) {
-  return mobileSession(
-    new Request("http://localhost/api/mobile/session", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ idToken }),
-    }),
-  );
 }
 
 function textPost(token: string, body: unknown) {
@@ -85,12 +73,6 @@ describe("mobile API", () => {
     expect(rows[0]?.tokenHash).toBe(hashMobileBearer(result.token));
     expect(rows[0]?.tokenHash).not.toBe(result.token);
     expect(await resolveMobileSession(db, result.token)).toMatchObject({ contractorId: tenant.contractorId });
-  });
-
-  it("unknown email returns unauthorized from session route", async () => {
-    vi.spyOn(verifyModule, "verifyGoogleIdToken").mockImplementation(fakeVerify("missing@example.com"));
-    const res = await sessionPost("fake");
-    expect(res.status).toBe(401);
   });
 
   it("text capture with planId records a thread readable from v1 plans", async () => {

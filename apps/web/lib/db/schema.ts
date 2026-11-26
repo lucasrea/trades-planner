@@ -14,6 +14,7 @@ export const users = pgTable("users", {
   name: text("name").notNull().default(""),
   image: text("image").notNull().default(""),
   googleId: text("google_id"),
+  appleId: text("apple_id").unique(),
   passwordHash: text("password_hash").notNull().default(""),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
