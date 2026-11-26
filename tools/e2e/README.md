@@ -40,4 +40,4 @@ Generated files go in `tools/e2e/out/`.
 
 The microphone button and the photo picker are browser UI. This posts the same APIs those controls post. Confirming a receipt, or clicking Confirm on the Plan card, still needs the signed-in page when the action id cannot be found in the shipped JavaScript.
 
-Do not point `npm run test:integration` at a live `DATABASE_URL`. Those tests drop the schema.
+`npm run test:integration` drops the schema of `DATABASE_URL_TEST`. It never uses `DATABASE_URL`, and outside CI it refuses a host that is not local.

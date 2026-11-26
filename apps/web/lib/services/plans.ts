@@ -264,9 +264,15 @@ export async function recordAgentTurn(
       jobTitle: result.jobTitle ?? result.preview?.jobTitle ?? null,
       jobId: input.jobId,
     });
-  } catch {
+  } catch (error) {
     // Never the message, transcript or model output: those can hold client details.
-    console.error({ event: "plan_turn_failed", captureId: result.captureId, contractorId: ctx.contractorId });
+    console.error({
+      event: "plan_turn_failed",
+      captureId: result.captureId,
+      contractorId: ctx.contractorId,
+      planId: input.planId,
+      name: error instanceof Error ? error.name : "Error",
+    });
     return null;
   }
 }
@@ -296,8 +302,14 @@ export async function recordReceiptTurn(
       jobId: input.jobId,
       captureId: result.captureId,
     });
-  } catch {
-    console.error({ event: "plan_turn_failed", captureId: result.captureId, contractorId: ctx.contractorId });
+  } catch (error) {
+    console.error({
+      event: "plan_turn_failed",
+      captureId: result.captureId,
+      contractorId: ctx.contractorId,
+      planId,
+      name: error instanceof Error ? error.name : "Error",
+    });
     return null;
   }
 }
