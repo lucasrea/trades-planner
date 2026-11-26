@@ -7,6 +7,8 @@ describe("postgres-url", () => {
       "postgres://ci:ci@127.0.0.1:5432/ci",
       "postgres://user:pass@localhost:5432/db",
       "postgresql://user:pass@postgres:5432/db",
+      "postgres://ci:ci@[::1]:5432/ci",
+      "postgres://ci:ci@db.localhost:5432/ci",
     ]) {
       expect(isLocalPostgresConnectionString(url)).toBe(true);
       expect(postgresSslOption(url)).toBe(false);

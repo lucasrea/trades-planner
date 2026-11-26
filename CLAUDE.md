@@ -28,7 +28,7 @@ npm run test:integration -w trades-planner-web -- tests/integration/services.tes
 
 CI (`.github/workflows/ci.yml`) runs lint, typecheck, test, integration tests and build, in that order. The mobile app has no tests.
 
-**Integration tests drop the `public` schema** of `DATABASE_URL_TEST` (falling back to `DATABASE_URL`), then apply every file in `supabase/migrations/`. Never point them at a real database. A throwaway one matching CI:
+**Integration tests drop the `public` schema** of `DATABASE_URL_TEST`, then apply every file in `supabase/migrations/`. Never point them at a real database. The variable is required (no fallback to `DATABASE_URL`), and its host must be `localhost`, `127.0.0.1`, `::1` or `*.localhost` unless `CI=true`. A throwaway one matching CI:
 
 ```bash
 docker run --rm -d -p 5432:5432 -e POSTGRES_USER=ci -e POSTGRES_PASSWORD=ci -e POSTGRES_DB=ci postgres:16
@@ -39,7 +39,7 @@ End-to-end capture checks against a running app are in `tools/e2e` (`npm run e2e
 
 ## Environment
 
-The web app reads `apps/web/.env.local` (template: `apps/web/.env.example`). Several variables are not in the template:
+The web app reads `apps/web/.env.local` (template: `apps/web/.env.example`, which lists every variable; add new ones there). The ones that change behaviour:
 
 | Variable | Behaviour |
 |---|---|
@@ -50,7 +50,7 @@ The web app reads `apps/web/.env.local` (template: `apps/web/.env.example`). Sev
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Receipt photo storage. In-memory fake in dev; required in production. |
 | `EMAIL_PROVIDER` | `fake` or `resend` (with `RESEND_API_KEY`, `EMAIL_FROM`). Unset means email is not configured. |
 
-Mobile uses `EXPO_PUBLIC_API_URL` (**defaults to production**) and `EXPO_PUBLIC_GOOGLE_CLIENT_ID`.
+Mobile uses `EXPO_PUBLIC_API_URL` (**required**, no default; the app throws at startup without it) and `EXPO_PUBLIC_GOOGLE_CLIENT_ID`. Template: `apps/mobile/.env.example`.
 
 ## Architecture
 
