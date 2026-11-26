@@ -3,16 +3,18 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import {
+  cancelCapture,
   confirmCapture,
   fetchPlanThread,
   listPlans,
   sendTextCapture,
-  type ConfirmResult,
-  type TextCaptureResult,
+  updateCaptureLines,
+  type PlanLineEdit,
 } from "../../src/api";
+import { confirmedScreen } from "../../src/links";
 import { PlanPickerSheet } from "../../src/plan-picker-sheet";
-import { PlanProposalCard } from "../../src/plan-proposal-card";
-import { PLAN_NEW, type PlanSummary, type PlanThreadMessage } from "../../src/plans";
+import { PlanReply, type CardAction } from "../../src/plan-reply";
+import { localTurn, PLAN_NEW, type PlanSummary, type PlanThreadMessage } from "../../src/plans";
 import { getBearer } from "../../src/session";
 import { GhostButton, Notice, StatusPill } from "../../src/ui";
 import { colors } from "../../src/theme";
@@ -22,13 +24,6 @@ const STARTER_PROMPTS = [
   "Log 2 hours of labour and $150 in materials",
   "Quote a water heater replacement for a new client",
 ];
-
-function confirmLabel(result: ConfirmResult): string {
-  if (result.kind === "done") return result.message;
-  if (result.kind === "document") return "Document saved";
-  if (result.kind === "job") return "Job created";
-  return `Logged on ${result.jobIds.length} job${result.jobIds.length === 1 ? "" : "s"}`;
-}
 
 export default function HomeScreen() {
   const [text, setText] = useState("");
@@ -41,18 +36,23 @@ export default function HomeScreen() {
 
   const [sentText, setSentText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [preview, setPreview] = useState<TextCaptureResult | null>(null);
-  const [confirmed, setConfirmed] = useState<ConfirmResult | null>(null);
+  const [working, setWorking] = useState<CardAction | null>(null);
+  const [cardError, setCardError] = useState<{ captureId: string; message: string } | null>(null);
 
   const inputRef = useRef<ComponentRef<typeof TextInput>>(null);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
-  const submittingRef = useRef(false);
+  /** One request at a time: a send or a card action. */
+  const inFlightRef = useRef(false);
+  /** The plan on screen, so a slow answer for another plan is not drawn over it. */
+  const openPlanRef = useRef<string | null>(null);
 
   const syncThread = useCallback(async (id: string) => {
     const bearer = await getBearer();
     if (!bearer) return;
     const thread = await fetchPlanThread(bearer, id);
+    if (openPlanRef.current !== id) return;
     setPlanId(thread.id);
     setThreadMessages(thread.messages);
   }, []);
@@ -74,12 +74,17 @@ export default function HomeScreen() {
     }
   }, []);
 
+  const clearNotes = useCallback(() => {
+    setError(null);
+    setNotice(null);
+    setCardError(null);
+    setSentText(null);
+  }, []);
+
   const selectPlan = useCallback(
     async (id: string) => {
-      setError(null);
-      setPreview(null);
-      setConfirmed(null);
-      setSentText(null);
+      clearNotes();
+      openPlanRef.current = id;
       setThreadLoading(true);
       try {
         await syncThread(id);
@@ -87,91 +92,147 @@ export default function HomeScreen() {
         setError(err instanceof Error ? err.message : "Could not load this plan.");
         setThreadMessages([]);
         setPlanId(null);
+        openPlanRef.current = null;
       } finally {
         setThreadLoading(false);
       }
     },
-    [syncThread],
+    [clearNotes, syncThread],
   );
 
   const startNewPlan = useCallback(() => {
+    clearNotes();
+    openPlanRef.current = null;
     setPlanId(null);
     setThreadMessages([]);
-    setPreview(null);
-    setConfirmed(null);
-    setSentText(null);
-    setError(null);
-  }, []);
+  }, [clearNotes]);
 
-  const submit = useCallback(async () => {
-    const trimmed = text.trim();
-    if (!trimmed || submittingRef.current) return;
-    submittingRef.current = true;
-    setText("");
-    setBusy(true);
-    setError(null);
-    setConfirmed(null);
-    setPreview(null);
-    setSentText(trimmed);
-    try {
-      const bearer = await getBearer();
-      if (!bearer) {
-        setSentText(null);
-        setText((current) => current || trimmed);
-        setError("Sign in on the Settings tab first.");
-        return;
-      }
-      const result = await sendTextCapture(bearer, trimmed, { planId: planId ?? PLAN_NEW });
-      setPreview(result);
-      if (result.planId && result.planId !== planId) {
-        setPlanId(result.planId);
-      }
-      if (result.planId) {
-        await syncThread(result.planId);
-        setSentText(null);
-        setPreview(null);
-      } else if (result.status === "failed") {
-        setText((current) => current || trimmed);
-        setError("We could not read that message.");
-      }
-    } catch (err) {
-      setSentText(null);
-      setText((current) => current || trimmed);
-      setError(err instanceof Error ? err.message : "Send failed.");
-      setPreview(null);
-    } finally {
-      setBusy(false);
-      submittingRef.current = false;
-    }
-  }, [planId, syncThread, text]);
-
-  const onConfirm = useCallback(
-    async (captureId: string, canConfirm: boolean) => {
-      if (!canConfirm) return;
+  const send = useCallback(
+    async (message: string, options?: { jobId?: string | null; fromComposer?: boolean }) => {
+      const trimmed = message.trim();
+      if (!trimmed || inFlightRef.current) return;
+      inFlightRef.current = true;
+      if (options?.fromComposer) setText("");
       setBusy(true);
-      setError(null);
+      clearNotes();
+      setSentText(trimmed);
+      const startedOn = openPlanRef.current;
+      const restore = () => {
+        setSentText(null);
+        if (options?.fromComposer) setText((current) => current || trimmed);
+      };
       try {
         const bearer = await getBearer();
         if (!bearer) {
+          restore();
           setError("Sign in on the Settings tab first.");
           return;
         }
-        const result = await confirmCapture(bearer, captureId);
-        setConfirmed(result);
-        if (planId) await syncThread(planId);
-        if (result.kind === "document") router.push(`/documents/${result.documentId}`);
-        if (result.kind === "job") router.push(`/jobs/${result.jobId}`);
+        const result = await sendTextCapture(bearer, trimmed, {
+          planId: planId ?? PLAN_NEW,
+          jobId: options?.jobId ?? undefined,
+        });
+        if (openPlanRef.current !== startedOn) return;
+        let saved = false;
+        if (result.planId) {
+          openPlanRef.current = result.planId;
+          setPlanId(result.planId);
+          // The message went through. If only the reload fails, show the answer from this response.
+          saved = await syncThread(result.planId).then(
+            () => true,
+            () => false,
+          );
+        }
+        if (!saved) setThreadMessages((rows) => [...rows, ...localTurn(trimmed, result)]);
+        setSentText(null);
+        if (result.status === "failed" && !result.planId) {
+          restore();
+          setError("We could not read that message.");
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Confirm failed.");
+        restore();
+        setError(err instanceof Error ? err.message : "Send failed.");
       } finally {
         setBusy(false);
+        inFlightRef.current = false;
+      }
+    },
+    [clearNotes, planId, syncThread],
+  );
+
+  /** Run one card's server call, then show the saved thread. Resolves false when the server refused. */
+  const runCard = useCallback(
+    async (action: CardAction, work: (bearer: string) => Promise<Partial<PlanThreadMessage>>) => {
+      if (inFlightRef.current) return false;
+      inFlightRef.current = true;
+      setBusy(true);
+      setWorking(action);
+      setError(null);
+      setNotice(null);
+      setCardError(null);
+      const apply = (patch: Partial<PlanThreadMessage>) =>
+        setThreadMessages((rows) =>
+          rows.map((row) => (row.role === "plan" && row.captureId === action.captureId ? { ...row, ...patch } : row)),
+        );
+      try {
+        const bearer = await getBearer();
+        if (!bearer) {
+          setCardError({ captureId: action.captureId, message: "Sign in on the Settings tab first." });
+          return false;
+        }
+        apply(await work(bearer));
+        if (planId) await syncThread(planId).catch(() => undefined);
+        return true;
+      } catch (err) {
+        setCardError({ captureId: action.captureId, message: err instanceof Error ? err.message : "That didn't work." });
+        // A refusal can mean the card changed elsewhere (confirmed on the web, for one).
+        if (planId) await syncThread(planId).catch(() => undefined);
+        return false;
+      } finally {
+        setWorking(null);
+        setBusy(false);
+        inFlightRef.current = false;
       }
     },
     [planId, syncThread],
   );
 
+  const onConfirm = useCallback(
+    async (captureId: string) => {
+      let next: string | null = null;
+      const ok = await runCard({ captureId, kind: "confirm" }, async (bearer) => {
+        const result = await confirmCapture(bearer, captureId);
+        next = confirmedScreen(result);
+        if (result.kind === "done") setNotice(result.message);
+        return { outcome: "confirmed", preview: null };
+      });
+      // withAnchor keeps the list under the detail screen, so Back works from the other tab.
+      if (ok && next) router.push(next, { withAnchor: true });
+    },
+    [runCard],
+  );
+
+  const onCancel = useCallback(
+    (captureId: string) =>
+      void runCard({ captureId, kind: "cancel" }, async (bearer) => {
+        await cancelCapture(bearer, captureId);
+        return { outcome: "cancelled", preview: null };
+      }),
+    [runCard],
+  );
+
+  const onSaveLines = useCallback(
+    (captureId: string, lines: PlanLineEdit[]) =>
+      runCard({ captureId, kind: "save" }, async (bearer) => ({
+        preview: await updateCaptureLines(bearer, captureId, lines),
+      })),
+    [runCard],
+  );
+
+  const lastMessageId = threadMessages.at(-1)?.id;
+
   const hasThread = threadMessages.length > 0;
-  const hasPending = Boolean(sentText || preview || error);
+  const hasPending = Boolean(sentText || error);
   const isEmpty = !hasThread && !hasPending && !threadLoading;
 
   return (
@@ -237,25 +298,21 @@ export default function HomeScreen() {
                         <Text style={styles.userText}>{message.body}</Text>
                       </View>
                     </View>
-                  ) : message.preview ? (
-                    <PlanProposalCard
-                      preview={message.preview}
-                      busy={busy}
-                      confirmedLabel={
-                        message.outcome === "confirmed"
-                          ? "Saved"
-                          : message.outcome === "cancelled"
-                            ? "Cancelled"
-                            : message.outcome === "failed"
-                              ? "Failed"
-                              : null
-                      }
-                      onConfirm={() => void onConfirm(message.captureId!, message.preview!.canConfirm)}
-                    />
                   ) : (
-                    <View style={styles.replyBox}>
-                      <Text style={styles.replyText}>{message.body}</Text>
-                    </View>
+                    <PlanReply
+                      message={message}
+                      working={working}
+                      disabled={busy}
+                      error={cardError && cardError.captureId === message.captureId ? cardError.message : null}
+                      onConfirm={(captureId) => void onConfirm(captureId)}
+                      onCancel={onCancel}
+                      onSaveLines={onSaveLines}
+                      onChoose={
+                        message.id === lastMessageId
+                          ? (label, jobId) => void send(label, { jobId })
+                          : undefined
+                      }
+                    />
                   )}
                 </View>
               ))}
@@ -268,31 +325,17 @@ export default function HomeScreen() {
                 </View>
               ) : null}
 
-              {busy && !preview ? (
+              {busy && sentText ? (
                 <View style={styles.thinkingRow}>
                   <StatusPill label="Reading your message…" tone="accent" />
                 </View>
               ) : null}
 
+              {notice ? <Notice tone="ok">{notice}</Notice> : null}
               {error ? <Notice>{error}</Notice> : null}
-
-              {preview?.reply && !preview.preview ? (
-                <View style={styles.replyBox}>
-                  <Text style={styles.replyText}>{preview.reply}</Text>
-                </View>
-              ) : null}
-
-              {preview?.preview && !preview.planId ? (
-                <PlanProposalCard
-                  preview={preview.preview}
-                  busy={busy}
-                  confirmedLabel={confirmed ? confirmLabel(confirmed) : null}
-                  onCancel={() => {
-                    setPreview(null);
-                    setSentText(null);
-                  }}
-                  onConfirm={() => void onConfirm(preview.captureId, preview.preview!.canConfirm)}
-                />
+              {/* A card that left the thread (confirmed or cancelled elsewhere) can't carry its own error. */}
+              {cardError && !threadMessages.some((row) => row.captureId === cardError.captureId && row.preview) ? (
+                <Notice>{cardError.message}</Notice>
               ) : null}
             </View>
           )}
@@ -323,7 +366,7 @@ export default function HomeScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Send"
                 disabled={!text.trim() || busy}
-                onPress={() => void submit()}
+                onPress={() => void send(text, { fromComposer: true })}
                 style={({ pressed }) => [
                   styles.send,
                   pressed && text.trim() && !busy ? styles.sendPressed : null,
@@ -409,8 +452,6 @@ const styles = StyleSheet.create({
   },
   userText: { color: colors.ink, fontSize: 14, lineHeight: 20 },
   thinkingRow: { flexDirection: "row", alignItems: "center" },
-  replyBox: { paddingHorizontal: 2, paddingVertical: 4 },
-  replyText: { color: colors.ink, fontSize: 14, lineHeight: 21 },
   composerWrap: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 14, backgroundColor: colors.paper },
   composer: {
     backgroundColor: colors.card,

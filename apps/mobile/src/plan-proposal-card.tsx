@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { type PlanPreview, type TextCaptureResult } from "./api";
+import { type PlanLineEdit, type PlanPreview } from "./api";
 import { formatCad } from "./money";
-import { GhostButton, PrimaryButton, StatusPill } from "./ui";
+import { PlanLineEditor } from "./plan-line-editor";
+import { GhostButton, Notice, PrimaryButton } from "./ui";
 import { colors } from "./theme";
 
 function linesSubtotal(lines: PlanPreview["lines"]) {
@@ -15,19 +17,42 @@ function linesSubtotal(lines: PlanPreview["lines"]) {
 
 export function PlanProposalCard({
   preview,
-  confirmedLabel,
-  busy,
+  working,
+  disabled,
+  error,
   onConfirm,
   onCancel,
+  onSaveLines,
 }: {
   preview: PlanPreview;
-  confirmedLabel?: string | null;
-  busy: boolean;
+  /** What this card is waiting on the server for. */
+  working: "confirm" | "cancel" | "save" | null;
+  /** Something is in flight, here or on another card. */
+  disabled: boolean;
+  error: string | null;
   onConfirm: () => void;
-  onCancel?: () => void;
+  onCancel: () => void;
+  onSaveLines: (lines: PlanLineEdit[]) => Promise<boolean>;
 }) {
+  const [editing, setEditing] = useState(false);
   const subtotal = linesSubtotal(preview.lines);
   const alerts = [...(preview.blockers ?? []), ...(preview.warnings ?? [])];
+  // Tracked lines are the job's own rows and a change card is not a list of lines: neither is edited here.
+  const editable = preview.action !== "invoice_tracked" && preview.action !== "change" && preview.lines.length > 0;
+
+  const details: { label: string; value: string }[] = [];
+  if (preview.jobTitle) {
+    details.push({
+      label: preview.action === "create_job" ? "Title" : "Job",
+      value: `${preview.jobTitle}${preview.jobIsNew ? " (new job)" : ""}`,
+    });
+  }
+  if (preview.clientName) {
+    details.push({ label: "Client", value: `${preview.clientName}${preview.clientIsNew ? " (new client)" : ""}` });
+  }
+  if (preview.siteAddress) details.push({ label: "Site", value: preview.siteAddress });
+  details.push(...(preview.changes ?? []));
+  if (preview.notes) details.push({ label: "Notes", value: preview.notes });
 
   return (
     <View style={styles.proposalCard}>
@@ -36,31 +61,37 @@ export function PlanProposalCard({
           <Text style={styles.eyebrow}>Review before saving</Text>
           <Text style={styles.previewTitle}>{preview.title}</Text>
         </View>
-        {subtotal != null ? (
+        {subtotal != null && !editing ? (
           <View style={styles.subtotalBadge}>
             <Text style={styles.subtotalText}>{formatCad(subtotal)}</Text>
           </View>
         ) : null}
       </View>
 
-      {preview.jobTitle || preview.clientName ? (
+      {details.length > 0 ? (
         <View style={styles.metaBox}>
-          {preview.jobTitle ? (
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Job</Text>
-              <Text style={styles.metaValue}>{preview.jobTitle}</Text>
+          {details.map((row, index) => (
+            // Two rows can share a label ("Remove" twice), so the index is part of the key.
+            <View key={`${row.label}-${index}`} style={styles.metaRow}>
+              <Text style={styles.metaLabel}>{row.label}</Text>
+              <Text style={styles.metaValue}>{row.value}</Text>
             </View>
-          ) : null}
-          {preview.clientName ? (
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Client</Text>
-              <Text style={styles.metaValue}>{preview.clientName}</Text>
-            </View>
-          ) : null}
+          ))}
         </View>
       ) : null}
 
-      {preview.lines.length > 0 ? (
+      {editing ? (
+        <PlanLineEditor
+          lines={preview.lines}
+          busy={disabled}
+          onDiscard={() => setEditing(false)}
+          onSave={async (lines) => {
+            const saved = await onSaveLines(lines);
+            if (saved) setEditing(false);
+            return saved;
+          }}
+        />
+      ) : preview.lines.length > 0 ? (
         <View style={styles.linesBox}>
           {preview.lines.map((line, index) => {
             const lineAmount = line.unitPrice != null ? formatCad(line.quantity * line.unitPrice) : null;
@@ -91,28 +122,25 @@ export function PlanProposalCard({
         </View>
       ) : null}
 
-      <View style={styles.proposalFooter}>
-        {confirmedLabel ? (
-          <StatusPill tone="ok" label={confirmedLabel} />
-        ) : (
+      {error ? <Notice>{error}</Notice> : null}
+
+      {editing ? null : (
+        <View style={styles.proposalFooter}>
           <View style={styles.actions}>
-            {onCancel ? <GhostButton label="Dismiss" disabled={busy} onPress={onCancel} /> : null}
+            <GhostButton label={working === "cancel" ? "Cancelling…" : "Cancel"} disabled={disabled} onPress={onCancel} />
+            {editable ? <GhostButton label="Edit lines" disabled={disabled} onPress={() => setEditing(true)} /> : null}
             <PrimaryButton
               size="sm"
               fullWidth={false}
-              label={busy ? "Confirming…" : "Confirm"}
-              disabled={busy || !preview.canConfirm}
+              label={working === "confirm" ? "Confirming…" : "Confirm"}
+              disabled={disabled || !preview.canConfirm}
               onPress={onConfirm}
             />
           </View>
-        )}
-      </View>
+        </View>
+      )}
     </View>
   );
-}
-
-export function previewFromCapture(result: TextCaptureResult): PlanPreview | null {
-  return result.preview;
 }
 
 const styles = StyleSheet.create({

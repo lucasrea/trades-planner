@@ -9,16 +9,24 @@ export type PlanPreviewLine = {
 };
 
 export type PlanPreview = {
+  action: string;
   title: string;
+  jobId?: string | null;
   jobTitle?: string | null;
+  jobIsNew?: boolean;
   clientName?: string | null;
+  clientIsNew?: boolean;
   siteAddress?: string | null;
   notes?: string | null;
   lines: PlanPreviewLine[];
   warnings?: string[];
   blockers?: string[];
   canConfirm: boolean;
+  /** Change cards only: one row per thing that changes. */
+  changes?: { label: string; value: string }[];
 };
+
+export type PlanLineEdit = Pick<PlanPreviewLine, "description" | "quantity" | "unit" | "unitPrice">;
 
 export type TextCaptureResult = {
   captureId: string;
@@ -34,7 +42,7 @@ export type ConfirmResult =
   | { kind: "job"; jobId: string }
   | { kind: "document"; documentId: string }
   | { kind: "log"; jobIds: string[] }
-  | { kind: "done"; message: string };
+  | { kind: "done"; message: string; href: string };
 
 async function parseJson(res: Response) {
   const body = (await res.json()) as { error?: { message?: string } };
@@ -251,4 +259,18 @@ export async function invoiceQuote(bearer: string, quoteId: string) {
 export async function invoiceTrackedLines(bearer: string, jobId: string) {
   const body = await bearerSend<{ documentId: string }>(bearer, "POST", `/api/v1/jobs/${encodeURIComponent(jobId)}/invoice`);
   return body.documentId;
+}
+
+export async function cancelCapture(bearer: string, captureId: string) {
+  await bearerSend(bearer, "POST", `/api/v1/captures/${encodeURIComponent(captureId)}/cancel`);
+}
+
+export async function updateCaptureLines(bearer: string, captureId: string, lines: PlanLineEdit[]) {
+  const body = await bearerSend<{ preview: PlanPreview | null }>(
+    bearer,
+    "PATCH",
+    `/api/v1/captures/${encodeURIComponent(captureId)}/lines`,
+    { lines },
+  );
+  return body.preview;
 }
