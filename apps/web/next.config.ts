@@ -9,10 +9,11 @@ const nextConfig: NextConfig = {
   },
 };
 
-// Source maps go to Sentry only from a build that has all three settings. Local and CI builds don't.
-const { SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT } = process.env;
+// Source maps go to Sentry only from a build that reports errors (a DSN) and has all three upload settings.
+// Local, CI and Preview builds without a DSN upload nothing.
+const { NEXT_PUBLIC_SENTRY_DSN, SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT } = process.env;
 
-export default SENTRY_AUTH_TOKEN && SENTRY_ORG && SENTRY_PROJECT
+export default NEXT_PUBLIC_SENTRY_DSN?.trim() && SENTRY_AUTH_TOKEN && SENTRY_ORG && SENTRY_PROJECT
   ? withSentryConfig(nextConfig, {
       authToken: SENTRY_AUTH_TOKEN,
       org: SENTRY_ORG,
