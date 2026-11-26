@@ -25,6 +25,7 @@ export function createGoogleIdTokenVerifier(keys: JWTVerifyGetKey): GoogleIdToke
         issuer: GOOGLE_ISSUERS,
         audience,
         requiredClaims: ["exp"],
+        algorithms: ["RS256"],
       });
       const email = typeof payload.email === "string" ? payload.email.toLowerCase().trim() : "";
       if (!email || payload.email_verified !== true) return null;

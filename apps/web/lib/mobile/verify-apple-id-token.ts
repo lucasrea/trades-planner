@@ -20,6 +20,7 @@ export function createAppleIdTokenVerifier(keys: JWTVerifyGetKey): AppleIdTokenV
         issuer: APPLE_ISSUER,
         audience,
         requiredClaims: ["sub", "exp"],
+        algorithms: ["RS256"],
       });
       if (!payload.sub) return null;
       const email = typeof payload.email === "string" ? payload.email.toLowerCase().trim() : "";
