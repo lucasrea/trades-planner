@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { type PlanLineEdit } from "./api";
 import { PlanProposalCard } from "./plan-proposal-card";
 import { type PlanThreadMessage } from "./plans";
-import { StatusPill } from "./ui";
+import { SecondaryButton, StatusPill } from "./ui";
 import { colors } from "./theme";
 
 export type CardAction = { captureId: string; kind: "confirm" | "cancel" | "save" };
@@ -17,6 +17,7 @@ export function PlanReply({
   onCancel,
   onSaveLines,
   onChoose,
+  onOpenReceipt,
 }: {
   message: PlanThreadMessage;
   working: CardAction | null;
@@ -28,6 +29,7 @@ export function PlanReply({
   onSaveLines: (captureId: string, lines: PlanLineEdit[]) => Promise<boolean>;
   /** Set only on the latest question, so old choices can't be tapped. */
   onChoose?: (label: string, jobId: string | null) => void;
+  onOpenReceipt: (captureId: string) => void;
 }) {
   const { captureId, preview, outcome } = message;
 
@@ -51,6 +53,9 @@ export function PlanReply({
   return (
     <View style={styles.replyBox}>
       <Text style={styles.replyText}>{message.body}</Text>
+      {captureId && message.captureType === "receipt" && outcome === "waiting" ? (
+        <SecondaryButton size="sm" label="Review receipt" onPress={() => onOpenReceipt(captureId)} />
+      ) : null}
       {!captureId && message.options.length > 0 ? (
         <View style={styles.choices}>
           {message.options.map((option) => (

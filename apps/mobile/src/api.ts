@@ -1,3 +1,4 @@
+import { File, UploadType } from "expo-file-system";
 import { API_URL } from "./config";
 
 export type PlanPreviewLine = {
@@ -274,3 +275,99 @@ export async function updateCaptureLines(bearer: string, captureId: string, line
   );
   return body.preview;
 }
+
+/** Multipart upload of a local file. The native uploader lets us name the MIME type the server checks. */
+async function bearerUpload<T>(
+  bearer: string,
+  path: string,
+  file: { uri: string; fieldName: string; mimeType: string },
+  fields: Record<string, string | null | undefined>,
+): Promise<T> {
+  const parameters: Record<string, string> = {};
+  for (const [name, value] of Object.entries(fields)) if (value) parameters[name] = value;
+  let result: { status: number; body: string };
+  try {
+    result = await new File(file.uri).upload(`${API_URL}${path}`, {
+      uploadType: UploadType.MULTIPART,
+      fieldName: file.fieldName,
+      mimeType: file.mimeType,
+      parameters,
+      headers: { authorization: `Bearer ${bearer}` },
+      // A background session may resend on its own, which would read the same message twice.
+      sessionType: "foreground",
+    });
+  } catch {
+    throw new Error("Couldn't upload. Check your connection and try again.");
+  }
+  return (await parseJson(new Response(result.body, { status: result.status }))) as T;
+}
+
+export async function sendVoiceCapture(bearer: string, uri: string, options: { planId?: string; jobId?: string }) {
+  return bearerUpload<TextCaptureResult>(
+    bearer,
+    "/api/v1/captures/voice",
+    { uri, fieldName: "audio", mimeType: "audio/m4a" },
+    options,
+  );
+}
+
+export type ReceiptSent = { captureId: string; status: "needs_review" | "failed"; planId: string | null };
+
+export async function sendReceiptCapture(
+  bearer: string,
+  uri: string,
+  options: { planId?: string; jobId?: string; note?: string },
+) {
+  return bearerUpload<ReceiptSent>(
+    bearer,
+    "/api/v1/captures/receipt",
+    { uri, fieldName: "image", mimeType: "image/jpeg" },
+    options,
+  );
+}
+
+export type ReceiptReview = {
+  status: string;
+  error: string | null;
+  imageUrl: string | null;
+  vendor: string | null;
+  purchasedAt: string | null;
+  note: string | null;
+  markupPct: number;
+  lines: { description: string; quantity: number; cost: number; price: number; jobId: string | null }[];
+  jobs: { id: string; title: string }[];
+  clients: { id: string; name: string }[];
+};
+
+export async function fetchReceiptReview(bearer: string, captureId: string) {
+  const body = await bearerGet<{ receipt: ReceiptReview }>(bearer, `/api/v1/captures/${encodeURIComponent(captureId)}/receipt`);
+  return body.receipt;
+}
+
+export type ReceiptConfirmInput = {
+  lines: {
+    kind: "material";
+    description: string;
+    quantity: number;
+    unit: string;
+    unitCost: number;
+    unitPrice: number;
+    jobId: string;
+  }[];
+  newJobs: { key: string; title: string; client: { id: string } | { name: string } }[];
+};
+
+export async function confirmReceipt(bearer: string, captureId: string, input: ReceiptConfirmInput) {
+  return bearerSend<{ jobIds: string[] }>(
+    bearer,
+    "POST",
+    `/api/v1/captures/${encodeURIComponent(captureId)}/receipt-confirm`,
+    input,
+  );
+}
+
+export async function listOpenJobs(bearer: string) {
+  const body = await bearerGet<{ jobs: JobListItem[] }>(bearer, "/api/v1/jobs?open=1");
+  return body.jobs;
+}
+

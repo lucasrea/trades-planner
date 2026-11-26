@@ -28,6 +28,16 @@ export function receiptPathBelongsTo(path: string, contractorId: string) {
   return path.startsWith(`receipts/${contractorId}/`) && !path.includes("..");
 }
 
+/** A short-lived URL for a contractor's own receipt photo, or null when there is none to show. */
+export async function signedReceiptUrl(contractorId: string, imagePath: string | null) {
+  if (!imagePath || !receiptPathBelongsTo(imagePath, contractorId)) return null;
+  try {
+    return await getReceiptStorage().signedUrl(imagePath, RECEIPT_SIGNED_URL_TTL_SECONDS);
+  } catch {
+    return null;
+  }
+}
+
 function encodeObjectPath(path: string) {
   return path.split("/").map(encodeURIComponent).join("/");
 }

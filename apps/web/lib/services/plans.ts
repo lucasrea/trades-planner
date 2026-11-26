@@ -3,7 +3,16 @@ import { parseDescribeExtraction } from "@/lib/ai/extraction-types";
 import { captures, jobs, planMessages, plans } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
 import type { PlanPreview } from "@/lib/plan-proposal";
-import { cardSummary, describeReplyBody, PLAN_NEW, planOutcome, planSummaryTitle, type PlanOutcome } from "@/lib/plans";
+import {
+  cardSummary,
+  describeReplyBody,
+  PLAN_NEW,
+  planOutcome,
+  planSummaryTitle,
+  receiptMessageBody,
+  receiptReplyBody,
+  type PlanOutcome,
+} from "@/lib/plans";
 import { NotFoundError, ValidationError, type ServiceContext } from "@/lib/services/context";
 import type { PlanAgentResult, PlanAskOption } from "@/lib/services/plan-agent";
 import { previewStoredProposal } from "@/lib/services/plan-proposals";
@@ -257,6 +266,37 @@ export async function recordAgentTurn(
     });
   } catch {
     // Never the message, transcript or model output: those can hold client details.
+    console.error({ event: "plan_turn_failed", captureId: result.captureId, contractorId: ctx.contractorId });
+    return null;
+  }
+}
+
+/** Every card a turn produced. The phone draws these when the thread could not be saved. */
+export function planCards(result: PlanAgentResult) {
+  return result.parts.flatMap((part) =>
+    part.kind === "card" ? [{ captureId: part.captureId, title: part.body, preview: part.preview }] : [],
+  );
+}
+
+/**
+ * Note a receipt photo on a plan. The plan keeps one line of text; the photo stays on the capture.
+ * Like `recordAgentTurn`, a failure to save the thread returns null and the capture still stands.
+ */
+export async function recordReceiptTurn(
+  ctx: ServiceContext,
+  input: { planId: string | undefined; note: string; jobId?: string; result: { captureId: string; status: "needs_review" | "failed" } },
+): Promise<string | null> {
+  const { planId, result } = input;
+  if (!planId) return null;
+  try {
+    return await recordPlanTurn(ctx, {
+      planId,
+      userBody: receiptMessageBody(input.note),
+      replyBody: receiptReplyBody(result.status),
+      jobId: input.jobId,
+      captureId: result.captureId,
+    });
+  } catch {
     console.error({ event: "plan_turn_failed", captureId: result.captureId, contractorId: ctx.contractorId });
     return null;
   }
