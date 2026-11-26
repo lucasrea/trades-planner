@@ -27,7 +27,7 @@ Which API URL to use with a local web app (`npm run dev`):
 
 | Where the app runs | `EXPO_PUBLIC_API_URL` |
 |---|---|
-| iOS simulator, or Expo web | `http://localhost:3000` |
+| iOS simulator | `http://localhost:3000` |
 | Android emulator | `http://10.0.2.2:3000` |
 | A real phone | `http://<your computer's LAN IP>:3000`, with both on the same network |
 

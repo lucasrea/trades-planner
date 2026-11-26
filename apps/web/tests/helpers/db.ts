@@ -9,14 +9,16 @@ let sql: ReturnType<typeof postgres> | null = null;
 let db: TestDatabase | null = null;
 
 function isLocalTestDatabaseUrl(url: string) {
-  // postgres.js connects to every host in a comma-separated list, so any comma before the path is refused.
-  const authority = url.slice(url.indexOf("://") + 3).split(/[?/]/)[0];
-  if (/,|%2c/i.test(authority)) return false;
   try {
     const { protocol, hostname } = new URL(url);
     if (protocol !== "postgres:" && protocol !== "postgresql:") return false;
-    const host = hostname.toLowerCase();
-    return host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host.endsWith(".localhost");
+    const name = hostname.toLowerCase();
+    const local = name === "localhost" || name === "127.0.0.1" || name === "[::1]" || name.endsWith(".localhost");
+    if (!local) return false;
+    // postgres.js parses the string its own way and accepts host lists, so it must read this one host too.
+    // Building a client opens no connection. The driver cuts "[::1]" at its first colon.
+    const driverHosts = postgres(url).options.host;
+    return driverHosts.length === 1 && driverHosts[0] === hostname.split(":")[0];
   } catch {
     return false;
   }
@@ -36,7 +38,7 @@ export function getTestDatabaseUrl(env: Record<string, string | undefined> = pro
   }
   if (env.CI !== "true" && !isLocalTestDatabaseUrl(url)) {
     throw new Error(
-      "Refusing to run: DATABASE_URL_TEST is not a local database, and these tests drop the public schema. Use a postgres:// URL with host localhost, 127.0.0.1, ::1 or *.localhost. Other hosts are allowed only in CI (CI=true).",
+      "Refusing to run: DATABASE_URL_TEST is not a local database, and these tests drop the public schema. Use a postgres:// URL with host localhost or 127.0.0.1. Other hosts are allowed only in CI (CI=true).",
     );
   }
   return url;

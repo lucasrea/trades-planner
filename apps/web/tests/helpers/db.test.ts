@@ -32,6 +32,10 @@ describe("getTestDatabaseUrl", () => {
     "postgres://ci:ci@db.example.com,db.localhost/ci",
     "postgres://ci:ci@db.example.com%2Cdb.localhost/ci",
     "postgres://ci:ci@db.example.com,ci@localhost/ci",
+    // The driver reads a different host from these than the URL parser does.
+    "postgres:/\t/db.example.com,db.localhost/ci",
+    "postgres:/\n/db.example.com,db.localhost/ci",
+    "postgres://$`x.localhost/ci",
     "postgres:///ci",
     "http://localhost/ci",
     "localhost:5432/ci",

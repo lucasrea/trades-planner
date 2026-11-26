@@ -28,18 +28,18 @@ npm run test:integration -w trades-planner-web -- tests/integration/services.tes
 
 CI (`.github/workflows/ci.yml`) runs lint, typecheck, test, integration tests and build, in that order. The mobile app has no tests.
 
-**Integration tests drop the `public` schema** of `DATABASE_URL_TEST`, then apply every file in `supabase/migrations/`. Never point them at a real database. The variable is required (no fallback to `DATABASE_URL`), and its host must be `localhost`, `127.0.0.1`, `::1` or `*.localhost` unless `CI=true`. A throwaway one matching CI:
+**Integration tests drop the `public` schema** of `DATABASE_URL_TEST`, then apply every file in `supabase/migrations/`. Never point them at a real database. The variable is required (no fallback to `DATABASE_URL`), and its host must be local (`localhost`, `127.0.0.1`, `::1`, `*.localhost`) unless `CI=true`; use `localhost` or `127.0.0.1`, because the driver cannot connect to `[::1]`. A local host is not proof the database is disposable, so run a throwaway one on its own port:
 
 ```bash
-docker run --rm -d -p 5432:5432 -e POSTGRES_USER=ci -e POSTGRES_PASSWORD=ci -e POSTGRES_DB=ci postgres:16
-DATABASE_URL_TEST=postgres://ci:ci@127.0.0.1:5432/ci npm run test:integration
+docker run --rm -d -p 54329:5432 -e POSTGRES_USER=ci -e POSTGRES_PASSWORD=ci -e POSTGRES_DB=ci postgres:16
+DATABASE_URL_TEST=postgres://ci:ci@127.0.0.1:54329/ci npm run test:integration
 ```
 
 End-to-end capture checks against a running app are in `tools/e2e` (`npm run e2e -- --target local`). They need a session cookie; read `tools/e2e/README.md` first. `--target prod` with `--confirm` writes real rows.
 
 ## Environment
 
-The web app reads `apps/web/.env.local` (template: `apps/web/.env.example`, which lists every variable; add new ones there). The ones that change behaviour:
+The web app reads `apps/web/.env.local` (template: `apps/web/.env.example`, which lists the variables the web app and its scripts read; add new ones there). The ones that change behaviour:
 
 | Variable | Behaviour |
 |---|---|

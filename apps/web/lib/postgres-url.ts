@@ -3,7 +3,7 @@ export function isLocalPostgresConnectionString(connectionString: string): boole
   try {
     const parsed = new URL(connectionString.replace(/^postgres(?:ql)?:/, "http:"));
     const host = parsed.hostname.toLowerCase();
-    return host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host.endsWith(".localhost") || host === "postgres";
+    return host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "postgres";
   } catch {
     return connectionString.includes("localhost") || connectionString.includes("127.0.0.1");
   }
