@@ -96,7 +96,12 @@ export async function POST(request: Request) {
           if (error instanceof RateLimitError) send({ type: "error", status: 429, message: error.message });
           else if (error instanceof NotFoundError) send({ type: "error", status: 404, message: "Job not found." });
           else {
-            console.error({ event: "plan_agent_failed", name: error instanceof Error ? error.name : "Error" });
+            console.error({
+              event: "plan_agent_failed",
+              contractorId: auth.contractor.id,
+              planId,
+              name: error instanceof Error ? error.name : "Error",
+            });
             send({ type: "error", status: 500, message: "Couldn't send that. Your text is still here." });
           }
         } finally {

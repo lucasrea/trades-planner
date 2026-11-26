@@ -5,7 +5,8 @@
   "expo": {
     "install": {
       "exclude": [
-        "typescript"
+        "typescript",
+        "@sentry/react-native"
       ]
     }
   },
@@ -18,6 +19,7 @@
   },
   "dependencies": {
     "@expo/metro-runtime": "~58.0.15",
+    "@sentry/react-native": "~8.36.0",
     "expo": "~58.0.21",
     "expo-auth-session": "~58.0.15",
     "expo-constants": "~58.0.14",

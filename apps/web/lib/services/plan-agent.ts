@@ -600,6 +600,7 @@ export async function runPlanAgent(
     } catch (caught) {
       console.error({
         event: "plan_loop_failed",
+        contractorId: contractor.id,
         name: caught instanceof Error ? caught.name : "Error",
         kind: loopFailureKind(caught),
       });
@@ -919,7 +920,11 @@ export async function runVoicePlan(
   try {
     transcript = (await input.transcribe()).trim();
   } catch (caught) {
-    console.error({ event: "transcribe_failed", name: caught instanceof Error ? caught.name : "Error" });
+    console.error({
+      event: "transcribe_failed",
+      contractorId: contractor.id,
+      name: caught instanceof Error ? caught.name : "Error",
+    });
   }
   if (!transcript) return failed(db, contractor.id, input.jobId, null, "voice");
   return runPlanAgent(db, contractor, { ...input, text: transcript, captureType: "voice" });
