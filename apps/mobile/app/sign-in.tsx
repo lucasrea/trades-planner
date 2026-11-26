@@ -1,48 +1,47 @@
-import * as Google from "expo-auth-session/providers/google";
-import * as WebBrowser from "expo-web-browser";
-import { useEffect, useState } from "react";
+import * as AppleAuthentication from "expo-apple-authentication";
+import { useEffect, useRef, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
-import { exchangeGoogleIdToken } from "../src/api";
-import { GOOGLE_CLIENT_ID } from "../src/config";
+import { router, useLocalSearchParams } from "expo-router";
+import { exchangeIdToken, type SignInProvider } from "../src/api";
+import { getAppleIdToken } from "../src/apple-sign-in";
+import { getGoogleIdToken, GOOGLE_CONFIGURED, signOutOfGoogle } from "../src/google-sign-in";
 import { setBearer } from "../src/session";
 import { Card, Header, Notice, PrimaryButton, Screen } from "../src/ui";
 import { colors } from "../src/theme";
 
-WebBrowser.maybeCompleteAuthSession();
-
 const SITE = "https://trades-planner-bay.vercel.app";
 
 export default function SignInScreen() {
-  const [error, setError] = useState<string | null>(null);
+  const { reason } = useLocalSearchParams<{ reason?: string }>();
+  const [error, setError] = useState<string | null>(reason === "expired" ? "Your session ended. Log in again." : null);
   const [busy, setBusy] = useState(false);
-  const clientMissing = !GOOGLE_CLIENT_ID;
-
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: GOOGLE_CLIENT_ID,
-  });
+  const [appleAvailable, setAppleAvailable] = useState(false);
+  // Apple's button cannot be disabled, so a ref stops a second sign-in from starting.
+  const busyRef = useRef(false);
 
   useEffect(() => {
-    if (response?.type !== "success") return;
-    const idToken = response.params.id_token;
-    if (!idToken) {
-      setError("Google did not return an ID token.");
-      return;
-    }
+    void AppleAuthentication.isAvailableAsync().then(setAppleAvailable, () => setAppleAvailable(false));
+  }, []);
+
+  async function signIn(provider: SignInProvider, getIdToken: () => Promise<string | null>) {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     setError(null);
-    void (async () => {
-      try {
-        const bearer = await exchangeGoogleIdToken(idToken);
-        await setBearer(bearer);
-        router.replace("/(tabs)");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Sign in failed.");
-      } finally {
-        setBusy(false);
-      }
-    })();
-  }, [response]);
+    try {
+      const idToken = await getIdToken();
+      if (!idToken) return;
+      await setBearer(await exchangeIdToken(provider, idToken));
+      router.replace("/(tabs)");
+    } catch (err) {
+      // So the next try can choose a different Google account.
+      if (provider === "google") await signOutOfGoogle();
+      setError(err instanceof Error ? err.message : "Sign in failed.");
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }
 
   return (
     <Screen contentStyle={styles.centered}>
@@ -50,17 +49,23 @@ export default function SignInScreen() {
         <Header
           eyebrow="Trades Planner"
           title="Log in"
-          subtitle="Use the Google account for this business."
+          subtitle="Use the account with this business's email."
         />
         {error ? <Notice>{error}</Notice> : null}
         <PrimaryButton
-          label={clientMissing ? "Google client id is not set" : busy ? "Signing in…" : "Continue with Google"}
-          disabled={clientMissing || busy || !request}
-          onPress={() => {
-            if (clientMissing) return;
-            void promptAsync();
-          }}
+          label={!GOOGLE_CONFIGURED ? "Google client id is not set" : busy ? "Signing in…" : "Continue with Google"}
+          disabled={!GOOGLE_CONFIGURED || busy}
+          onPress={() => void signIn("google", getGoogleIdToken)}
         />
+        {appleAvailable ? (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+            cornerRadius={12}
+            style={styles.appleButton}
+            onPress={() => void signIn("apple", getAppleIdToken)}
+          />
+        ) : null}
       </Card>
       <View style={styles.footer}>
         <Pressable onPress={() => void Linking.openURL(`${SITE}/terms`)}>
@@ -78,6 +83,7 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   centered: { flexGrow: 1, justifyContent: "center" },
   card: { padding: 20, gap: 16 },
+  appleButton: { alignSelf: "stretch", height: 44 },
   footer: { flexDirection: "row", gap: 10, justifyContent: "center", alignItems: "center" },
   link: { color: colors.muted, fontSize: 13 },
   linkPressed: { color: colors.ink },

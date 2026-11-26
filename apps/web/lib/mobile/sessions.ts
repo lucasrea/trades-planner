@@ -25,6 +25,12 @@ export async function createMobileSession(db: Database, input: { userId: string;
   return { token };
 }
 
+export async function revokeMobileSession(db: Database, bearer: string) {
+  const trimmed = bearer.trim();
+  if (!trimmed) return;
+  await db.delete(mobileSessions).where(eq(mobileSessions.tokenHash, hashMobileBearer(trimmed)));
+}
+
 export async function resolveMobileSession(db: Database, bearer: string) {
   const trimmed = bearer.trim();
   if (!trimmed) return null;
