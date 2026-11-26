@@ -28,7 +28,7 @@ npm run test:integration -w trades-planner-web -- tests/integration/services.tes
 
 CI (`.github/workflows/ci.yml`) runs lint, typecheck, test, integration tests and build, in that order. The mobile app has no tests.
 
-**Integration tests drop the `public` schema** of `DATABASE_URL_TEST`, then apply every file in `supabase/migrations/`. Never point them at a real database. The variable is required (no fallback to `DATABASE_URL`), and its host must be local (`localhost`, `127.0.0.1`, `::1`, `*.localhost`) unless `CI=true`; use `localhost` or `127.0.0.1`, because the driver cannot connect to `[::1]`. A local host is not proof the database is disposable, so run a throwaway one on its own port:
+**Integration tests drop the `public` schema** of `DATABASE_URL_TEST`, then apply every file in `supabase/migrations/`. Never point them at a real database. The variable is required (no fallback to `DATABASE_URL`), and its host must be local (`localhost`, `127.0.0.1`, `::1`, `*.localhost`) unless `CI=true`; use `localhost` or `127.0.0.1`, because the driver cannot connect to `[::1]`. Outside CI the port must not be 5432 (or left unset), where a real local Postgres usually runs. A local host is still not proof the database is disposable, so run a throwaway one on its own port:
 
 ```bash
 docker run --rm -d -p 54329:5432 -e POSTGRES_USER=ci -e POSTGRES_PASSWORD=ci -e POSTGRES_DB=ci postgres:16

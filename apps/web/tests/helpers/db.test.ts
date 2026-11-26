@@ -14,11 +14,11 @@ describe("getTestDatabaseUrl", () => {
   });
 
   it.each([
-    "postgres://ci:ci@localhost:5432/ci",
-    "postgresql://ci:ci@LOCALHOST/ci",
+    "postgres://ci:ci@localhost:54329/ci",
+    "postgresql://ci:ci@LOCALHOST:54329/ci",
     "postgres://ci:ci@127.0.0.1:54329/ci",
-    "postgres://ci:ci@[::1]:5432/ci",
-    "postgres://ci:ci@db.localhost:5432/ci",
+    "postgres://ci:ci@[::1]:54329/ci",
+    "postgres://ci:ci@db.localhost:54329/ci",
   ])("accepts the local database %s", (url) => {
     expect(getTestDatabaseUrl({ DATABASE_URL_TEST: url })).toBe(url);
   });
@@ -42,6 +42,14 @@ describe("getTestDatabaseUrl", () => {
   ])("refuses %s outside CI", (url) => {
     expect(() => getTestDatabaseUrl({ DATABASE_URL_TEST: url })).toThrow("Refusing to run");
   });
+
+  it.each(["postgres://ci:ci@127.0.0.1:5432/ci", "postgres://ci:ci@localhost/ci"])(
+    "refuses the default port %s outside CI, where a real local Postgres usually runs",
+    (url) => {
+      expect(() => getTestDatabaseUrl({ DATABASE_URL_TEST: url })).toThrow("uses port 5432");
+      expect(getTestDatabaseUrl({ DATABASE_URL_TEST: url, CI: "true" })).toBe(url);
+    },
+  );
 
   it("does not echo the URL or its password", () => {
     expect(() => getTestDatabaseUrl({ DATABASE_URL_TEST: remote })).toThrow(

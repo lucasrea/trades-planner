@@ -24,6 +24,11 @@ function isLocalTestDatabaseUrl(url: string) {
   }
 }
 
+function usesDefaultPort(url: string) {
+  const { port } = new URL(url);
+  return port === "" || port === "5432";
+}
+
 /**
  * The only database integration tests and the Plan eval may use. They drop its public schema, so there is
  * no fallback to DATABASE_URL, and outside CI the host must be this machine. Errors never echo the URL,
@@ -39,6 +44,13 @@ export function getTestDatabaseUrl(env: Record<string, string | undefined> = pro
   if (env.CI !== "true" && !isLocalTestDatabaseUrl(url)) {
     throw new Error(
       "Refusing to run: DATABASE_URL_TEST is not a local database, and these tests drop the public schema. Use a postgres:// URL with host localhost or 127.0.0.1. Other hosts are allowed only in CI (CI=true).",
+    );
+  }
+  // A local Postgres on the default port is usually a real one (on the owner's Mac it is), so outside CI the
+  // throwaway must run on another port, such as 54329.
+  if (env.CI !== "true" && usesDefaultPort(url)) {
+    throw new Error(
+      "Refusing to run: DATABASE_URL_TEST uses port 5432, where a real local Postgres usually runs, and these tests drop the public schema. Start a throwaway database on another port, such as 54329 (see CLAUDE.md).",
     );
   }
   return url;
