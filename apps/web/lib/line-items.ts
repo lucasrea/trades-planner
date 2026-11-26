@@ -138,6 +138,28 @@ export function receiptToDraft(extraction: ReceiptExtractionInput, options: { ma
   }));
 }
 
+/**
+ * The receipt review screen's starting rows. A line keeps its job only while that job can still be picked.
+ */
+export function receiptReviewLines(
+  extraction: (ReceiptExtractionInput & { lines: Array<{ jobId?: string | null }> }) | null,
+  options: { markupPct: number; captureJobId: string | null; openJobIds: ReadonlySet<string> },
+) {
+  if (!extraction) return [];
+  return receiptToDraft(extraction, { markupPct: options.markupPct }).map((line, index) => {
+    const source = extraction.lines[index]!;
+    const jobId = source.jobId ?? options.captureJobId;
+    return {
+      description: line.description,
+      quantity: line.quantity,
+      cost: line.unitCost ?? 0,
+      price: line.unitPrice ?? 0,
+      printedLineTotal: source.line_total,
+      jobId: jobId && options.openJobIds.has(jobId) ? jobId : null,
+    };
+  });
+}
+
 const NAME_STOPWORDS = new Set(["mr", "mrs", "ms", "miss", "dr"]);
 
 function normalizeName(value: string) {

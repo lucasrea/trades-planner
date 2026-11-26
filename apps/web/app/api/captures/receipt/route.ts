@@ -7,8 +7,7 @@ import { assertCaptureEnabled } from "@/lib/captures/enabled";
 import { assertSameOrigin } from "@/lib/http/assert-same-origin";
 import { jsonError } from "@/lib/http/json-error";
 import { NotFoundError, RateLimitError } from "@/lib/services/context";
-import { assertPlanTarget, recordPlanTurn } from "@/lib/services/plans";
-import { receiptMessageBody, receiptReplyBody } from "@/lib/plans";
+import { assertPlanTarget, recordReceiptTurn } from "@/lib/services/plans";
 import { createReceiptCapture } from "@/lib/services/receipt-capture";
 import { getReceiptStorage, StorageError } from "@/lib/storage/receipts";
 
@@ -68,27 +67,7 @@ export async function POST(request: Request) {
       note: note || undefined,
       storage: getReceiptStorage(),
     });
-    // The plan keeps a one-line note. The photo stays on the capture.
-    let savedPlanId: string | null = null;
-    if (planId) {
-      try {
-        savedPlanId = await recordPlanTurn(ctx, {
-          planId,
-          userBody: receiptMessageBody(note),
-          replyBody: receiptReplyBody(result.status),
-          jobId,
-          captureId: result.captureId,
-        });
-      } catch (error) {
-        console.error({
-          event: "plan_turn_failed",
-          captureId: result.captureId,
-          contractorId: contractor.id,
-          planId,
-          name: error instanceof Error ? error.name : "Error",
-        });
-      }
-    }
+    const savedPlanId = await recordReceiptTurn(ctx, { planId, note, jobId, result });
     return Response.json({ ...result, planId: savedPlanId });
   } catch (error) {
     if (error instanceof RateLimitError) return jsonError("rate_limited", error.message, 429);

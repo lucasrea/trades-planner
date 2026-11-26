@@ -1,6 +1,8 @@
+import { documentActions, type DocStatus, type DocType } from "@/lib/documents";
 import { jsonError } from "@/lib/http/json-error";
 import { contractorFromBearer } from "@/lib/mobile/bearer-auth";
-import { getDocumentForContractor } from "@/lib/queries-v2";
+import { getDocumentForContractor, getJobDocumentsForContractor } from "@/lib/queries-v2";
+import { getActiveLinkToken, isShareableStatus } from "@/lib/services/document-links";
 
 export const runtime = "nodejs";
 
@@ -11,6 +13,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const document = await getDocumentForContractor(auth.db, auth.contractorId, id);
   if (!document) return jsonError("not_found", "Document not found.", 404);
+
+  const ctx = { db: auth.db, contractorId: auth.contractorId };
+  const [shareToken, jobDocuments] = await Promise.all([
+    getActiveLinkToken(ctx, document.id),
+    document.type === "quote" && document.status === "approved"
+      ? getJobDocumentsForContractor(auth.db, auth.contractorId, document.jobId)
+      : Promise.resolve([]),
+  ]);
 
   return Response.json({
     document: {
@@ -36,6 +46,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         unitPrice: line.unitPrice,
         lineTotal: line.lineTotal,
       })),
+      actions: documentActions({ type: document.type as DocType, status: document.status as DocStatus }),
+      canShare: isShareableStatus(document.status) || shareToken !== null,
+      invoiceId: jobDocuments.find((row) => row.sourceQuoteId === document.id)?.id ?? null,
     },
   });
 }

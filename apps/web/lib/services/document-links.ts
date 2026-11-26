@@ -18,6 +18,10 @@ export const SHARE_ATTEMPT_LIMIT_MESSAGE =
 /** Only drafts and sent documents can get a new link. */
 const SHAREABLE_STATUSES: readonly string[] = ["draft", "sent"];
 
+export function isShareableStatus(status: string) {
+  return SHAREABLE_STATUSES.includes(status);
+}
+
 // ---- Signed-in side: scoped by contractor_id ----
 
 export async function getActiveLinkToken(ctx: ServiceContext, documentId: string) {
@@ -56,7 +60,7 @@ export async function createDocumentLink(ctx: ServiceContext, documentId: string
       )
       .limit(1);
     if (existing) return existing.token;
-    if (!SHAREABLE_STATUSES.includes(doc.status)) throw new ConflictError("Document is locked.");
+    if (!isShareableStatus(doc.status)) throw new ConflictError("Document is locked.");
     const token = newToken();
     await tx.insert(documentLinks).values({
       id: newId(),

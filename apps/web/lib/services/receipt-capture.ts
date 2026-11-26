@@ -1,14 +1,17 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { runReceiptExtraction } from "@/lib/ai/extract-receipt";
-import type { ReceiptExtraction } from "@/lib/ai/extraction-types";
+import { parseReceiptExtraction, type ReceiptExtraction } from "@/lib/ai/extraction-types";
 import type { ReceiptImageMime } from "@/lib/captures/image";
 import type { Database } from "@/lib/db";
-import { captures, jobs } from "@/lib/db/schema";
+import { captures, clients, contractors, jobs } from "@/lib/db/schema";
 import { newId } from "@/lib/id";
-import { matchJobInText } from "@/lib/line-items";
+import { matchJobInText, receiptReviewLines } from "@/lib/line-items";
+import { getJobsForContractor } from "@/lib/queries-v2";
 import { assertCaptureRateLimit } from "@/lib/services/capture-rate-limit";
+import { NotFoundError, type ServiceContext } from "@/lib/services/context";
 import { requireJob } from "@/lib/services/internal";
-import { receiptImagePath, type ReceiptStorage } from "@/lib/storage/receipts";
+import { isActiveJobStatus } from "@/lib/status";
+import { receiptImagePath, signedReceiptUrl, type ReceiptStorage } from "@/lib/storage/receipts";
 
 export const RECEIPT_FAILED_MESSAGE = "We couldn't read that receipt. Try a clearer photo, or add the lines by hand on the job.";
 
@@ -17,6 +20,48 @@ export type ReceiptCaptureResult = {
   status: "needs_review" | "failed";
   reviewUrl: string;
 };
+
+/** Everything the phone's receipt screen shows, scoped by contractor_id. The web page reads the same pieces. */
+export async function getReceiptReview(ctx: ServiceContext, captureId: string) {
+  const [capture] = await ctx.db
+    .select()
+    .from(captures)
+    .where(and(eq(captures.id, captureId), eq(captures.contractorId, ctx.contractorId), eq(captures.type, "receipt")))
+    .limit(1);
+  if (!capture) throw new NotFoundError("Capture not found.");
+  const [contractor] = await ctx.db
+    .select({ markupPct: contractors.defaultMarkupPct })
+    .from(contractors)
+    .where(eq(contractors.id, ctx.contractorId))
+    .limit(1);
+  if (!contractor) throw new NotFoundError("Contractor not found.");
+  const [jobRows, clientRows] = await Promise.all([
+    getJobsForContractor(ctx.db, ctx.contractorId),
+    ctx.db
+      .select({ id: clients.id, name: clients.name })
+      .from(clients)
+      .where(eq(clients.contractorId, ctx.contractorId))
+      .orderBy(asc(clients.name)),
+  ]);
+  const openJobs = jobRows.filter((job) => isActiveJobStatus(job.status) || job.id === capture.jobId);
+  const extraction = parseReceiptExtraction(capture.extraction);
+  return {
+    status: capture.status,
+    error: capture.error,
+    imageUrl: await signedReceiptUrl(ctx.contractorId, capture.imagePath),
+    vendor: extraction?.vendor ?? null,
+    purchasedAt: extraction?.purchased_at ?? null,
+    note: capture.transcript,
+    markupPct: contractor.markupPct,
+    lines: receiptReviewLines(extraction, {
+      markupPct: contractor.markupPct,
+      captureJobId: capture.jobId,
+      openJobIds: new Set(openJobs.map((job) => job.id)),
+    }),
+    jobs: openJobs.map((job) => ({ id: job.id, title: job.title })),
+    clients: clientRows,
+  };
+}
 
 export async function createReceiptCapture(
   db: Database,

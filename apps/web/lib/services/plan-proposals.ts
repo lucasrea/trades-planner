@@ -206,10 +206,12 @@ export async function updatePlanProposalLines(
       accepted: true,
     };
   });
+  const next = { ...proposal, lines: nextLines };
   const [updated] = await ctx.db
     .update(captures)
-    .set({ extraction: { ...proposal, lines: nextLines } })
+    .set({ extraction: next })
     .where(and(eq(captures.id, captureId), eq(captures.contractorId, ctx.contractorId), eq(captures.status, "needs_review")))
     .returning({ id: captures.id });
   if (!updated) throw new ConflictError("This message was already confirmed or cancelled.");
+  return { proposal: next, transcript: capture.transcript };
 }

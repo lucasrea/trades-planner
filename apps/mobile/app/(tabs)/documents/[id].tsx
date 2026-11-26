@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { fetchDocument, type DocumentDetail } from "../../../src/api";
 import { getBearer } from "../../../src/session";
+import { DocumentActions } from "../../../src/document-actions";
 import { formatCad } from "../../../src/money";
 import { DocumentDetailSkeleton } from "../../../src/skeletons";
 import { Card, Notice, StatusPill } from "../../../src/ui";
@@ -13,6 +14,17 @@ export default function DocumentDetailScreen() {
   const documentId = typeof id === "string" ? id : "";
   const [document, setDocument] = useState<DocumentDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    const bearer = await getBearer();
+    if (!bearer) return;
+    try {
+      setDocument(await fetchDocument(bearer, documentId));
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load document.");
+    }
+  }, [documentId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -95,6 +107,7 @@ export default function DocumentDetailScreen() {
           <Text style={styles.totalValue}>{formatCad(document.total)}</Text>
         </View>
       </Card>
+      <DocumentActions key={document.id} document={document} onChanged={reload} />
     </ScrollView>
   );
 }

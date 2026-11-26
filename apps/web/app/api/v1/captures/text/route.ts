@@ -3,7 +3,13 @@ import { assertCaptureEnabled } from "@/lib/captures/enabled";
 import { jsonError } from "@/lib/http/json-error";
 import { contractorFromBearer } from "@/lib/mobile/bearer-auth";
 import { NotFoundError, RateLimitError } from "@/lib/services/context";
-import { assertPlanTarget, listRecentPlanHistory, planTurnResponse, recordAgentTurn } from "@/lib/services/plans";
+import {
+  assertPlanTarget,
+  listRecentPlanHistory,
+  planCards,
+  planTurnResponse,
+  recordAgentTurn,
+} from "@/lib/services/plans";
 import { runPlanAgent } from "@/lib/services/plan-agent";
 
 export const runtime = "nodejs";
@@ -56,10 +62,7 @@ export async function POST(request: Request) {
       jobId: parsed.data.jobId,
     });
     const turn = planTurnResponse(result, savedPlanId);
-    const cards = result.parts.flatMap((part) =>
-      part.kind === "card" ? [{ captureId: part.captureId, title: part.body, preview: part.preview }] : [],
-    );
-    return Response.json({ ...turn, cards });
+    return Response.json({ ...turn, cards: planCards(result) });
   } catch (error) {
     if (error instanceof RateLimitError) return jsonError("rate_limited", error.message, 429);
     if (error instanceof NotFoundError) return jsonError("not_found", "Job not found.", 404);
