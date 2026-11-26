@@ -1,7 +1,10 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Platform, View } from "react-native";
+import { initCrashReporting } from "../src/crash-reporting";
 import { colors } from "../src/theme";
+
+initCrashReporting();
 
 export default function RootLayout() {
   return (

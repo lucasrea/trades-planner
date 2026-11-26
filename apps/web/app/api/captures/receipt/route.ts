@@ -79,11 +79,13 @@ export async function POST(request: Request) {
           jobId,
           captureId: result.captureId,
         });
-      } catch {
+      } catch (error) {
         console.error({
           event: "plan_turn_failed",
           captureId: result.captureId,
           contractorId: contractor.id,
+          planId,
+          name: error instanceof Error ? error.name : "Error",
         });
       }
     }
